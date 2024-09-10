@@ -2,7 +2,7 @@
   "name": "pinyinbatchrenamer",
   "module": "src/index.ts",
   "type": "module",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "A batch renamer for pinyin files",
   "scripts": {
     "start": "bun src/index.ts",
