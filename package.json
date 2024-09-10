@@ -7,8 +7,8 @@
   "scripts": {
     "start": "bun src/index.ts",
     "dev": "bun --hot src/index.ts ",
-    "build-mac": "bun build ./src/index.ts --compile --outfile ./dist/PinyinBatchRenamer --target bun-darwin-arm64-modern",
-    "build-win": "bun build ./src/index.ts --compile --outfile ./dist/PinyinBatchRenamer.exe --target bun-win-x64-modern"
+    "build-mac": "bun build ./src/index.ts --compile --outfile ./dist/PinyinBatchRenamer-mac-arm64-modern --target bun-darwin-arm64-modern",
+    "build-win": "bun build ./src/index.ts --compile --outfile ./dist/PinyinBatchRenamer-win-x64-modern.exe --target bun-win-x64-modern"
   },
   "devDependencies": {
     "@types/bun": "latest",
