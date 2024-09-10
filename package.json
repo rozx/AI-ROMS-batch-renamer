@@ -1,0 +1,25 @@
+{
+  "name": "pinyinbatchrenamer",
+  "module": "src/index.ts",
+  "type": "module",
+  "version": "1.0.1",
+  "description": "A batch renamer for pinyin files",
+  "scripts": {
+    "start": "bun src/index.ts",
+    "dev": "bun --hot src/index.ts ",
+    "build-mac": "bun build ./src/index.ts --compile --outfile ./dist/PinyinBatchRenamer --target bun-darwin-arm64-modern",
+    "build-win": "bun build ./src/index.ts --compile --outfile ./dist/PinyinBatchRenamer.exe --target bun-win-x64-modern"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/commander": "^2.12.2",
+    "@types/pinyin": "^2.10.2"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "pinyin": "^4.0.0-alpha.2"
+  }
+}
