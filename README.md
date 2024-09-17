@@ -1,18 +1,16 @@
 # Rom-batch-renamer
 
 A command line tool for batch renaming ROM files.
+一个批量重命名ROM文件的命令行工具. (Batch rename Rom files)
 
 ## Usage
 
-一个批量重命名ROM文件的命令行工具. (Batch rename Rom files)
 
 ### Example
 
-冰河世纪 (繁) (新特奇).zip -> B 冰河世纪 - 繁.zip
-
-Colin McRae - DiRT 2 (USA) (PSP) (PSN).iso -> C Colin McRae - DiRT 2 - US.iso
-
-1941 - GT赛车 [繁] [官方中文版] [SONY].iso -> G GT赛车 - 繁.iso
+-冰河世纪 (繁) (新特奇).zip -> B 冰河世纪 - 繁.zip
+-Colin McRae - DiRT 2 (USA) (PSP) (PSN).iso -> C Colin McRae - DiRT 2 - US.iso
+-1941 - GT赛车 [繁] [官方中文版] [SONY].iso -> G GT赛车 - 繁.iso
 
 ```
 Options:
