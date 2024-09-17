@@ -8,12 +8,13 @@ import {
 	trimFileName,
 	isSystemOrHiddenFile,
 	fileNameDuplicateRegEx,
-} from "./renamer";
+	getRegionInfo,
+} from "./utils";
 
 program
-	.name("pinyin-batch-renamer")
+	.name("rom-batch-renamer")
 	.description(
-		"批量重命名文件为拼音首字母+原文件名 (Batch rename files to pinyin initials)"
+		"批量重命名Rom文件为拼音首字母+原文件名 (Batch rename files to pinyin initials)"
 	)
 	.version(version);
 
@@ -107,20 +108,25 @@ program
 					return;
 				}
 
+				// grab the region info
+				const regionInfo = getRegionInfo(newFileName);
+
 				// Check if the file name needs to be trimmed
 				if (options.trim) {
 					newFileName = trimFileName(newFileName);
 					newFilePath = path.join(dir, newFileName);
 				}
 
-				const pinyinInitials = pinyin(file, {
+				const pinyinInitials = pinyin(newFileName, {
 					style: pinyin.STYLE_FIRST_LETTER,
 					heteronym: false,
 				})[0][0]
 					.substring(0, 1)
 					.toUpperCase();
 
-				newFileName = `${pinyinInitials} ${newFileName}`;
+				newFileName = regionInfo
+					? `${pinyinInitials} ${newFileName} - ${regionInfo}${extName}`
+					: `${pinyinInitials} ${newFileName}${extName}`;
 				newFilePath = path.join(dir, newFileName);
 
 				// check if the file name already exists

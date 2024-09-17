@@ -1,9 +1,9 @@
 {
-  "name": "pinyinbatchrenamer",
+  "name": "rom-batch-renamer",
   "module": "src/index.ts",
   "type": "module",
-  "version": "1.0.2",
-  "description": "A batch renamer for pinyin files",
+  "version": "1.1.0",
+  "description": "A command line batch renamer for rom files",
   "scripts": {
     "start": "bun src/index.ts",
     "dev": "bun --hot src/index.ts ",
