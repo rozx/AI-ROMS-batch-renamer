@@ -117,6 +117,14 @@ program
 					newFilePath = path.join(dir, newFileName);
 				}
 
+				// get basename
+				let baseName = path.basename(newFileName, extName);
+
+				// adds region info to the file name
+				newFileName = regionInfo
+					? `${baseName} - ${regionInfo}${extName}`
+					: newFileName;
+
 				const pinyinInitials = pinyin(newFileName, {
 					style: pinyin.STYLE_FIRST_LETTER,
 					heteronym: false,
@@ -124,15 +132,13 @@ program
 					.substring(0, 1)
 					.toUpperCase();
 
-				newFileName = regionInfo
-					? `${pinyinInitials} ${newFileName} - ${regionInfo}${extName}`
-					: `${pinyinInitials} ${newFileName}${extName}`;
+				newFileName = `${pinyinInitials} ${newFileName}`;
 				newFilePath = path.join(dir, newFileName);
 
 				// check if the file name already exists
 
 				let index = 0;
-				const baseName = path.basename(newFileName);
+				baseName = path.basename(newFileName, extName);
 
 				while (existsSync(newFilePath) || targetPaths.includes(newFilePath)) {
 					index++;
