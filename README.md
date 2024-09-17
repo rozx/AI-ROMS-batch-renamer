@@ -46,7 +46,7 @@ Options:
 ### Example
 `pinyin-batch-renamer rename -t D:/Downloads/`
 
-冰河世纪 (繁) (新特奇).zip -> B 冰河世纪.zip
+冰河世纪 (繁) (新特奇).zip -> B 冰河世纪 - 繁.zip
 
 ## Revert
 
