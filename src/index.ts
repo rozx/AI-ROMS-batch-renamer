@@ -125,6 +125,8 @@ program
 					? `${baseName} - ${regionInfo}${extName}`
 					: newFileName;
 
+				// adds pinyin initials to the file name
+
 				const pinyinInitials = pinyin(newFileName, {
 					style: pinyin.STYLE_FIRST_LETTER,
 					heteronym: false,

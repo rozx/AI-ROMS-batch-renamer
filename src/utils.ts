@@ -7,7 +7,9 @@ export const fileNameDuplicateRegEx = /-\s*\(\d\)(|.\w{1,})$/g;
 export const indexMatchRegEx = /^\d+\s?-\s?/g;
 
 export const regionMatchRegEx =
-	/((?<=[\(\[])(繁|繁体|繁體|繁中|简|简体|简體|简中|中文|SC|TC|USA|US|EU|Europe|JP|Japan|World)(?=[\)\]]))/g;
+	/((?<=[\(\[])(繁|繁体|繁體|繁中|简|简体|简體|简中|中文|(SC|sc)|(TC|tc)|(USA|usa)|(US|us)|(EU|eu)|Europe|(JP|jp)|Japan|World|(WW|ww))(?=[\)\]]))/g;
+
+export const hackMatchRegEx = /(\(|\[)([Hh]ack|H)[\)|\]]/g;
 
 // Methods
 
@@ -23,27 +25,27 @@ export const regionMatch = (_key: string) => {
 	const items = [
 		{
 			item: "US",
-			keys: ["USA", "US"],
+			keys: ["USA", "US", "us", "usa"],
 		},
 		{
 			item: "JP",
-			keys: ["Japan", "JP"],
+			keys: ["Japan", "JP", "jp"],
 		},
 		{
 			item: "EU",
-			keys: ["Europe", "EU"],
+			keys: ["Europe", "EU", "eu"],
 		},
 		{
 			item: "繁",
-			keys: ["繁", "繁体", "繁體", "繁中", "TC"],
+			keys: ["繁", "繁体", "繁體", "繁中", "TC", "tc"],
 		},
 		{
 			item: "简",
-			keys: ["简", "简体", "简體", "简中", "中文", "SC"],
+			keys: ["简", "简体", "简體", "简中", "中文", "SC", "sc"],
 		},
 		{
 			item: "WW",
-			keys: ["World", "WW"],
+			keys: ["World", "WW", "ww"],
 		},
 	];
 
@@ -69,6 +71,9 @@ export const trimFileName = (fileName: string) => {
 	// removes index from the file name
 	fileName = fileName.replaceAll(indexMatchRegEx, "");
 
+	// check if rom is hacked version
+	const hackMatch = fileName.match(hackMatchRegEx);
+
 	// remove all brackets and their contents
 	fileName = fileName.replaceAll(/(\(.+\)|\[.+\]|\{.+\})/g, "");
 
@@ -77,7 +82,15 @@ export const trimFileName = (fileName: string) => {
 
 	// remove leading and trailing spaces
 	const extName = path.extname(fileName);
-	fileName = fileName.substring(0, fileName.indexOf(extName)).trim() + extName;
+
+	const baseName = fileName.substring(0, fileName.indexOf(extName)).trim();
+
+	// adds hack to the file name
+	if (hackMatch) {
+		fileName = `${baseName} (Hack)`;
+	}
+
+	fileName = fileName + extName;
 
 	return fileName;
 };
