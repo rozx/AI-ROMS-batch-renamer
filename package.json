@@ -9,7 +9,8 @@
     "dev": "bun --hot src/index.ts ",
     "build-mac": "bun build ./src/index.ts --compile --minify --outfile ./dist/RomBatchRenamer-Mac-Arm64-Modern --target bun-darwin-arm64-modern",
     "build-win": "bun build ./src/index.ts --compile --minify --outfile ./dist/RomBatchRenamer-Win-X64-Modern --target bun-win-x64-modern",
-    "build-linux": "bun build ./src/index.ts --compile --minify --outfile ./dist/RomBatchRenamer-Linux-X64-Modern --target bun-linux-x64"
+    "build-linux": "bun build ./src/index.ts --compile --minify --outfile ./dist/RomBatchRenamer-Linux-X64-Modern --target bun-linux-x64",
+    "build-all": "bun build-mac && bun build-win && bun build-linux"
   },
   "devDependencies": {
     "@types/bun": "latest",
