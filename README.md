@@ -35,13 +35,15 @@ Arguments:
     dir                      文件夹路径 (Directory path)
 
 Options:
-    -d, --dry-run            仅显示重命名后的文件名，不实际重命名 (Display the renamed file names without actually renaming them)
-    -n, --name-only          仅显示重命名后的文件名，不输出其他信息 (Display the renamed file names only, without other information)
-    -r, --recursive          递归重命名文件夹中的所有文件 (Recursively rename all files in the directory)
-    -t, --trim               去除编号、文件名中的空格与括号中的信息，但保留Rom版本信息 (Removes index, spaces and content in brackets, but keeps the region information)
-    -f, --force              强制重命名文件，即使文件名已经被命名过了 (Force rename files even if the file name already being renamed)
-    -fl, --files <files...>  只重命名文件，不重命名文件夹,以空格分隔 (Only rename files, not folders, separated by spaces)
-    -h, --help               display help for command
+  -d, --dry-run                       仅显示重命名后的文件名，不实际重命名 (Display the renamed file names without actually renaming them)
+  -n, --name-only                     仅显示重命名后的文件名，不输出其他信息 (Display the renamed file names only, without other information)
+  -r, --recursive                     递归重命名文件夹中的所有文件 (Recursively rename all files in the directory)
+  -t, --trim                          去除文件名中的空格与括号中的信息 (Remove spaces and content in brackets in file names)
+  -f, --force                         强制重命名文件，即使文件名已经被命名过了 (Force rename files even if the file name already being renamed)
+  -fl, --files <files...>             只重命名文件，不重命名文件夹,以空格分隔 (Only rename files, not folders, separated by spaces)
+  -e, --excludes <extension name...>  排除特定的文件后缀名，以空格分隔 (Filer out certain files by extensions, separated by spaces)
+  -i, --includes <extension name...>  只重命名特定的文件后缀名，以空格分隔 (Only rename certain files by extensions, separated by spaces)
+  -h, --help                          display help for command
 ```
 
 ### Example
