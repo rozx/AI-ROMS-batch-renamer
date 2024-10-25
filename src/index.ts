@@ -48,6 +48,14 @@ program
 		"-fl, --files <files...>",
 		"只重命名文件，不重命名文件夹,以空格分隔 (Only rename files, not folders, separated by spaces)"
 	)
+	.option(
+		"-e, --excludes <extension name...>",
+		"排除特定的文件后缀名，以空格分隔 (Filer out certain files by extensions, separated by spaces)"
+	)
+	.option(
+		"-i, --includes <extension name...>",
+		"只重命名特定的文件后缀名，以空格分隔 (Only rename certain files by extensions, separated by spaces)"
+	)
 	.action((dir, options) => {
 		let filesList: string[] = [];
 		const targetPaths: string[] = [];
@@ -65,6 +73,22 @@ program
 
 			readdirSync(dir).forEach((file: string) => {
 				filesList.push(path.join(dir, file));
+			});
+		}
+
+		if (options.excludes) {
+			const excludes: string[] = options.excludes;
+			filesList = filesList.filter((file) => {
+				const extName = path.extname(file);
+				return !excludes.includes(extName);
+			});
+		}
+
+		if (options.includes) {
+			const includes: string[] = options.includes;
+			filesList = filesList.filter((file) => {
+				const extName = path.extname(file);
+				return includes.includes(extName);
 			});
 		}
 
@@ -93,6 +117,8 @@ program
 					...(options.trim ? ["-t"] : []),
 					...(options.nameOnly ? ["-n"] : []),
 					...(options.force ? ["-f"] : []),
+					...(options.excludes ? ["-e"] : []),
+					...(options.includes ? ["-i"] : []),
 				]);
 			} else if (stats.isFile()) {
 				// check if the file is already being renamed

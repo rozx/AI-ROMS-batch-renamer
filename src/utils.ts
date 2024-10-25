@@ -1,3 +1,4 @@
+import { file } from "bun";
 import path from "path";
 
 // Reg Ex
@@ -88,9 +89,13 @@ export const trimFileName = (fileName: string) => {
 	// adds hack to the file name
 	if (hackMatch) {
 		fileName = `${baseName} (Hack)`;
+	} else {
+		fileName = baseName;
 	}
 
 	fileName = fileName + extName;
+
+	console.log(fileName);
 
 	return fileName;
 };
