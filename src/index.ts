@@ -9,7 +9,6 @@ import {
 	isSystemOrHiddenFile,
 	fileNameDuplicateRegEx,
 	getRegionInfo,
-	ignoredUnzipExt,
 	unzipAndRenameFile,
 	renameFile,
 } from "./utils";

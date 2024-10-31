@@ -1,7 +1,7 @@
 import { file } from "bun";
 import { writeFile } from "fs/promises";
 import { rename } from "fs/promises";
-import path, { basename, extname, dirname } from "path";
+import { basename, extname, dirname, resolve } from "path";
 import unzipper from "unzipper";
 
 // Reg Ex
@@ -99,7 +99,7 @@ export const trimFileName = (fileName: string) => {
 	// remove extra spaces
 	fileName = fileName.replaceAll(/\s{2,}/g, " ");
 
-	const extName = path.extname(fileName);
+	const extName = extname(fileName);
 
 	// remove leading and trailing spaces
 	const baseName = fileName.substring(0, fileName.indexOf(extName)).trim();
@@ -138,7 +138,7 @@ export const unzipAndRenameFile = async (
 	nameOnly?: boolean
 ) => {
 	// check if the file is a zip file
-	const extName = path.extname(filePath);
+	const extName = extname(filePath);
 	const unzippedFiles: string[] = [];
 
 	if (extName !== ".zip") {
@@ -149,7 +149,7 @@ export const unzipAndRenameFile = async (
 
 	for (const file of zip.files) {
 		// skip if the file should be ignored
-		if (ignoredUnzipExt.includes(path.extname(file.path))) continue;
+		if (ignoredUnzipExt.includes(extname(file.path))) continue;
 
 		const targetUnzipFilename = `${basename(targetFilename, extName)}${extname(
 			file.path
@@ -176,7 +176,7 @@ export const unzipAndRenameFile = async (
 
 		// write the file
 		await writeFile(
-			path.resolve(dirname(filePath), targetUnzipFilename),
+			resolve(dirname(filePath), targetUnzipFilename),
 			new Uint8Array(extracted)
 		);
 	}
