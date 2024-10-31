@@ -2,14 +2,18 @@ import pinyin from "pinyin";
 import { program } from "commander";
 import { version } from "../package.json";
 import { readdirSync, statSync, renameSync, existsSync } from "fs";
-import path, { extname } from "path";
+import path from "path";
 import {
 	isFileIsBeingRenamed,
 	trimFileName,
 	isSystemOrHiddenFile,
 	fileNameDuplicateRegEx,
 	getRegionInfo,
+	ignoredUnzipExt,
+	unzipAndRenameFile,
+	renameFile,
 } from "./utils";
+import { unlink } from "fs/promises";
 
 program
 	.name("rom-batch-renamer")
@@ -56,7 +60,11 @@ program
 		"-i, --includes <extension name...>",
 		"只重命名特定的文件后缀名，以空格分隔 (Only rename certain files by extensions, separated by spaces)"
 	)
-	.action((dir, options) => {
+	.option(
+		"-u, --unzip [password]",
+		"解压并重命名zip文件 (Unzip and rename zip files)"
+	)
+	.action(async (dir, options) => {
 		let filesList: string[] = [];
 		const targetPaths: string[] = [];
 
@@ -92,7 +100,7 @@ program
 			});
 		}
 
-		filesList.forEach((filePath: string) => {
+		filesList.forEach(async (filePath: string) => {
 			const dir = path.dirname(filePath);
 			let file = path.basename(filePath);
 
@@ -119,6 +127,7 @@ program
 					...(options.force ? ["-f"] : []),
 					...(options.excludes ? ["-e"] : []),
 					...(options.includes ? ["-i"] : []),
+					...(options.includes ? ["-u"] : []),
 				]);
 			} else if (stats.isFile()) {
 				// check if the file is already being renamed
@@ -183,21 +192,43 @@ program
 					newFilePath = path.join(dir, newFileName);
 				}
 
-				if (options.dryRun) {
-					if (options.nameOnly) {
-						console.log(newFileName);
-					} else {
-						console.log(`Rename Preview: ${filePath} -> ${newFileName}`);
-					}
-				} else {
-					renameSync(filePath, newFilePath);
+				if (extName === ".zip") {
+					if (options.unzip) {
+						try {
+							// unzip and rename the file
+							const unzippedFiles = await unzipAndRenameFile(
+								filePath,
+								newFilePath,
+								options.unzip,
+								Boolean(options.dryRun),
+								Boolean(options.nameOnly)
+							);
 
-					if (options.nameOnly) {
-						console.log(newFileName);
-					} else {
-						console.log(`Renamed: ${filePath} -> ${newFileName}`);
+							// finally delete the zip file
+
+							if (!options.dryRun) await unlink(filePath);
+
+							if (unzippedFiles) {
+								targetPaths.push(...unzippedFiles);
+							}
+						} catch (error: any) {
+							console.log(
+								`Error when unzipping file (${filePath}): ${error.message}`
+							);
+							return;
+						}
+
+						return;
 					}
 				}
+
+				// rename the file
+				await renameFile(
+					filePath,
+					newFilePath,
+					Boolean(options.dryRun),
+					Boolean(options.nameOnly)
+				);
 
 				targetPaths.push(newFilePath);
 			}
