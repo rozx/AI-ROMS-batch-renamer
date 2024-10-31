@@ -59,10 +59,7 @@ program
 		"-i, --includes <extension name...>",
 		"只重命名特定的文件后缀名，以空格分隔 (Only rename certain files by extensions, separated by spaces)"
 	)
-	.option(
-		"-u, --unzip [password]",
-		"解压并重命名zip文件 (Unzip and rename zip files)"
-	)
+	.option("-u, --unzip", "解压并重命名zip文件 (Unzip and rename zip files)")
 	.action(async (dir, options) => {
 		let filesList: string[] = [];
 		const targetPaths: string[] = [];

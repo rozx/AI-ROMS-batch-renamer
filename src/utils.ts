@@ -1,8 +1,10 @@
 import { file } from "bun";
+import { createWriteStream } from "fs";
 import { writeFile } from "fs/promises";
 import { rename } from "fs/promises";
 import { basename, extname, dirname, resolve } from "path";
-import unzipper from "unzipper";
+import { pipeline } from "stream/promises";
+import * as yauzl from "yauzl-promise";
 
 // Reg Ex
 
@@ -13,7 +15,7 @@ export const indexMatchRegEx = /^\d+\s?-\s?/g;
 export const chineseMatchRegEx = /(汉化|润色)/g;
 
 export const regionMatchRegEx =
-	/((?<=[\(\[])(繁|繁体|繁體|繁中|简|简体|简體|简中|中文|(SC|sc)|(TC|tc)|(USA|usa)|(US|us)|(EU|eu)|Europe|(JP|jp)|Japan|World|(WW|ww)|(UE|ue))(?=[\)\]]))/g;
+	/((?<=[\(\[])(繁|繁体|繁體|繁中|简|简体|简體|简中|中文|简&繁|简繁|繁简|(SC&TC|sc&tc)|(SC|sc)|(TC|tc)|(USA|usa)|(US|us)|(EU|eu)|Europe|(JP|jp)|Japan|World|(WW|ww)|(UE|ue))(?=[\)\]]))/g;
 
 export const hackMatchRegEx = /((\(|\[)([Hh]ack|H)(\)|\]))|(盗版|非官方)/g;
 
@@ -50,6 +52,10 @@ export const regionMatch = (_key: string) => {
 		{
 			item: "简",
 			keys: ["简", "简体", "简體", "简中", "中文", "SC", "sc"],
+		},
+		{
+			item: "简&繁",
+			keys: ["简&繁", "简繁", "繁简", "SC&TC", "sc&tc"],
 		},
 		{
 			item: "WW",
@@ -99,13 +105,13 @@ export const trimFileName = (fileName: string) => {
 	// remove extra spaces
 	fileName = fileName.replaceAll(/\s{2,}/g, " ");
 
+	// remove file name after _, excluding the extension
+	fileName = fileName.replace(/_.+?(?=\.\w{1,})/g, "");
+
 	const extName = extname(fileName);
 
 	// remove leading and trailing spaces
 	const baseName = fileName.substring(0, fileName.indexOf(extName)).trim();
-
-	// remove file name after _, excluding the extension
-	fileName = fileName.replace(/_.+?(?=\.\w{1,})/g, "");
 
 	// adds hack to the file name
 	if (hackMatch) {
@@ -145,40 +151,51 @@ export const unzipAndRenameFile = async (
 		return;
 	}
 
-	const zip = await unzipper.Open.file(filePath);
+	const zip = await yauzl.open(filePath);
 
-	for (const file of zip.files) {
-		// skip if the file should be ignored
-		if (ignoredUnzipExt.includes(extname(file.path))) continue;
+	try {
+		for await (const entry of zip) {
+			// skip if the entry is a directory
+			if (entry.filename.endsWith("/")) continue;
 
-		const targetUnzipFilename = `${basename(targetFilename, extName)}${extname(
-			file.path
-		)}`;
+			// skip if the file should be ignored
+			if (ignoredUnzipExt.includes(extname(entry.filename))) continue;
 
-		unzippedFiles.push(targetUnzipFilename);
+			const targetUnzipFilename = `${basename(
+				targetFilename,
+				extName
+			)}${extname(entry.filename)}`;
 
-		if (nameOnly) {
-			console.log(targetUnzipFilename);
-		} else {
-			console.log(
-				`Unzip and rename${
-					preview ? " preview" : ""
-				}: ${filePath} -> ${targetUnzipFilename}`
+			unzippedFiles.push(targetUnzipFilename);
+
+			if (nameOnly) {
+				console.log(targetUnzipFilename);
+			} else {
+				console.log(
+					`Unzip and rename${
+						preview ? " preview" : ""
+					}: ${filePath} -> ${targetUnzipFilename}`
+				);
+			}
+
+			if (preview) {
+				continue;
+			}
+
+			// extract the file
+
+			const readStream = await entry.openReadStream();
+			const writeStream = createWriteStream(
+				resolve(dirname(filePath), targetUnzipFilename)
 			);
+
+			await pipeline(readStream, writeStream);
 		}
-
-		if (preview) {
-			continue;
-		}
-
-		// extract the file
-		const extracted = await file.buffer(password);
-
-		// write the file
-		await writeFile(
-			resolve(dirname(filePath), targetUnzipFilename),
-			new Uint8Array(extracted)
-		);
+	} catch (error: any) {
+		console.log(`Error when unzipping file (${filePath}): ${error.message}`);
+	} finally {
+		// close the zip file
+		await zip.close();
 	}
 
 	return unzippedFiles;

@@ -16,7 +16,7 @@
     "@types/bun": "latest",
     "@types/commander": "^2.12.2",
     "@types/pinyin": "^2.10.2",
-    "@types/unzipper": "^0.10.10"
+    "@types/yauzl-promise": "^4.0.1"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
@@ -24,6 +24,6 @@
   "dependencies": {
     "commander": "^12.1.0",
     "pinyin": "^4.0.0-alpha.2",
-    "unzipper": "^0.12.3"
+    "yauzl-promise": "^4.0.0"
   }
 }
