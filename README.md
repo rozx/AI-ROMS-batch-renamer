@@ -43,6 +43,7 @@ Options:
   -fl, --files <files...>             只重命名文件，不重命名文件夹,以空格分隔 (Only rename files, not folders, separated by spaces)
   -e, --excludes <extension name...>  排除特定的文件后缀名，以空格分隔 (Filer out certain files by extensions, separated by spaces)
   -i, --includes <extension name...>  只重命名特定的文件后缀名，以空格分隔 (Only rename certain files by extensions, separated by spaces)
+  -u, --unzip [password]              解压并重命名zip文件 (Unzip and rename zip files)
   -h, --help                          display help for command
 ```
 
