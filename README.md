@@ -72,3 +72,7 @@ Options:
 `pinyin-batch-renamer revert -t D:/Downloads/`
 
 B 冰河世纪.zip -> 冰河世纪.zip
+
+##　Roadmap
+
+- AI rom title fetch with in-memory cache.
