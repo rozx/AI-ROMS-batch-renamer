@@ -1,10 +1,20 @@
 import { file } from "bun";
-import { createWriteStream } from "fs";
-import { writeFile } from "fs/promises";
+import { ChatGPTAPI } from "chatgpt";
+import { createWriteStream, WriteStream } from "fs";
+import { writeFile, readFile } from "fs/promises";
 import { rename } from "fs/promises";
 import { basename, extname, dirname, resolve } from "path";
 import { pipeline } from "stream/promises";
 import * as yauzl from "yauzl-promise";
+import { createCache } from "cache-manager";
+import KeyvSqlite from "@keyv/sqlite";
+import { Keyv } from "keyv";
+import type { RomData } from "./types";
+
+// consts
+
+const CACHE_BUSY_TIMEOUT = 10000;
+const API_KEY_CACHE_TTL = 3600000; // one hour
 
 // Reg Ex
 
@@ -19,7 +29,33 @@ export const regionMatchRegEx =
 
 export const hackMatchRegEx = /((\(|\[)([Hh]ack|H)(\)|\]))|(盗版|非官方)/g;
 
+export const invalidFileNameMatchRegEx = /[\*\?\"\<\>\|\:|：|？]/g;
+
 export const ignoredUnzipExt = [".txt"];
+
+
+// Cache
+
+
+const apiKeyCache = createCache({
+	stores: [new Keyv({ store: new KeyvSqlite(
+	{
+		uri: "sqlite://./romRenamer-cache.sqlite",
+		table: "apiKey",
+		busyTimeout: CACHE_BUSY_TIMEOUT, 
+	}) })],
+	ttl: API_KEY_CACHE_TTL, // one hour
+});
+
+const romTitleCache = createCache({
+	stores: [new Keyv({ store: new KeyvSqlite(
+	{
+		uri: "sqlite://./romRenamer-cache.sqlite",
+		table: "romTitle",
+		busyTimeout: CACHE_BUSY_TIMEOUT, 
+	}) })],
+});
+
 
 // Methods
 
@@ -152,6 +188,8 @@ export const unzipAndRenameFile = async (
 	}
 
 	const zip = await yauzl.open(filePath);
+	let readStream: any;
+	let writeStream: WriteStream;
 
 	try {
 		for await (const entry of zip) {
@@ -184,15 +222,17 @@ export const unzipAndRenameFile = async (
 
 			// extract the file
 
-			const readStream = await entry.openReadStream();
-			const writeStream = createWriteStream(
+			readStream = await entry.openReadStream({
+				decompress: true,
+			});
+			writeStream = createWriteStream(
 				resolve(dirname(filePath), targetUnzipFilename)
 			);
 
 			await pipeline(readStream, writeStream);
 		}
 	} catch (error: any) {
-		console.log(`Error when unzipping file (${filePath}): ${error.message}`);
+		console.log(`Error when unzipping file [${filePath}]: ${error.message}`);
 	} finally {
 		// close the zip file
 		await zip.close();
@@ -219,4 +259,76 @@ export const renameFile = async (
 		return;
 	}
 	await rename(file, targetFilename);
+};
+
+export const fetchTitleUsingAI = async (apiKey: string | Boolean |null, originTitle: string) => {
+
+	if(!apiKey || typeof apiKey === 'boolean') {
+		// read api key from file
+		// check if cache is available
+
+		apiKey = await apiKeyCache.get("apiKey");
+
+		if(!apiKey) {
+			try {
+				apiKey = await readFile("apiKey.txt", "utf8");
+				await apiKeyCache.set("apiKey", apiKey);
+			} catch (error) {
+				apiKey = null;
+			}
+
+		}
+
+		if(!apiKey) {
+			console.log("No API key found in apiKey.txt or cache, skipping AI title fetching.");
+			return null;
+		}
+	} else {
+		await apiKeyCache.set("apiKey", apiKey);
+	}
+
+
+	const chatGPT = new ChatGPTAPI({
+		apiKey: apiKey as string,
+		completionParams: {
+			model: "gpt-4o-mini"
+		}
+	});
+
+	try {
+		// check if cache is available
+		const cachedTitle = await romTitleCache.get(originTitle) as RomData;
+
+
+		if(cachedTitle) {
+			return cachedTitle;
+		}
+
+		let res = await chatGPT.sendMessage(`
+			what is "${originTitle}"'s official English title`, {systemMessage: "you are ChatGPT， only serve to fetch the English title of the emulation rom ，return the response as [Game Title]|[Game Platform]|[Game release year], without anything extra."});
+
+		let romDataList = res.text.split("|");
+		const romData: RomData = {
+			title: romDataList[0],
+			platform: romDataList[1],
+			year: romDataList[2]
+		}
+
+		// cache the title
+		await romTitleCache.set(originTitle, romData);
+		
+
+		return romData;
+
+		} catch (error: any) {
+
+			console.log(`Error happened using chatgpt for file ${originTitle}: not applied.`);
+			console.log(error.message);
+			// clear the cached api key
+			await apiKeyCache.del('apiKey');
+
+			return null;
+		
+		}
+
 };

@@ -2,7 +2,7 @@
   "name": "rom-batch-renamer",
   "module": "src/index.ts",
   "type": "module",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "A command line batch renamer for rom files",
   "scripts": {
     "start": "bun src/index.ts",
@@ -22,6 +22,9 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "@keyv/sqlite": "^4.0.1",
+    "cache-manager": "^6.1.2",
+    "chatgpt": "^5.2.5",
     "commander": "^12.1.0",
     "pinyin": "^4.0.0-alpha.2",
     "yauzl-promise": "^4.0.0"

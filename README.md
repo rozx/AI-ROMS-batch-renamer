@@ -9,9 +9,10 @@ A command line tool for batch renaming ROM files.
 
 ### Example
 
-- 冰河世纪 (繁) (新特奇).zip -> B 冰河世纪 - 繁.zip
-- Colin McRae - DiRT 2 (USA) (PSP) (PSN).iso -> C Colin McRae - DiRT 2 - US.iso
-- 1941 - GT赛车 [繁] [官方中文版] [SONY].iso -> G GT赛车 - 繁.iso
+- 黄金太阳 - 失落的时代[Mobile&Elffinal](简)(UE)(128Mb).zip -> H 黄金太阳 - 失落的时代 (Golden Sun: The Lost Age) (2002) - 简.gba
+- 哈利波特 - 阿兹卡班的逃犯[施珂昱](简)(JP)(128Mb).zip -> H 哈利波特 - 阿兹卡班的逃犯 (Harry Potter and the Prisoner of Azkaban) (2004) - 简.gba
+- 指环王－王者归来(0.4b小字体)[Advance-004](简)(JP)(136Mb).zip -> Z 指环王－王者归来 (The Lord of the Rings: The Return of the King) (2003) - 简.gba
+- 王国之心 - 记忆之链[天使汉化组](简)(JP)(256Mb).zip -> W 王国之心 - 记忆之链 (Kingdom Hearts- Chain of Memories) (2004) - 简.gba
 
 ```
 Options:
@@ -44,6 +45,7 @@ Options:
   -e, --excludes <extension name...>  排除特定的文件后缀名，以空格分隔 (Filer out certain files by extensions, separated by spaces)
   -i, --includes <extension name...>  只重命名特定的文件后缀名，以空格分隔 (Only rename certain files by extensions, separated by spaces)
   -u, --unzip                         解压并重命名zip文件 (Unzip and rename zip files)
+  -ai, --ai [chatgpt token]           以gpt-4o-mini获取rom的英文名称，方便获取封面资源，[如果没有提供apiKey的话会默认读取本地目录下的apiKey.txt] (Using gpt-4o-mini to fetch rom's English name, will read from 'apiKey.txt' if not provided)
   -h, --help                          display help for command
 ```
 

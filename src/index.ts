@@ -2,6 +2,7 @@ import pinyin from "pinyin";
 import { program } from "commander";
 import { version } from "../package.json";
 import { readdirSync, statSync, renameSync, existsSync } from "fs";
+
 import path from "path";
 import {
 	isFileIsBeingRenamed,
@@ -11,8 +12,11 @@ import {
 	getRegionInfo,
 	unzipAndRenameFile,
 	renameFile,
+	fetchTitleUsingAI,
+	invalidFileNameMatchRegEx,
 } from "./utils";
 import { unlink } from "fs/promises";
+
 
 program
 	.name("rom-batch-renamer")
@@ -60,6 +64,7 @@ program
 		"只重命名特定的文件后缀名，以空格分隔 (Only rename certain files by extensions, separated by spaces)"
 	)
 	.option("-u, --unzip", "解压并重命名zip文件 (Unzip and rename zip files)")
+	.option("-ai, --ai [chatgpt token]", "以 gpt-4o-mini 获取rom的英文名称，方便获取封面资源，[如果没有提供apiKey的话会默认读取本地目录下的apiKey.txt] (Using gpt-4o-mini to fetch rom's English name, will read from 'apiKey.txt' if not provided)")
 	.action(async (dir, options) => {
 		let filesList: string[] = [];
 		const targetPaths: string[] = [];
@@ -107,6 +112,8 @@ program
 
 			const stats = statSync(filePath);
 
+			const originalBaseName = path.basename(file, path.extname(file));
+			const originalFileName = file;
 			let newFileName: string = file;
 			let newFilePath: string = filePath;
 			let extName = path.extname(file);
@@ -121,9 +128,10 @@ program
 					...(options.trim ? ["-t"] : []),
 					...(options.nameOnly ? ["-n"] : []),
 					...(options.force ? ["-f"] : []),
-					...(options.excludes ? ["-e"] : []),
-					...(options.includes ? ["-i"] : []),
-					...(options.includes ? ["-u"] : []),
+					...(options.excludes ? ["-e", options.excludes] : []),
+					...(options.includes ? ["-i", options.includes] : []),
+					...(options.unzip ? ["-u"] : []),
+					...(options.ai ? ["-ai", options.ai] : []),
 				]);
 			} else if (stats.isFile()) {
 				// check if the file is already being renamed
@@ -145,11 +153,25 @@ program
 				// Check if the file name needs to be trimmed
 				if (options.trim) {
 					newFileName = trimFileName(newFileName);
-					newFilePath = path.join(dir, newFileName);
 				}
 
-				// get basename
 				let baseName = path.basename(newFileName, extName);
+
+				// try fetching the English name of the rom file
+				if (options.ai) {
+
+					const romData = await fetchTitleUsingAI(options.ai, originalBaseName);
+
+					if(romData?.title) {
+						newFileName = `${baseName} (${romData.title}) (${romData.year})${extName}`;
+
+						// replace the invalid characters in the file name
+						newFileName = newFileName.replaceAll(invalidFileNameMatchRegEx, "-");
+
+						baseName = path.basename(newFileName, extName);
+					}
+				}
+				
 
 				// adds region info to the file name
 				newFileName = regionInfo
@@ -164,6 +186,9 @@ program
 				})[0][0]
 					.substring(0, 1)
 					.toUpperCase();
+
+
+				
 
 				newFileName = `${pinyinInitials} ${newFileName}`;
 				newFilePath = path.join(dir, newFileName);
@@ -187,6 +212,9 @@ program
 
 					newFilePath = path.join(dir, newFileName);
 				}
+
+
+
 
 				if (extName === ".zip") {
 					if (options.unzip) {
@@ -219,6 +247,7 @@ program
 				}
 
 				// rename the file
+
 				await renameFile(
 					filePath,
 					newFilePath,
