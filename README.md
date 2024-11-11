@@ -77,7 +77,7 @@ Options:
 ### Example
 `renamer revert -t D:/Downloads/`
 
-T 铁臂阿童木 - 阿童木之心的秘密 (Astro Boy -  The Video Game) (2004) - 简.gba -> 铁臂阿童木-阿童木之心的秘密[v1.0][心灵的冬天](简)(66Mb).gba
+T 铁臂阿童木 - 阿童木之心的秘密 (Astro Boy -  The Video Game) (2004) - 简.gba -> 铁臂阿童木-阿童木之心的秘密\[v1.0]\[心灵的冬天](简)(66Mb).gba
 
 ## Roadmap
 
