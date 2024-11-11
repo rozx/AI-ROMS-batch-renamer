@@ -132,5 +132,5 @@ dist
 
 # tmp files
 *.tmp
-/romRenamer-cache.sqlite
 /apiKey.txt
+/.romRenamerCache

@@ -6,15 +6,9 @@ import { rename } from "fs/promises";
 import { basename, extname, dirname, resolve } from "path";
 import { pipeline } from "stream/promises";
 import * as yauzl from "yauzl-promise";
-import { createCache } from "cache-manager";
-import KeyvSqlite from "@keyv/sqlite";
-import { Keyv } from "keyv";
 import type { RomData } from "./types";
+import persistentCache from "persistent-cache";
 
-// consts
-
-const CACHE_BUSY_TIMEOUT = 10000;
-const API_KEY_CACHE_TTL = 3600000; // one hour
 
 // Reg Ex
 
@@ -35,25 +29,14 @@ export const ignoredUnzipExt = [".txt"];
 
 
 // Cache
-
-
-const apiKeyCache = createCache({
-	stores: [new Keyv({ store: new KeyvSqlite(
-	{
-		uri: "sqlite://./romRenamer-cache.sqlite",
-		table: "apiKey",
-		busyTimeout: CACHE_BUSY_TIMEOUT, 
-	}) })],
-	ttl: API_KEY_CACHE_TTL, // one hour
+const apiKeyCache = persistentCache({
+	name: "apiKey",
+	base: "./.romRenamerCache",
 });
 
-const romTitleCache = createCache({
-	stores: [new Keyv({ store: new KeyvSqlite(
-	{
-		uri: "sqlite://./romRenamer-cache.sqlite",
-		table: "romTitle",
-		busyTimeout: CACHE_BUSY_TIMEOUT, 
-	}) })],
+const titleCache = persistentCache({
+	name: "title",
+	base: "./.romRenamerCache",
 });
 
 
@@ -267,12 +250,12 @@ export const fetchTitleUsingAI = async (apiKey: string | Boolean |null, originTi
 		// read api key from file
 		// check if cache is available
 
-		apiKey = await apiKeyCache.get("apiKey");
+		apiKey = apiKeyCache.getSync("apiKey") ?? null;
 
 		if(!apiKey) {
 			try {
 				apiKey = await readFile("apiKey.txt", "utf8");
-				await apiKeyCache.set("apiKey", apiKey);
+				apiKeyCache.putSync("apiKey", apiKey);
 			} catch (error) {
 				apiKey = null;
 			}
@@ -284,7 +267,7 @@ export const fetchTitleUsingAI = async (apiKey: string | Boolean |null, originTi
 			return null;
 		}
 	} else {
-		await apiKeyCache.set("apiKey", apiKey);
+		await apiKeyCache.putSync("apiKey", apiKey);
 	}
 
 
@@ -297,10 +280,11 @@ export const fetchTitleUsingAI = async (apiKey: string | Boolean |null, originTi
 
 	try {
 		// check if cache is available
-		const cachedTitle = await romTitleCache.get(originTitle) as RomData;
+		const cachedTitle: RomData = titleCache.getSync(originTitle);
 
 
 		if(cachedTitle) {
+			console.log('cached title found');
 			return cachedTitle;
 		}
 
@@ -315,7 +299,7 @@ export const fetchTitleUsingAI = async (apiKey: string | Boolean |null, originTi
 		}
 
 		// cache the title
-		await romTitleCache.set(originTitle, romData);
+		titleCache.putSync(originTitle, romData);
 		
 
 		return romData;
@@ -325,7 +309,8 @@ export const fetchTitleUsingAI = async (apiKey: string | Boolean |null, originTi
 			console.log(`Error happened using chatgpt for file ${originTitle}: not applied.`);
 			console.log(error.message);
 			// clear the cached api key
-			await apiKeyCache.del('apiKey');
+			apiKeyCache.deleteSync('apiKey');
+			titleCache.deleteSync(originTitle);
 
 			return null;
 		
