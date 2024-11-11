@@ -9,7 +9,6 @@ import * as yauzl from "yauzl-promise";
 import type { RomData } from "./types";
 import persistentCache from "persistent-cache";
 
-
 // Reg Ex
 
 export const fileNameDuplicateRegEx = /-\s*\(\d\)(|.\w{1,})$/g;
@@ -27,7 +26,6 @@ export const invalidFileNameMatchRegEx = /[\*\?\"\<\>\|\:|：|？]/g;
 
 export const ignoredUnzipExt = [".txt"];
 
-
 // Cache
 const apiKeyCache = persistentCache({
 	name: "apiKey",
@@ -38,7 +36,6 @@ const titleCache = persistentCache({
 	name: "title",
 	base: "./.romRenamerCache",
 });
-
 
 // Methods
 
@@ -244,76 +241,79 @@ export const renameFile = async (
 	await rename(file, targetFilename);
 };
 
-export const fetchTitleUsingAI = async (apiKey: string | Boolean |null, originTitle: string) => {
-
-	if(!apiKey || typeof apiKey === 'boolean') {
+export const fetchTitleUsingAI = async (
+	apiKey: string | Boolean | null,
+	originTitle: string
+) => {
+	if (!apiKey || typeof apiKey === "boolean") {
 		// read api key from file
 		// check if cache is available
 
 		apiKey = apiKeyCache.getSync("apiKey") ?? null;
 
-		if(!apiKey) {
+		if (!apiKey) {
 			try {
 				apiKey = await readFile("apiKey.txt", "utf8");
 				apiKeyCache.putSync("apiKey", apiKey);
 			} catch (error) {
 				apiKey = null;
 			}
-
 		}
 
-		if(!apiKey) {
-			console.log("No API key found in apiKey.txt or cache, skipping AI title fetching.");
+		if (!apiKey) {
+			console.log(
+				"No API key found in apiKey.txt or cache, skipping AI title fetching."
+			);
 			return null;
 		}
 	} else {
 		await apiKeyCache.putSync("apiKey", apiKey);
 	}
 
-
 	const chatGPT = new ChatGPTAPI({
 		apiKey: apiKey as string,
 		completionParams: {
-			model: "gpt-4o-mini"
-		}
+			model: "gpt-4o-mini",
+		},
 	});
 
 	try {
 		// check if cache is available
 		const cachedTitle: RomData = titleCache.getSync(originTitle);
 
-
-		if(cachedTitle) {
-			console.log('cached title found');
+		if (cachedTitle) {
 			return cachedTitle;
 		}
 
-		let res = await chatGPT.sendMessage(`
-			what is "${originTitle}"'s official English title`, {systemMessage: "you are ChatGPT， only serve to fetch the English title of the emulation rom ，return the response as [Game Title]|[Game Platform]|[Game release year], without anything extra."});
+		let res = await chatGPT.sendMessage(
+			`
+			what is "${originTitle}"'s official English title`,
+			{
+				systemMessage:
+					"you are ChatGPT， only serve to fetch the English title of the emulation rom ，return the response as [Game Title]|[Game Platform]|[Game release year], without anything extra.",
+			}
+		);
 
 		let romDataList = res.text.split("|");
 		const romData: RomData = {
 			title: romDataList[0],
 			platform: romDataList[1],
-			year: romDataList[2]
-		}
+			year: romDataList[2],
+		};
 
 		// cache the title
 		titleCache.putSync(originTitle, romData);
-		
 
 		return romData;
+	} catch (error: any) {
+		console.log(
+			`Error happened using chatgpt for file ${originTitle}: not applied.`
+		);
+		console.log(error.message);
+		// clear the cached api key
+		apiKeyCache.deleteSync("apiKey");
+		titleCache.deleteSync(originTitle);
 
-		} catch (error: any) {
-
-			console.log(`Error happened using chatgpt for file ${originTitle}: not applied.`);
-			console.log(error.message);
-			// clear the cached api key
-			apiKeyCache.deleteSync('apiKey');
-			titleCache.deleteSync(originTitle);
-
-			return null;
-		
-		}
-
+		return null;
+	}
 };
