@@ -1,22 +1,27 @@
-import pinyin from "pinyin";
 import { program } from "commander";
-import { version } from "../package.json";
 import { readdirSync, statSync, renameSync, existsSync } from "fs";
-
 import path from "path";
+import { unlink } from "fs/promises";
+import md5File from "md5-file";
+
 import {
 	isFileIsBeingRenamed,
 	trimFileName,
 	isSystemOrHiddenFile,
-	fileNameDuplicateRegEx,
 	getRegionInfo,
 	unzipAndRenameFile,
 	renameFile,
-	fetchTitleUsingAI,
-	invalidFileNameMatchRegEx,
+	addsPinyinInitials,
 } from "./utils";
-import { unlink } from "fs/promises";
-
+import {
+	fileNameDuplicateRegEx,
+	hackMatchRegEx,
+	invalidFileNameMatchRegEx,
+	version,
+} from "./consts";
+import { fetchTitleUsingAI } from "./aiUtils";
+import { renameHistoryCache } from "./cacheUtils";
+import type { RomRenameHistory } from "./types";
 
 program
 	.name("rom-batch-renamer")
@@ -64,7 +69,18 @@ program
 		"只重命名特定的文件后缀名，以空格分隔 (Only rename certain files by extensions, separated by spaces)"
 	)
 	.option("-u, --unzip", "解压并重命名zip文件 (Unzip and rename zip files)")
-	.option("-ai, --ai [chatgpt token]", "以 gpt-4o-mini 获取rom的英文名称，方便获取封面资源，[如果没有提供apiKey的话会默认读取本地目录下的apiKey.txt] (Using gpt-4o-mini to fetch rom's English name, will read from 'apiKey.txt' if not provided)")
+	.option(
+		"-ai, --ai [chatgpt token]",
+		"以 gpt-4o-mini 获取rom的英文名称，方便获取封面资源，[如果没有提供apiKey的话会默认读取本地目录下的apiKey.txt] (Using gpt-4o-mini to fetch rom's English name, will read from 'apiKey.txt' if not provided)"
+	)
+	.option(
+		"-m, --no-cache",
+		"强制不使用已有的ai重命名信息缓存，强制获取新的信息, 必须与 -ai 命令一起使用。(Manually invalidate the cache and force to fetch the latest information from AI, must be used with the -ai command)"
+	)
+	.option(
+		"-p, --prettify",
+		"使用AI获取的游戏名称取代原有的文件名，必须与 -ai 命令一起使用。 (Use the game title fetched by AI to replace the original file name, must be used with the -ai command)"
+	)
 	.action(async (dir, options) => {
 		let filesList: string[] = [];
 		const targetPaths: string[] = [];
@@ -117,6 +133,9 @@ program
 			let newFileName: string = file;
 			let newFilePath: string = filePath;
 			let extName = path.extname(file);
+			const md5 = await md5File(filePath);
+
+			const renameHistoryKeys = renameHistoryCache.keysSync();
 
 			if (stats.isDirectory() && options.recursive) {
 				// 递归重命名文件夹中的所有文件
@@ -132,10 +151,12 @@ program
 					...(options.includes ? ["-i", options.includes] : []),
 					...(options.unzip ? ["-u"] : []),
 					...(options.ai ? ["-ai", options.ai] : []),
+					...(options.noCache ? ["-m"] : []),
+					...(options.prettify ? ["-p"] : []),
 				]);
 			} else if (stats.isFile()) {
 				// check if the file is already being renamed
-				if (!options.force && isFileIsBeingRenamed(file)) {
+				if (!options.force && renameHistoryKeys.includes(md5)) {
 					if (!options.nameOnly)
 						console.log(`Skipped: ${filePath} (Already renamed)`);
 					return;
@@ -157,21 +178,37 @@ program
 
 				let baseName = path.basename(newFileName, extName);
 
+				// adds hack info to the file name
+				newFileName = originalBaseName.match(hackMatchRegEx)
+					? `${baseName} (Hack)`
+					: newFileName;
+				baseName = path.basename(newFileName, extName);
+
 				// try fetching the English name of the rom file
 				if (options.ai) {
+					const romData = await fetchTitleUsingAI(
+						options.ai,
+						md5,
+						filePath,
+						options.noCache
+					);
 
-					const romData = await fetchTitleUsingAI(options.ai, originalBaseName);
-
-					if(romData?.title) {
-						newFileName = `${baseName} (${romData.title}) (${romData.year})${extName}`;
+					if (romData?.title) {
+						if (options.prettify) {
+							newFileName = `${romData.chineseTitle} (${romData.title}) (${romData.year})${extName}`;
+						} else {
+							newFileName = `${baseName} (${romData.title}) (${romData.year})${extName}`;
+						}
 
 						// replace the invalid characters in the file name
-						newFileName = newFileName.replaceAll(invalidFileNameMatchRegEx, "-");
+						newFileName = newFileName.replaceAll(
+							invalidFileNameMatchRegEx,
+							" - "
+						);
 
 						baseName = path.basename(newFileName, extName);
 					}
 				}
-				
 
 				// adds region info to the file name
 				newFileName = regionInfo
@@ -180,17 +217,7 @@ program
 
 				// adds pinyin initials to the file name
 
-				const pinyinInitials = pinyin(newFileName, {
-					style: pinyin.STYLE_FIRST_LETTER,
-					heteronym: false,
-				})[0][0]
-					.substring(0, 1)
-					.toUpperCase();
-
-
-				
-
-				newFileName = `${pinyinInitials} ${newFileName}`;
+				newFileName = addsPinyinInitials(newFileName);
 				newFilePath = path.join(dir, newFileName);
 
 				// check if the file name already exists
@@ -212,9 +239,6 @@ program
 
 					newFilePath = path.join(dir, newFileName);
 				}
-
-
-
 
 				if (extName === ".zip") {
 					if (options.unzip) {
@@ -251,6 +275,7 @@ program
 				await renameFile(
 					filePath,
 					newFilePath,
+					md5,
 					Boolean(options.dryRun),
 					Boolean(options.nameOnly)
 				);
@@ -272,13 +297,15 @@ program
 		"-r, --recursive",
 		"递归还原文件夹中的所有文件 (Recursively revert all files in the directory)"
 	)
-	.action((dir, options) => {
+	.action(async (dir, options) => {
 		const files = readdirSync(dir);
 
-		files.forEach((file: string) => {
+		files.forEach(async (file: string) => {
 			const filePath = path.join(dir, file);
 			const stats = statSync(filePath);
 
+			const md5 = await md5File(filePath);
+			const renameHistoryKeys = renameHistoryCache.keysSync();
 			let newFileName: string = file;
 			let newFilePath: string = filePath;
 
@@ -291,17 +318,17 @@ program
 					...(options.recursive ? ["-r"] : []),
 				]);
 			} else if (stats.isFile()) {
-				if (!isFileIsBeingRenamed(file)) {
+				if (isSystemOrHiddenFile(file)) {
+					// console.log(`Skipped: ${filePath} (Hidden or system file)`);
+					return;
+				}
+
+				if (!renameHistoryKeys.includes(md5)) {
 					console.log(`Skipped: ${filePath} (Hasn't renamed)`);
 					return;
 				}
 
-				if (isSystemOrHiddenFile(file)) {
-					console.log(`Skipped: ${filePath} (Hidden or system file)`);
-					return;
-				}
-
-				newFileName = newFileName.substring(2);
+				newFileName = renameHistoryCache.getSync(md5).originalName;
 				newFilePath = path.join(dir, newFileName);
 
 				if (options.dryRun) {
@@ -309,6 +336,9 @@ program
 				} else {
 					renameSync(filePath, newFilePath);
 					console.log(`Reverted: ${filePath} -> ${newFileName}`);
+
+					// delete the cache
+					renameHistoryCache.deleteSync(md5);
 				}
 			}
 		});

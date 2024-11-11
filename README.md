@@ -45,7 +45,11 @@ Options:
   -e, --excludes <extension name...>  排除特定的文件后缀名，以空格分隔 (Filer out certain files by extensions, separated by spaces)
   -i, --includes <extension name...>  只重命名特定的文件后缀名，以空格分隔 (Only rename certain files by extensions, separated by spaces)
   -u, --unzip                         解压并重命名zip文件 (Unzip and rename zip files)
-  -ai, --ai [chatgpt token]           以gpt-4o-mini获取rom的英文名称，方便获取封面资源，[如果没有提供apiKey的话会默认读取本地目录下的apiKey.txt] (Using gpt-4o-mini to fetch rom's English name, will read from 'apiKey.txt' if not provided)
+  -ai, --ai [chatgpt token]           以 gpt-4o-mini 获取rom的英文名称，方便获取封面资源，[如果没有提供apiKey的话会默认读取本地目录下的apiKey.txt] (Using gpt-4o-mini to fetch rom's English name, will read from 'apiKey.txt' if
+                                      not provided)
+  -m, --no-cache                      强制不使用已有的ai重命名信息缓存，强制获取新的信息, 必须与 -ai 命令一起使用。(Manually invalidate the cache and force to fetch the latest information from AI, must be used with the -ai
+                                      command)
+  -p, --prettify                      使用AI获取的游戏名称取代原有的文件名，必须与 -ai 命令一起使用。 (Use the game title fetched by AI to replace the original file name, must be used with the -ai command)
   -h, --help                          display help for command
 ```
 
@@ -73,11 +77,11 @@ Options:
 ### Example
 `renamer revert -t D:/Downloads/`
 
-B 冰河世纪.zip -> 冰河世纪.zip
+T 铁臂阿童木 - 阿童木之心的秘密 (Astro Boy -  The Video Game) (2004) - 简.gba -> 铁臂阿童木-阿童木之心的秘密[v1.0][心灵的冬天](简)(66Mb).gba
 
 ## Roadmap
 
 - AI rom title fetch with in-memory cache. (Done in v1.5.0) ✅
-- Store original filename for the revert action.
+- Store original filename for the revert action. (Done in v1.6.0) ✅
 - Support different AI model and 3rd party api.
-- Prettify rom name using AI.
+- Prettify rom name using AI. (Done in v1.6.0) ✅
