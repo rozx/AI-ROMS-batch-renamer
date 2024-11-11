@@ -1,41 +1,20 @@
-import { file } from "bun";
-import { ChatGPTAPI } from "chatgpt";
 import { createWriteStream, WriteStream } from "fs";
-import { writeFile, readFile } from "fs/promises";
+
 import { rename } from "fs/promises";
 import { basename, extname, dirname, resolve } from "path";
 import { pipeline } from "stream/promises";
 import * as yauzl from "yauzl-promise";
-import type { RomData } from "./types";
-import persistentCache from "persistent-cache";
+import pinyin from "pinyin";
 
-// Reg Ex
-
-export const fileNameDuplicateRegEx = /-\s*\(\d\)(|.\w{1,})$/g;
-
-export const indexMatchRegEx = /^\d+\s?-\s?/g;
-
-export const chineseMatchRegEx = /(汉化|润色)/g;
-
-export const regionMatchRegEx =
-	/((?<=[\(\[])(繁|繁体|繁體|繁中|简|简体|简體|简中|中文|简&繁|简繁|繁简|(SC&TC|sc&tc)|(SC|sc)|(TC|tc)|(USA|usa)|(US|us)|(EU|eu)|Europe|(JP|jp)|Japan|World|(WW|ww)|(UE|ue))(?=[\)\]]))/g;
-
-export const hackMatchRegEx = /((\(|\[)([Hh]ack|H)(\)|\]))|(盗版|非官方)/g;
-
-export const invalidFileNameMatchRegEx = /[\*\?\"\<\>\|\:|：|？]/g;
-
-export const ignoredUnzipExt = [".txt"];
-
-// Cache
-const apiKeyCache = persistentCache({
-	name: "apiKey",
-	base: "./.romRenamerCache",
-});
-
-const titleCache = persistentCache({
-	name: "title",
-	base: "./.romRenamerCache",
-});
+import {
+	chineseMatchRegEx,
+	ignoredUnzipExt,
+	indexMatchRegEx,
+	regionMatchRegEx,
+} from "./consts";
+import { renameHistoryCache } from "./cacheUtils";
+import type { RomRenameHistory } from "./types";
+import md5File from "md5-file";
 
 // Methods
 
@@ -112,9 +91,6 @@ export const trimFileName = (fileName: string) => {
 	// removes index from the file name
 	fileName = fileName.replaceAll(indexMatchRegEx, "");
 
-	// check if rom is hacked version
-	const hackMatch = fileName.match(hackMatchRegEx);
-
 	// remove all brackets and their contents
 	fileName = fileName.replaceAll(/(\(.+\)|\[.+\]|\{.+\})/g, "");
 
@@ -129,14 +105,20 @@ export const trimFileName = (fileName: string) => {
 	// remove leading and trailing spaces
 	const baseName = fileName.substring(0, fileName.indexOf(extName)).trim();
 
-	// adds hack to the file name
-	if (hackMatch) {
-		fileName = `${baseName} (Hack)`;
-	} else {
-		fileName = baseName;
-	}
+	fileName = baseName + extName;
 
-	fileName = fileName + extName;
+	return fileName;
+};
+
+export const addsPinyinInitials = (fileName: string) => {
+	const pinyinInitials = pinyin(fileName, {
+		style: pinyin.STYLE_FIRST_LETTER,
+		heteronym: false,
+	})[0][0]
+		.substring(0, 1)
+		.toUpperCase();
+
+	fileName = `${pinyinInitials} ${fileName}`;
 
 	return fileName;
 };
@@ -167,7 +149,9 @@ export const unzipAndRenameFile = async (
 		return;
 	}
 
-	const zip = await yauzl.open(filePath);
+	const zip = await yauzl.open(filePath, {
+		decodeStrings: true,
+	});
 	let readStream: any;
 	let writeStream: WriteStream;
 
@@ -200,16 +184,31 @@ export const unzipAndRenameFile = async (
 				continue;
 			}
 
+			// adds file to rename history
+			const targetPath = resolve(dirname(filePath), targetUnzipFilename);
+
+			const renameHistory: RomRenameHistory = {
+				originalName: basename(filePath).replace(
+					extName,
+					extname(entry.filename)
+				),
+				newName: targetUnzipFilename,
+			};
+
 			// extract the file
 
 			readStream = await entry.openReadStream({
 				decompress: true,
 			});
-			writeStream = createWriteStream(
-				resolve(dirname(filePath), targetUnzipFilename)
-			);
+			writeStream = createWriteStream(targetPath);
 
 			await pipeline(readStream, writeStream);
+
+			// get md5 of the file
+			const md5 = await md5File(targetPath);
+
+			// save rename history
+			renameHistoryCache.putSync(md5, renameHistory);
 		}
 	} catch (error: any) {
 		console.log(`Error when unzipping file [${filePath}]: ${error.message}`);
@@ -224,6 +223,7 @@ export const unzipAndRenameFile = async (
 export const renameFile = async (
 	file: string,
 	targetFilename: string,
+	md5: string,
 	preview?: boolean,
 	nameOnly?: boolean
 ) => {
@@ -238,82 +238,12 @@ export const renameFile = async (
 	if (preview) {
 		return;
 	}
+
+	// save rename history
+	renameHistoryCache.putSync(md5, {
+		originalName: basename(file),
+		newName: basename(targetFilename),
+	} as RomRenameHistory);
+
 	await rename(file, targetFilename);
-};
-
-export const fetchTitleUsingAI = async (
-	apiKey: string | Boolean | null,
-	originTitle: string
-) => {
-	if (!apiKey || typeof apiKey === "boolean") {
-		// read api key from file
-		// check if cache is available
-
-		apiKey = apiKeyCache.getSync("apiKey") ?? null;
-
-		if (!apiKey) {
-			try {
-				apiKey = await readFile("apiKey.txt", "utf8");
-				apiKeyCache.putSync("apiKey", apiKey);
-			} catch (error) {
-				apiKey = null;
-			}
-		}
-
-		if (!apiKey) {
-			console.log(
-				"No API key found in apiKey.txt or cache, skipping AI title fetching."
-			);
-			return null;
-		}
-	} else {
-		await apiKeyCache.putSync("apiKey", apiKey);
-	}
-
-	const chatGPT = new ChatGPTAPI({
-		apiKey: apiKey as string,
-		completionParams: {
-			model: "gpt-4o-mini",
-		},
-	});
-
-	try {
-		// check if cache is available
-		const cachedTitle: RomData = titleCache.getSync(originTitle);
-
-		if (cachedTitle) {
-			return cachedTitle;
-		}
-
-		let res = await chatGPT.sendMessage(
-			`
-			what is "${originTitle}"'s official English title`,
-			{
-				systemMessage:
-					"you are ChatGPT， only serve to fetch the English title of the emulation rom ，return the response as [Game Title]|[Game Platform]|[Game release year], without anything extra.",
-			}
-		);
-
-		let romDataList = res.text.split("|");
-		const romData: RomData = {
-			title: romDataList[0],
-			platform: romDataList[1],
-			year: romDataList[2],
-		};
-
-		// cache the title
-		titleCache.putSync(originTitle, romData);
-
-		return romData;
-	} catch (error: any) {
-		console.log(
-			`Error happened using chatgpt for file ${originTitle}: not applied.`
-		);
-		console.log(error.message);
-		// clear the cached api key
-		apiKeyCache.deleteSync("apiKey");
-		titleCache.deleteSync(originTitle);
-
-		return null;
-	}
 };
