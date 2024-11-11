@@ -77,4 +77,7 @@ B 冰河世纪.zip -> 冰河世纪.zip
 
 ## Roadmap
 
-- AI rom title fetch with in-memory cache. (Done in v1.5.0)
+- AI rom title fetch with in-memory cache. (Done in v1.5.0) ✅
+- Store original filename for the revert action.
+- Support different AI model and 3rd party api.
+- Prettify rom name using AI.
