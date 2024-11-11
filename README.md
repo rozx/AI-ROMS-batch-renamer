@@ -2,7 +2,7 @@
 
 A command line tool for batch renaming ROM files using AI.
 
-一个批量重命名ROM文件的命令行工具. (Batch rename Rom files)
+一个使用AI来批量重命名ROM文件的命令行工具。
 
 
 ## Examples
