@@ -28,7 +28,7 @@ Commands:
 ## Rename
 
 ```
-Usage: pinyin-batch-renamer rename [options] [dir]
+Usage: renamer rename [options] [dir]
 
 批量重命文件夹中的文件为拼音首字母+原文件名 (Batch rename files to pinyin initials)
 
@@ -50,14 +50,14 @@ Options:
 ```
 
 ### Example
-`pinyin-batch-renamer rename -t D:/Downloads/`
+`renamer rename -t D:/Downloads/`
 
 冰河世纪 (繁) (新特奇).zip -> B 冰河世纪 - 繁.zip
 
 ## Revert
 
 ```
-Usage: pinyin-batch-renamer revert [options] <dir>
+Usage: renamer revert [options] <dir>
 
 还原文件名 (Revert file names)
 
@@ -71,7 +71,7 @@ Options:
 ```
 
 ### Example
-`pinyin-batch-renamer revert -t D:/Downloads/`
+`renamer revert -t D:/Downloads/`
 
 B 冰河世纪.zip -> 冰河世纪.zip
 
