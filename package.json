@@ -1,22 +1,24 @@
 {
   "name": "rom-batch-renamer",
-  "module": "src/index.ts",
-  "type": "module",
   "version": "1.5.0",
-  "description": "A command line batch renamer for rom files",
+  "description": "A command line tool to batch rename rom files.",
+  "main": "./src/index.ts",
   "scripts": {
-    "start": "bun src/index.ts",
-    "dev": "bun --hot src/index.ts ",
-    "build-mac": "bun build ./src/index.ts --compile --minify --outfile ./dist/RomBatchRenamer-Mac-Arm64-Modern --target bun-darwin-arm64-modern",
-    "build-win": "bun build ./src/index.ts --compile --minify --outfile ./dist/RomBatchRenamer-Win-X64-Modern --target bun-win-x64-modern",
-    "build-linux": "bun build ./src/index.ts --compile --minify --outfile ./dist/RomBatchRenamer-Linux-X64-Modern --target bun-linux-x64",
-    "build-all": "bun build-mac && bun build-win && bun build-linux"
+    "start": "node ./src/index.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "author": "rozx",
+  "license": "MIT",
+  "type": "module",
   "devDependencies": {
     "@types/bun": "latest",
     "@types/commander": "^2.12.2",
+    "@types/node": "^22.9.0",
     "@types/pinyin": "^2.10.2",
-    "@types/yauzl-promise": "^4.0.1"
+    "@types/yauzl-promise": "^4.0.1",
+    "ts-node": "^10.9.2",
+    "tslib": "^2.8.1",
+    "typescript": "^5.6.3"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
@@ -26,6 +28,7 @@
     "cache-manager": "^6.1.2",
     "chatgpt": "^5.2.5",
     "commander": "^12.1.0",
+    "keyv": "^5.2.1",
     "pinyin": "^4.0.0-alpha.2",
     "yauzl-promise": "^4.0.0"
   }

@@ -1,15 +1,15 @@
-import { file } from "bun";
 import { ChatGPTAPI } from "chatgpt";
 import { createWriteStream, WriteStream } from "fs";
-import { writeFile, readFile } from "fs/promises";
+import { readFile } from "fs/promises";
 import { rename } from "fs/promises";
 import { basename, extname, dirname, resolve } from "path";
 import { pipeline } from "stream/promises";
 import * as yauzl from "yauzl-promise";
-import { createCache } from "cache-manager";
+import { createCache, } from "cache-manager";
 import KeyvSqlite from "@keyv/sqlite";
 import { Keyv } from "keyv";
-import type { RomData } from "./types";
+
+import type { RomData } from "./types.ts";
 
 // consts
 
@@ -36,24 +36,28 @@ export const ignoredUnzipExt = [".txt"];
 
 // Cache
 
-
-const apiKeyCache = createCache({
-	stores: [new Keyv({ store: new KeyvSqlite(
+const apiKeyStore = new Keyv({ store: new KeyvSqlite(
 	{
 		uri: "sqlite://./romRenamer-cache.sqlite",
 		table: "apiKey",
 		busyTimeout: CACHE_BUSY_TIMEOUT, 
-	}) })],
-	ttl: API_KEY_CACHE_TTL, // one hour
-});
+	}) });
 
-const romTitleCache = createCache({
-	stores: [new Keyv({ store: new KeyvSqlite(
+const titleStore = new Keyv({ store: new KeyvSqlite(
 	{
 		uri: "sqlite://./romRenamer-cache.sqlite",
 		table: "romTitle",
 		busyTimeout: CACHE_BUSY_TIMEOUT, 
-	}) })],
+	}) });
+
+
+const apiKeyCache = createCache({
+	stores: [apiKeyStore],
+	ttl: API_KEY_CACHE_TTL, // one hour
+});
+
+const romTitleCache = createCache({
+	stores: [titleStore],
 });
 
 

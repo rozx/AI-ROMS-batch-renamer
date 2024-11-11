@@ -1,8 +1,7 @@
 import pinyin from "pinyin";
 import { program } from "commander";
-import { version } from "../package.json";
+import packageJson from "../package.json" assert { type: "json" };
 import { readdirSync, statSync, renameSync, existsSync } from "fs";
-
 import path from "path";
 import {
 	isFileIsBeingRenamed,
@@ -14,7 +13,7 @@ import {
 	renameFile,
 	fetchTitleUsingAI,
 	invalidFileNameMatchRegEx,
-} from "./utils";
+} from "./utils.ts";
 import { unlink } from "fs/promises";
 
 
@@ -23,7 +22,7 @@ program
 	.description(
 		"批量重命名Rom文件为拼音首字母+原文件名 (Batch rename files to pinyin initials)"
 	)
-	.version(version);
+	.version(packageJson.version);
 
 program
 	.command("rename")
