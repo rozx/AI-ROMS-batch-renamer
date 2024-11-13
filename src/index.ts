@@ -81,6 +81,10 @@ program
 		"-p, --prettify",
 		"使用AI获取的游戏名称取代原有的文件名，必须与 -ai 命令一起使用。 (Use the game title fetched by AI to replace the original file name, must be used with the -ai command)"
 	)
+	.option(
+		"-py, --pinyin",
+		"在文件名前加上拼音首字母来更好的支持排序，也支持英文和字母 (Adds pinyin initials at the beginning of file name for better sorting, also supports English and numbers)"
+	)
 	.action(async (dir, options) => {
 		let filesList: string[] = [];
 		const targetPaths: string[] = [];
@@ -153,6 +157,7 @@ program
 					...(options.ai ? ["-ai", options.ai] : []),
 					...(options.noCache ? ["-m"] : []),
 					...(options.prettify ? ["-p"] : []),
+					...(options.pinyin ? ["-py"] : []),
 				]);
 			} else if (stats.isFile()) {
 				// check if the file is already being renamed
@@ -217,9 +222,10 @@ program
 
 				// adds pinyin initials to the file name
 
-				newFileName = addsPinyinInitials(newFileName);
-				newFilePath = path.join(dir, newFileName);
-
+				if (options.pinyin) {
+					newFileName = addsPinyinInitials(newFileName);
+					newFilePath = path.join(dir, newFileName);
+				}
 				// check if the file name already exists
 
 				let index = 0;
