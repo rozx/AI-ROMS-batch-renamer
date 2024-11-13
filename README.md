@@ -4,6 +4,7 @@ A command line tool for batch renaming ROM files using AI.
 
 一个使用AI来批量重命名ROM文件的命令行工具。
 
+[![HitCount](https://hits.dwyl.com/rozx/rozx/AI-ROMS-batch-renamer.svg?style=flat-square)](http://hits.dwyl.com/rozx/rozx/AI-ROMS-batch-renamer)  [![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/rozx/AI-ROMS-batch-renamer/issues)  [![Github All Releases](https://img.shields.io/github/downloads/rozx/AI-ROMS-batch-renamer/total.svg)]()
 
 ## Examples
 
@@ -50,13 +51,15 @@ Options:
   -m, --no-cache                      强制不使用已有的ai重命名信息缓存，强制获取新的信息, 必须与 -ai 命令一起使用。(Manually invalidate the cache and force to fetch the latest information from AI, must be used with the -ai
                                       command)
   -p, --prettify                      使用AI获取的游戏名称取代原有的文件名，必须与 -ai 命令一起使用。 (Use the game title fetched by AI to replace the original file name, must be used with the -ai command)
+  -py, --pinyin                       在文件名前加上拼音首字母来更好的支持排序，也支持英文和字母 (Adds pinyin initials at the beginning of file name for better sorting, also supports English and numbers)
   -h, --help                          display help for command
 ```
 
 ### Example
-`renamer rename -t D:/Downloads/`
 
-冰河世纪 (繁) (新特奇).zip -> B 冰河世纪 - 繁.zip
+`renamer rename -t -py -ai -p D:/Downloads/`
+
+铁臂阿童木-阿童木之心的秘密\[v1.0]\[心灵的冬天](简)(66Mb).zip -> /Users/rozx/Downloads/TestDir/T 铁臂阿童木 - 阿童木之心的秘密 (Astro Boy -  The Video Game) (2004) - 简.zip
 
 ## Revert
 
@@ -75,6 +78,7 @@ Options:
 ```
 
 ### Example
+
 `renamer revert -t D:/Downloads/`
 
 T 铁臂阿童木 - 阿童木之心的秘密 (Astro Boy -  The Video Game) (2004) - 简.gba -> 铁臂阿童木-阿童木之心的秘密\[v1.0]\[心灵的冬天](简)(66Mb).gba
