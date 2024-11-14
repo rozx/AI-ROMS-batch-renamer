@@ -1,15 +1,12 @@
 import { program } from "commander";
 import { readdirSync, statSync, renameSync, existsSync } from "fs";
 import path from "path";
-import { unlink } from "fs/promises";
 import md5File from "md5-file";
 
 import {
-	isFileIsBeingRenamed,
 	trimFileName,
 	isSystemOrHiddenFile,
 	getRegionInfo,
-	unzipAndRenameFile,
 	renameFile,
 	addsPinyinInitials,
 } from "./utils";
@@ -68,7 +65,6 @@ program
 		"-i, --includes <extension name...>",
 		"只重命名特定的文件后缀名，以空格分隔 (Only rename certain files by extensions, separated by spaces)"
 	)
-	.option("-u, --unzip", "解压并重命名zip文件 (Unzip and rename zip files)")
 	.option(
 		"-ai, --ai [chatgpt token]",
 		"以 gpt-4o-mini 获取rom的英文名称，方便获取封面资源，[如果没有提供apiKey的话会默认读取本地目录下的apiKey.txt] (Using gpt-4o-mini to fetch rom's English name, will read from 'apiKey.txt' if not provided)"
@@ -244,36 +240,6 @@ program
 					}
 
 					newFilePath = path.join(dir, newFileName);
-				}
-
-				if (extName === ".zip") {
-					if (options.unzip) {
-						try {
-							// unzip and rename the file
-							const unzippedFiles = await unzipAndRenameFile(
-								filePath,
-								newFilePath,
-								options.unzip,
-								Boolean(options.dryRun),
-								Boolean(options.nameOnly)
-							);
-
-							// finally delete the zip file
-
-							if (!options.dryRun) await unlink(filePath);
-
-							if (unzippedFiles) {
-								targetPaths.push(...unzippedFiles);
-							}
-						} catch (error: any) {
-							console.log(
-								`Error when unzipping file (${filePath}): ${error.message}`
-							);
-							return;
-						}
-
-						return;
-					}
 				}
 
 				// rename the file
