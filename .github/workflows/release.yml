@@ -131,15 +131,10 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      # - name: Set up Bun
-      #   uses: oven-sh/setup-bun@v2.0.1
-      #   with:
-      #     bun-version: latest
-      - name: Setup Bun Runtime
-        uses: antongolub/action-setup-bun@v1.13.2
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2.0.1
         with:
-          platform: 'darwin'
-          arch: 'arm64'
+          bun-version: latest
       - name: Install bun dependencies
         run: bun install
       - name: test run
