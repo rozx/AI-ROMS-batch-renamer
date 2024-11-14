@@ -5,9 +5,9 @@ on:
     branches: ["release"]
   push:
     # branches to consider in the event; optional, defaults to all
-    branches: ["release"]
+    branches: ["test-workflow"]
 permissions:
-    contents: read
+  contents: read
 
 jobs:
   build-and-release:
