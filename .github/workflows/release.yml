@@ -93,7 +93,6 @@ jobs:
 
   # Windows
   builds-on-windows:
-    needs: builds-on-linux-and-release
     runs-on: windows-latest
     permissions:
       # write permission is required to create a github release
