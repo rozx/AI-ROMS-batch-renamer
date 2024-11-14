@@ -24,6 +24,10 @@ jobs:
       - name: Extract version from package.json
         id: get_version
         run: echo "APP_VERSION=$(jq -r .version package.json)" >> $GITHUB_ENV && echo 'Exacted version ${{ env.APP_VERSION }}'
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with: 
+          node-version: 18
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2.0.1
         with:
@@ -83,6 +87,10 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with: 
+          node-version: 18
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2.0.1
         with:
@@ -131,6 +139,10 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with: 
+          node-version: 18
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2.0.1
         with:
