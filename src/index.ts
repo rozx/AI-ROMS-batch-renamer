@@ -20,7 +20,6 @@ import {
 } from "./consts";
 import { fetchTitleUsingAI } from "./aiUtils";
 import { renameHistoryCache } from "./cacheUtils";
-import { file } from "bun";
 
 program
 	.name("rom-batch-renamer")
