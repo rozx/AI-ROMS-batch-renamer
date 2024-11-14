@@ -52,14 +52,13 @@ Options:
   -fl, --files <files...>             只重命名文件，不重命名文件夹,以空格分隔 (Only rename files, not folders, separated by spaces)
   -e, --excludes <extension name...>  排除特定的文件后缀名，以空格分隔 (Filer out certain files by extensions, separated by spaces)
   -i, --includes <extension name...>  只重命名特定的文件后缀名，以空格分隔 (Only rename certain files by extensions, separated by spaces)
-  -ai, --ai [chatgpt token]           以 gpt-4o-mini 获取rom的英文名称，方便获取封面资源，[如果没有提供apiKey的话会默认读取本地目录下的apiKey.txt] (Using gpt-4o-mini to fetch rom's English name,
-                                      will read from 'apiKey.txt' if not provided)
-  -m, --no-cache                      强制不使用已有的ai重命名信息缓存，强制获取新的信息, 必须与 -ai 命令一起使用。(Manually invalidate the cache and force to fetch the latest information from
-                                      AI, must be used with the -ai command)
-  -p, --prettify                      使用AI获取的游戏名称取代原有的文件名，必须与 -ai 命令一起使用。 (Use the game title fetched by AI to replace the original file name, must be used
-                                      with the -ai command)
-  -py, --pinyin                       在文件名前加上拼音首字母来更好的支持排序，也支持英文和字母 (Adds pinyin initials at the beginning of file name for better sorting, also supports
-                                      English and numbers)
+  -u, --unzip                         解压并重命名zip文件 (Unzip and rename zip files)
+  -ai, --ai [chatgpt token]           以 gpt-4o-mini 获取rom的英文名称，方便获取封面资源，[如果没有提供apiKey的话会默认读取本地目录下的apiKey.txt] (Using gpt-4o-mini to fetch rom's English name, will read from 'apiKey.txt' if
+                                      not provided)
+  -m, --no-cache                      强制不使用已有的ai重命名信息缓存，强制获取新的信息, 必须与 -ai 命令一起使用。(Manually invalidate the cache and force to fetch the latest information from AI, must be used with the -ai
+                                      command)
+  -p, --prettify                      使用AI获取的游戏名称取代原有的文件名，必须与 -ai 命令一起使用。 (Use the game title fetched by AI to replace the original file name, must be used with the -ai command)
+  -py, --pinyin                       在文件名前加上拼音首字母来更好的支持排序，也支持英文和字母 (Adds pinyin initials at the beginning of file name for better sorting, also supports English and numbers)
   -h, --help                          display help for command
 ```
 

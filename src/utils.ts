@@ -3,6 +3,7 @@ import { createWriteStream, WriteStream } from "fs";
 import { rename } from "fs/promises";
 import { basename, extname, dirname, resolve } from "path";
 import { pipeline } from "stream/promises";
+import * as yauzl from "yauzl-promise";
 import pinyin from "pinyin";
 
 import {
@@ -131,6 +132,92 @@ export const isSystemOrHiddenFile = (fileName: string) => {
 		return true;
 	}
 	return false;
+};
+
+export const unzipAndRenameFile = async (
+	filePath: string,
+	targetFilename: string,
+	password?: string,
+	preview?: boolean,
+	nameOnly?: boolean
+) => {
+	// check if the file is a zip file
+	const extName = extname(filePath);
+	const unzippedFiles: string[] = [];
+
+	if (extName !== ".zip") {
+		return;
+	}
+
+	const zip = await yauzl.open(filePath, {
+		decodeStrings: true,
+	});
+	let readStream: any;
+	let writeStream: WriteStream;
+
+	try {
+		for await (const entry of zip) {
+			// skip if the entry is a directory
+			if (entry.filename.endsWith("/")) continue;
+
+			// skip if the file should be ignored
+			if (ignoredUnzipExt.includes(extname(entry.filename))) continue;
+
+			const targetUnzipFilename = `${basename(
+				targetFilename,
+				extName
+			)}${extname(entry.filename)}`;
+
+			unzippedFiles.push(targetUnzipFilename);
+
+			if (nameOnly) {
+				console.log(targetUnzipFilename);
+			} else {
+				console.log(
+					`Unzip and rename${
+						preview ? " preview" : ""
+					}: ${filePath} -> ${targetUnzipFilename}`
+				);
+			}
+
+			if (preview) {
+				continue;
+			}
+
+			// adds file to rename history
+			const targetPath = resolve(dirname(filePath), targetUnzipFilename);
+
+			const renameHistory: RomRenameHistory = {
+				originalName: basename(filePath).replace(
+					extName,
+					extname(entry.filename)
+				),
+				newName: targetUnzipFilename,
+			};
+
+			// extract the file
+
+			readStream = await entry.openReadStream({
+				decompress: true,
+			});
+			writeStream = createWriteStream(targetPath);
+
+			await pipeline(readStream, writeStream);
+
+			// get md5 of the file
+			const md5 = await md5File(targetPath);
+
+			// save rename history
+			renameHistoryCache.putSync(md5, renameHistory);
+		}
+	} catch (error: any) {
+		console.log(`Error when unzipping file [${filePath}]: ${error.message}`);
+	} finally {
+		// close the zip file
+		await zip.close();
+	}
+
+	return unzippedFiles;
 };
 
 export const renameFile = async (
