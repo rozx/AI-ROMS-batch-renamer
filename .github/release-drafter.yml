@@ -1,7 +1,7 @@
-name-template: 'v$RESOLVED_VERSION 📮'
+name-template: 'v$RESOLVED_VERSION 🚀'
 tag-template: 'v$RESOLVED_VERSION'
 categories:
-  - title: '🚀 Features'
+  - title: '🍰 Features'
     labels:
       - 'feature'
       - 'enhancement'
@@ -11,6 +11,6 @@ categories:
       - 'bugfix'
       - 'bug'
 template: |
-  ## What’s Changed
+  ## 🌈 What’s Changed
 
   $CHANGES

@@ -3,10 +3,9 @@ name: Create Release
 on:
   push:
     # branches to consider in the event; optional, defaults to all
-    branches: ["release","test-workflow"]
+    branches: ["release", "test-workflow"]
 
 jobs:
-
   # Release and linux
   builds-on-linux-and-release:
     runs-on: ubuntu-latest
@@ -33,13 +32,6 @@ jobs:
         run: bun install
       - name: Build linux
         run: bun build-linux
-
-      # - name: RenameMacBuild
-      #   run: mv ./dist/RomBatchRenamer-Mac-Arm64-Modern ./dist/RomBatchRenamer-Mac-Arm64-Modern-v${{ env.APP_VERSION }}
-      # - name: RenameWinBuild
-      #   run: mv ./dist/RomBatchRenamer-Win-X64-Modern.exe ./dist/RomBatchRenamer-Win-X64-Modern-v${{ env.APP_VERSION }}.exe
-      - name: RenameLinuxBuild
-        run: mv ./dist/RomBatchRenamer-Linux-X64-Modern ./dist/RomBatchRenamer-Linux-X64-Modern-v${{ env.APP_VERSION }}
 
       # Create draft releases
       - name: Create GitHub Release
@@ -69,14 +61,13 @@ jobs:
           name: releaseUploadUrl
           path: releaseUploadUrl.txt
 
-
       # Uploads
       # - name: Upload Mac build
       #   uses: shogo82148/actions-upload-release-asset@v1
       #   with:
       #     upload_url: ${{ steps.create_release.outputs.upload_url }}
       #     asset_path: ./dist/RomBatchRenamer-Mac-Arm64-Modern-v${{ env.APP_VERSION }}
-      
+
       # - name: Upload Win build
       #   uses: shogo82148/actions-upload-release-asset@v1
       #   with:
@@ -88,9 +79,8 @@ jobs:
         with:
           overwrite: true
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./dist/RomBatchRenamer-Linux-X64-Modern-v${{ env.APP_VERSION }}
-
-      
+          asset_path: ./dist/RomBatchRenamer-Linux-X64-Modern
+          asset_name: RomBatchRenamer-Linux-X64-Modern
 
   # Windows
   builds-on-windows:
@@ -103,7 +93,6 @@ jobs:
       # otherwise, read permission is required at least
       pull-requests: write
 
-    
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -139,11 +128,11 @@ jobs:
           overwrite: true
           upload_url: ${{ env.RELEASE_UPLOAD_URL }}
           asset_path: .\dist\RomBatchRenamer-Win-X64-Modern.exe
-          asset_name: RomBatchRenamer-Win-X64-Modern-v${{ env.APP_VERSION }}.exe
+          asset_name: RomBatchRenamer-Win-X64-Modern.exe
 
   # Mac
   builds-on-mac:
-    runs-on: macos-13
+    runs-on: macos-latest
     needs: [builds-on-linux-and-release]
     permissions:
       # write permission is required to create a github release
@@ -152,7 +141,6 @@ jobs:
       # otherwise, read permission is required at least
       pull-requests: write
 
-    
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -178,7 +166,7 @@ jobs:
         run: echo "APP_VERSION=$(cat appVersion.txt)" >> $GITHUB_ENV
       - name: set releaseUploadUrl
         run: echo "RELEASE_UPLOAD_URL=$(cat releaseUploadUrl.txt)" >> $GITHUB_ENV
-      
+
       # rename and upload
       - name: Upload Mac build
         uses: shogo82148/actions-upload-release-asset@v1
@@ -186,12 +174,4 @@ jobs:
           overwrite: true
           upload_url: ${{ env.RELEASE_UPLOAD_URL }}
           asset_path: ./dist/RomBatchRenamer-Mac-Arm64-Modern
-          asset_name: RomBatchRenamer-Mac-Arm64-Modern-v${{ env.APP_VERSION }}
-      
-      
-      
-    
-    
-  
-  
-
+          asset_name: RomBatchRenamer-Mac-Arm64-Modern
