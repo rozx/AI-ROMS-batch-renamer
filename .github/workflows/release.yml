@@ -21,7 +21,7 @@ jobs:
         run: sudo apt-get install -y jq
       - name: Extract version from package.json
         id: get_version
-        run: echo "VERSION=$(jq -r .version package.json)" >> $GITHUB_ENV
+        run: echo "VERSION=$(jq -r .version package.json)" >> $GITHUB_ENV & echo "Exacted version ${{ env.VERSION }}"
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
         with:
@@ -34,7 +34,7 @@ jobs:
       - name: RenameMacBuild
         run: mv ./dist/RomBatchRenamer-Mac-Arm64-Modern ./dist/RomBatchRenamer-Mac-Arm64-Modern-v${{ env.VERSION }}
       - name: RenameWinBuild
-        run: mv ./dist/RomBatchRenamer-Win-X64-Modern ./dist/RomBatchRenamer-Win-X64-Modern-v${{ env.VERSION }}.exe
+        run: mv ./dist/RomBatchRenamer-Win-X64-Modern.exe ./dist/RomBatchRenamer-Win-X64-Modern-v${{ env.VERSION }}.exe
       - name: RenameLinuxBuild
         run: mv ./dist/RomBatchRenamer-Linux-x64-Modern ./dist/RomBatchRenamer-Linux-X64-Modern-v${{ env.VERSION }}
 
