@@ -25,7 +25,7 @@ jobs:
         id: get_version
         run: echo "APP_VERSION=$(jq -r .version package.json)" >> $GITHUB_ENV && echo 'Exacted version ${{ env.APP_VERSION }}'
       - name: Set up Bun
-        uses: oven-sh/setup-bun@v2.01
+        uses: oven-sh/setup-bun@v2.0.1
         with:
           bun-version: latest
       - name: Install bun dependencies
@@ -84,7 +84,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Set up Bun
-        uses: oven-sh/setup-bun@v2.01
+        uses: oven-sh/setup-bun@v2.0.1
         with:
           bun-version: latest
       - name: Install bun dependencies
@@ -131,10 +131,15 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Set up Bun
-        uses: oven-sh/setup-bun@v2.01
+      # - name: Set up Bun
+      #   uses: oven-sh/setup-bun@v2.0.1
+      #   with:
+      #     bun-version: latest
+      - name: Setup Bun Runtime
+        uses: antongolub/action-setup-bun@v1.13.2
         with:
-          bun-version: latest
+          platform: 'darwin'
+          arch: 'arm64'
       - name: Install bun dependencies
         run: bun install
       - name: test run
