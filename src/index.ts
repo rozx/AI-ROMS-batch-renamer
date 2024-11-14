@@ -5,7 +5,6 @@ import { unlink } from "fs/promises";
 import md5File from "md5-file";
 
 import {
-	isFileIsBeingRenamed,
 	trimFileName,
 	isSystemOrHiddenFile,
 	getRegionInfo,
@@ -21,7 +20,6 @@ import {
 } from "./consts";
 import { fetchTitleUsingAI } from "./aiUtils";
 import { renameHistoryCache } from "./cacheUtils";
-import type { RomRenameHistory } from "./types";
 
 program
 	.name("rom-batch-renamer")
@@ -101,6 +99,19 @@ program
 			}
 
 			readdirSync(dir).forEach((file: string) => {
+				// exclude file without extension
+				if (!path.extname(file)) return;
+
+				// exclude self
+				if (file === __filename) return;
+
+				// exclude hidden or system files
+				if (isSystemOrHiddenFile(file)) {
+					// if (!options.nameOnly)
+					// 	console.log(`Skipped: ${filePath} (Hidden or system file)`);
+					return;
+				}
+
 				filesList.push(path.join(dir, file));
 			});
 		}
@@ -141,35 +152,31 @@ program
 
 			const renameHistoryKeys = renameHistoryCache.keysSync();
 
-			if (stats.isDirectory() && options.recursive) {
-				// 递归重命名文件夹中的所有文件
-				program.parse([
-					"rename",
-					filePath,
-					...(options.dryRun ? ["-d"] : []),
-					...(options.recursive ? ["-r"] : []),
-					...(options.trim ? ["-t"] : []),
-					...(options.nameOnly ? ["-n"] : []),
-					...(options.force ? ["-f"] : []),
-					...(options.excludes ? ["-e", options.excludes] : []),
-					...(options.includes ? ["-i", options.includes] : []),
-					...(options.unzip ? ["-u"] : []),
-					...(options.ai ? ["-ai", options.ai] : []),
-					...(options.noCache ? ["-m"] : []),
-					...(options.prettify ? ["-p"] : []),
-					...(options.pinyin ? ["-py"] : []),
-				]);
+			if (stats.isDirectory()) {
+				if (options.recursive) {
+					// 递归重命名文件夹中的所有文件
+					program.parse([
+						"rename",
+						filePath,
+						...(options.dryRun ? ["-d"] : []),
+						...(options.recursive ? ["-r"] : []),
+						...(options.trim ? ["-t"] : []),
+						...(options.nameOnly ? ["-n"] : []),
+						...(options.force ? ["-f"] : []),
+						...(options.excludes ? ["-e", options.excludes] : []),
+						...(options.includes ? ["-i", options.includes] : []),
+						...(options.unzip ? ["-u"] : []),
+						...(options.ai ? ["-ai", options.ai] : []),
+						...(options.noCache ? ["-m"] : []),
+						...(options.prettify ? ["-p"] : []),
+						...(options.pinyin ? ["-py"] : []),
+					]);
+				}
 			} else if (stats.isFile()) {
 				// check if the file is already being renamed
 				if (!options.force && renameHistoryKeys.includes(md5)) {
 					if (!options.nameOnly)
 						console.log(`Skipped: ${filePath} (Already renamed)`);
-					return;
-				}
-
-				if (isSystemOrHiddenFile(file)) {
-					// if (!options.nameOnly)
-					// 	console.log(`Skipped: ${filePath} (Hidden or system file)`);
 					return;
 				}
 

@@ -111,14 +111,21 @@ export const trimFileName = (fileName: string) => {
 };
 
 export const addsPinyinInitials = (fileName: string) => {
-	const pinyinInitials = pinyin(fileName, {
-		style: pinyin.STYLE_FIRST_LETTER,
-		heteronym: false,
-	})[0][0]
-		.substring(0, 1)
-		.toUpperCase();
+	try {
+		// get the first letter of the pinyin
+		const pinyinInitials = pinyin(fileName, {
+			style: pinyin.STYLE_FIRST_LETTER,
+			heteronym: false,
+		});
 
-	fileName = `${pinyinInitials} ${fileName}`;
+		const FFInitials = pinyinInitials[0][0].substring(0, 1).toUpperCase();
+
+		fileName = `${FFInitials} ${fileName}`;
+	} catch (error) {
+		const initials = fileName.substring(0, 1).toUpperCase();
+
+		fileName = `${initials} ${fileName}`;
+	}
 
 	return fileName;
 };
