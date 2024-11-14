@@ -5,7 +5,6 @@ import { unlink } from "fs/promises";
 import md5File from "md5-file";
 
 import {
-	isFileIsBeingRenamed,
 	trimFileName,
 	isSystemOrHiddenFile,
 	getRegionInfo,
@@ -21,7 +20,6 @@ import {
 } from "./consts";
 import { fetchTitleUsingAI } from "./aiUtils";
 import { renameHistoryCache } from "./cacheUtils";
-import type { RomRenameHistory } from "./types";
 
 program
 	.name("rom-batch-renamer")
@@ -101,6 +99,15 @@ program
 			}
 
 			readdirSync(dir).forEach((file: string) => {
+				// exclude self
+				if (file === path.resolve(__dirname, __filename)) return;
+
+				// exclude hidden or system files
+				if (isSystemOrHiddenFile(file)) {
+					// if (!options.nameOnly)
+					// 	console.log(`Skipped: ${filePath} (Hidden or system file)`);
+					return;
+				}
 				filesList.push(path.join(dir, file));
 			});
 		}
@@ -122,6 +129,8 @@ program
 		}
 
 		filesList.forEach(async (filePath: string) => {
+			console.log(`Processing: ${filePath}`);
+
 			const dir = path.dirname(filePath);
 			let file = path.basename(filePath);
 
@@ -141,152 +150,150 @@ program
 
 			const renameHistoryKeys = renameHistoryCache.keysSync();
 
-			if (stats.isDirectory() && options.recursive) {
-				// 递归重命名文件夹中的所有文件
-				program.parse([
-					"rename",
-					filePath,
-					...(options.dryRun ? ["-d"] : []),
-					...(options.recursive ? ["-r"] : []),
-					...(options.trim ? ["-t"] : []),
-					...(options.nameOnly ? ["-n"] : []),
-					...(options.force ? ["-f"] : []),
-					...(options.excludes ? ["-e", options.excludes] : []),
-					...(options.includes ? ["-i", options.includes] : []),
-					...(options.unzip ? ["-u"] : []),
-					...(options.ai ? ["-ai", options.ai] : []),
-					...(options.noCache ? ["-m"] : []),
-					...(options.prettify ? ["-p"] : []),
-					...(options.pinyin ? ["-py"] : []),
-				]);
-			} else if (stats.isFile()) {
-				// check if the file is already being renamed
-				if (!options.force && renameHistoryKeys.includes(md5)) {
-					if (!options.nameOnly)
-						console.log(`Skipped: ${filePath} (Already renamed)`);
-					return;
-				}
+			if (stats.isDirectory()) {
+				console.log(`Skipped: ${filePath} (Directory)`);
 
-				if (isSystemOrHiddenFile(file)) {
-					// if (!options.nameOnly)
-					// 	console.log(`Skipped: ${filePath} (Hidden or system file)`);
-					return;
-				}
-
-				// grab the region info
-				const regionInfo = getRegionInfo(newFileName);
-
-				// Check if the file name needs to be trimmed
-				if (options.trim) {
-					newFileName = trimFileName(newFileName);
-				}
-
-				let baseName = path.basename(newFileName, extName);
-
-				// adds hack info to the file name
-				newFileName = originalBaseName.match(hackMatchRegEx)
-					? `${baseName} (Hack)`
-					: newFileName;
-				baseName = path.basename(newFileName, extName);
-
-				// try fetching the English name of the rom file
-				if (options.ai) {
-					const romData = await fetchTitleUsingAI(
-						options.ai,
-						md5,
+				if (options.recursive) {
+					// 递归重命名文件夹中的所有文件
+					program.parse([
+						"rename",
 						filePath,
-						options.noCache
-					);
-
-					if (romData?.title) {
-						if (options.prettify) {
-							newFileName = `${romData.chineseTitle} (${romData.title}) (${romData.year})${extName}`;
-						} else {
-							newFileName = `${baseName} (${romData.title}) (${romData.year})${extName}`;
-						}
-
-						// replace the invalid characters in the file name
-						newFileName = newFileName.replaceAll(
-							invalidFileNameMatchRegEx,
-							" - "
-						);
-
-						baseName = path.basename(newFileName, extName);
-					}
-				}
-
-				// adds region info to the file name
-				newFileName = regionInfo
-					? `${baseName} - ${regionInfo}${extName}`
-					: newFileName;
-
-				// adds pinyin initials to the file name
-
-				if (options.pinyin) {
-					newFileName = addsPinyinInitials(newFileName);
-					newFilePath = path.join(dir, newFileName);
-				}
-				// check if the file name already exists
-
-				let index = 0;
-				baseName = path.basename(newFileName, extName);
-
-				while (existsSync(newFilePath) || targetPaths.includes(newFilePath)) {
-					index++;
-
-					if (!fileNameDuplicateRegEx.test(newFileName)) {
-						newFileName = `${baseName} - (${index})${extName}`;
-					} else {
-						newFileName = newFileName.replace(
-							fileNameDuplicateRegEx,
-							`- (${index})${extName}`
-						);
-					}
-
-					newFilePath = path.join(dir, newFileName);
-				}
-
-				if (extName === ".zip") {
-					if (options.unzip) {
-						try {
-							// unzip and rename the file
-							const unzippedFiles = await unzipAndRenameFile(
-								filePath,
-								newFilePath,
-								options.unzip,
-								Boolean(options.dryRun),
-								Boolean(options.nameOnly)
-							);
-
-							// finally delete the zip file
-
-							if (!options.dryRun) await unlink(filePath);
-
-							if (unzippedFiles) {
-								targetPaths.push(...unzippedFiles);
-							}
-						} catch (error: any) {
-							console.log(
-								`Error when unzipping file (${filePath}): ${error.message}`
-							);
-							return;
-						}
-
+						...(options.dryRun ? ["-d"] : []),
+						...(options.recursive ? ["-r"] : []),
+						...(options.trim ? ["-t"] : []),
+						...(options.nameOnly ? ["-n"] : []),
+						...(options.force ? ["-f"] : []),
+						...(options.excludes ? ["-e", options.excludes] : []),
+						...(options.includes ? ["-i", options.includes] : []),
+						...(options.unzip ? ["-u"] : []),
+						...(options.ai ? ["-ai", options.ai] : []),
+						...(options.noCache ? ["-m"] : []),
+						...(options.prettify ? ["-p"] : []),
+						...(options.pinyin ? ["-py"] : []),
+					]);
+				} else if (stats.isFile()) {
+					// check if the file is already being renamed
+					if (!options.force && renameHistoryKeys.includes(md5)) {
+						if (!options.nameOnly)
+							console.log(`Skipped: ${filePath} (Already renamed)`);
 						return;
 					}
+
+					// grab the region info
+					const regionInfo = getRegionInfo(newFileName);
+
+					// Check if the file name needs to be trimmed
+					if (options.trim) {
+						newFileName = trimFileName(newFileName);
+					}
+
+					let baseName = path.basename(newFileName, extName);
+
+					// adds hack info to the file name
+					newFileName = originalBaseName.match(hackMatchRegEx)
+						? `${baseName} (Hack)`
+						: newFileName;
+					baseName = path.basename(newFileName, extName);
+
+					// try fetching the English name of the rom file
+					if (options.ai) {
+						const romData = await fetchTitleUsingAI(
+							options.ai,
+							md5,
+							filePath,
+							options.noCache
+						);
+
+						if (romData?.title) {
+							if (options.prettify) {
+								newFileName = `${romData.chineseTitle} (${romData.title}) (${romData.year})${extName}`;
+							} else {
+								newFileName = `${baseName} (${romData.title}) (${romData.year})${extName}`;
+							}
+
+							// replace the invalid characters in the file name
+							newFileName = newFileName.replaceAll(
+								invalidFileNameMatchRegEx,
+								" - "
+							);
+
+							baseName = path.basename(newFileName, extName);
+						}
+					}
+
+					// adds region info to the file name
+					newFileName = regionInfo
+						? `${baseName} - ${regionInfo}${extName}`
+						: newFileName;
+
+					// adds pinyin initials to the file name
+
+					if (options.pinyin) {
+						newFileName = addsPinyinInitials(newFileName);
+						newFilePath = path.join(dir, newFileName);
+					}
+					// check if the file name already exists
+
+					let index = 0;
+					baseName = path.basename(newFileName, extName);
+
+					while (existsSync(newFilePath) || targetPaths.includes(newFilePath)) {
+						index++;
+
+						if (!fileNameDuplicateRegEx.test(newFileName)) {
+							newFileName = `${baseName} - (${index})${extName}`;
+						} else {
+							newFileName = newFileName.replace(
+								fileNameDuplicateRegEx,
+								`- (${index})${extName}`
+							);
+						}
+
+						newFilePath = path.join(dir, newFileName);
+					}
+
+					if (extName === ".zip") {
+						if (options.unzip) {
+							try {
+								// unzip and rename the file
+								const unzippedFiles = await unzipAndRenameFile(
+									filePath,
+									newFilePath,
+									options.unzip,
+									Boolean(options.dryRun),
+									Boolean(options.nameOnly)
+								);
+
+								// finally delete the zip file
+
+								if (!options.dryRun) await unlink(filePath);
+
+								if (unzippedFiles) {
+									targetPaths.push(...unzippedFiles);
+								}
+							} catch (error: any) {
+								console.log(
+									`Error when unzipping file (${filePath}): ${error.message}`
+								);
+								return;
+							}
+
+							return;
+						}
+					}
+
+					// rename the file
+
+					await renameFile(
+						filePath,
+						newFilePath,
+						md5,
+						Boolean(options.dryRun),
+						Boolean(options.nameOnly)
+					);
+
+					targetPaths.push(newFilePath);
 				}
-
-				// rename the file
-
-				await renameFile(
-					filePath,
-					newFilePath,
-					md5,
-					Boolean(options.dryRun),
-					Boolean(options.nameOnly)
-				);
-
-				targetPaths.push(newFilePath);
 			}
 		});
 	});
