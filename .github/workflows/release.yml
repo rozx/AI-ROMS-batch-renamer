@@ -1,0 +1,56 @@
+name: Create Release
+
+on:
+  pull_request:
+    branches: ["release"]
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      # write permission is required to create a github release
+      contents: write
+      # write permission is required for autolabeler
+      # otherwise, read permission is required at least
+      pull-requests: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Install jq
+        run: sudo apt-get install -y jq
+      - name: Extract version from package.json
+        id: get_version
+        run: echo "VERSION=$(jq -r .version package.json)" >> $GITHUB_ENV
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install bun dependencies
+        run: bun install
+      - name: Build project
+        run: bun build-all
+
+      - name: RenameMacBuild
+        run: mv ./dist/RomBatchRenamer-Mac-Arm64-Modern ./dist/RomBatchRenamer-Mac-Arm64-Modern-v${{ env.VERSION }}
+      - name: RenameWinBuild
+        run: mv ./dist/RomBatchRenamer-Win-X64-Modern ./dist/RomBatchRenamer-Win-X64-Modern-v${{ env.VERSION }}.exe
+      - name: RenameLinuxBuild
+        run: mv ./dist/RomBatchRenamer-Linux-x64-Modern ./dist/RomBatchRenamer-Linux-X64-Modern-v${{ env.VERSION }}
+
+      - name: Create GitHub Release
+        id: create_release
+        # Drafts your next Release notes as Pull Requests are merged into "master"
+        uses: release-drafter/release-drafter@v6
+        # (Optional) specify config name to use, relative to .github/. Default: release-drafter.yml
+        # with:
+        #   config-name: my-config.yml
+        #   disable-autolabeler: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Release Asset
+        uses: actions/upload-artifact@v4
+        with:
+          path: ./dist # or path/to/artifact
+

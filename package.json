@@ -12,6 +12,14 @@
     "build-linux": "bun build --compile --minify --sourcemap  ./src/index.ts --outfile ./dist/RomBatchRenamer-Linux-X64-Modern --target bun-linux-x64",
     "build-all": "bun build-mac && bun build-win && bun build-linux"
   },
+  "trustedDependencies":[
+    "chatgpt",
+    "commander",
+    "md5-file",
+    "persistent-cache",
+    "pinyin",
+    "yauzl-promise"
+  ],
   "devDependencies": {
     "@types/bun": "latest",
     "@types/commander": "^2.12.2",
