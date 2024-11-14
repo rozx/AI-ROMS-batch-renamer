@@ -127,9 +127,9 @@ jobs:
       - name: show appVersion
         run: echo "$(cat appVersion.txt)"
       - name: set appVersion
-        run: echo "APP_VERSION=$(cat appVersion.txt)" >> $GITHUB_ENV
+        run: echo "APP_VERSION=$(cat appVersion.txt)" >> $env:GITHUB_ENV
       - name: set releaseUploadUrl
-        run: echo "RELEASE_UPLOAD_URL=$(cat releaseUploadUrl.txt)" >> $GITHUB_ENV
+        run: echo "RELEASE_UPLOAD_URL=$(cat releaseUploadUrl.txt)" >> $env:GITHUB_ENV
 
       # rename and upload
       - name: rename build
