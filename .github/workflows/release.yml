@@ -94,6 +94,7 @@ jobs:
   # Windows
   builds-on-windows:
     runs-on: windows-latest
+    needs: builds-on-linux-and-release
     permissions:
       # write permission is required to create a github release
       contents: write
@@ -124,7 +125,7 @@ jobs:
         with:
           name: releaseUploadUrl
       - name: show appVersion
-      - run: echo "$(cat appVersion.txt)"
+        run: echo "$(cat appVersion.txt)"
       - name: set appVersion
         run: echo "APP_VERSION=$(cat appVersion.txt)" >> $GITHUB_ENV
       - name: set releaseUploadUrl
