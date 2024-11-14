@@ -3,6 +3,11 @@ name: Create Release
 on:
   pull_request:
     branches: ["release"]
+  push:
+    # branches to consider in the event; optional, defaults to all
+    branches: ["release"]
+permissions:
+    contents: read
 
 jobs:
   build-and-release:
