@@ -11,7 +11,6 @@ jobs:
 
   # Release and linux
   builds-on-linux-and-release:
-    name: build-linux
     runs-on: ubuntu-latest
     permissions:
       # write permission is required to create a github release
@@ -96,9 +95,8 @@ jobs:
 
   # Windows
   builds-on-windows:
-    name: build-windows
-    needs: [builds-on-linux-and-release]
     runs-on: windows-latest
+    needs: [builds-on-linux-and-release]
     permissions:
       # write permission is required to create a github release
       contents: write
@@ -144,9 +142,8 @@ jobs:
 
   # Mac
   builds-on-mac:
-    name: build-mac
-    needs: [builds-on-linux-and-release]
     runs-on: macOS-latest
+    needs: [builds-on-linux-and-release]
     permissions:
       # write permission is required to create a github release
       contents: write
