@@ -43,22 +43,39 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Upload the build
-      - name: Build linux
-        run: bun build-linux
+      # Make the x64 build and upload it
+      - name: Build linux-x64
+        run: bun build-linux-x64
       - name: Archive the build
         uses: TheDoctor0/zip-release@0.7.6
         with:
-          filename: release.zip
+          filename: release-x64.zip
           type: zip
-          path: ./dist
-      - name: Upload Linux build
+          path: ./dist/RomBatchRenamer-Linux-X64-Baseline
+      - name: Upload the x64 build
         uses: shogo82148/actions-upload-release-asset@v1
         with:
           overwrite: true
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: release.zip
-          asset_name: RomBatchRenamer-Linux-X64-Modern-v${{ env. APP_VERSION}}.zip
+          asset_path: release-x64.zip
+          asset_name: RomBatchRenamer-Linux-X64-Baseline-v${{ env. APP_VERSION}}.zip
+
+      # Make the arm build and upload it
+      - name: Build linux-arm
+        run: bun build-linux-arm
+      - name: Archive the build
+        uses: TheDoctor0/zip-release@0.7.6
+        with:
+          filename: release-arm.zip
+          type: zip
+          path: ./dist/RomBatchRenamer-Linux-ARM-Modern
+      - name: Upload the arm build
+        uses: shogo82148/actions-upload-release-asset@v1
+        with:
+          overwrite: true
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: release-arm.zip
+          asset_name: RomBatchRenamer-Linux-Arm-Modern-v${{ env. APP_VERSION}}.zip
 
       # Upload artifacts
       - name: Make version artifact
@@ -96,8 +113,8 @@ jobs:
           bun-version: latest
       - name: Install bun dependencies
         run: bun install
-      - name: Build windows
-        run: bun build-win
+      - name: Build windows x64
+        run: bun build-win-x64
 
       # artifact
       - name: download appVersion
@@ -115,22 +132,22 @@ jobs:
       - name: set releaseUploadUrl
         run: echo "RELEASE_UPLOAD_URL=$(cat releaseUploadUrl.txt)" >> $env:GITHUB_ENV
 
-      # rename and upload
+      # Archive and upload
 
       - name: Archive the build
         uses: TheDoctor0/zip-release@0.7.6
         with:
-          filename: release.zip
+          filename: release-x64.zip
           type: zip
-          path: .\dist
-      
+          path: .\dist\RomBatchRenamer-Win-X64-Baseline.exe
+
       - name: Upload Win build
         uses: shogo82148/actions-upload-release-asset@v1
         with:
           overwrite: true
           upload_url: ${{ env.RELEASE_UPLOAD_URL }}
-          asset_path: release.zip
-          asset_name: RomBatchRenamer-Win-X64-Modern-v${{ env. APP_VERSION}}.zip
+          asset_path: release-x64.zip
+          asset_name: RomBatchRenamer-Win-X64-Baseline-v${{ env. APP_VERSION}}.zip
 
   # Mac
   builds-on-mac:
@@ -154,8 +171,10 @@ jobs:
         run: bun install
       - name: test run
         run: bun start rename -h
-      - name: Build mac
-        run: bun build-mac
+      - name: Build mac-arm
+        run: bun build-mac-arm
+      - name: Build mac-x64
+        run: bun build-mac-x64
 
       # artifact
       - name: download appVersion
@@ -171,17 +190,32 @@ jobs:
       - name: set releaseUploadUrl
         run: echo "RELEASE_UPLOAD_URL=$(cat releaseUploadUrl.txt)" >> $GITHUB_ENV
 
-      # rename and upload
-      - name: Archive the build
+      # Archive and upload the arm build
+      - name: Archive the arm build
         uses: TheDoctor0/zip-release@0.7.6
         with:
-          filename: release.zip
+          filename: release-arm.zip
           type: zip
-          path: ./dist
-      - name: Upload Mac build
+          path: ./dist/RomBatchRenamer-Mac-Arm64-Modern
+      - name: Upload Arm Mac build
         uses: shogo82148/actions-upload-release-asset@v1
         with:
           overwrite: true
           upload_url: ${{ env.RELEASE_UPLOAD_URL }}
-          asset_path: release.zip
+          asset_path: release-arm.zip
           asset_name: RomBatchRenamer-Mac-Arm64-Modern-v${{ env. APP_VERSION}}.zip
+
+      # Archive and upload the arm build
+      - name: Archive the X64 build
+        uses: TheDoctor0/zip-release@0.7.6
+        with:
+          filename: release-x64.zip
+          type: zip
+          path: ./dist/RomBatchRenamer-Mac-X64-Baseline
+      - name: Upload X64 Mac build
+        uses: shogo82148/actions-upload-release-asset@v1
+        with:
+          overwrite: true
+          upload_url: ${{ env.RELEASE_UPLOAD_URL }}
+          asset_path: release-x64.zip
+          asset_name: RomBatchRenamer-Mac-X64-Baseline-v${{ env. APP_VERSION}}.zip
