@@ -134,7 +134,7 @@ jobs:
 
       # rename and upload
       - name: rename build
-        run: ren .\dist\RomBatchRenamer-Win-X64-Modern.exe .\dist\RomBatchRenamer-Win-X64-Modern-v${{ env.APP_VERSION }}.exe
+        run: cd dist && ren RomBatchRenamer-Win-X64-Modern.exe RomBatchRenamer-Win-X64-Modern-v${{ env.APP_VERSION }}.exe
       - name: Upload Win build
         uses: shogo82148/actions-upload-release-asset@v1
         with:
@@ -163,8 +163,8 @@ jobs:
           bun-version: latest
       - name: Install bun dependencies
         run: bun install
-      - name: Build windows
-        run: bun build-win
+      - name: Build mac
+        run: bun build-mac
 
       # artifact
       - name: download appVersion
