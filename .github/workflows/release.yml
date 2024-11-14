@@ -3,7 +3,7 @@ name: Create Release
 on:
   push:
     # branches to consider in the event; optional, defaults to all
-    branches: ["release", "test-workflow"]
+    branches: ["test-workflow"]
 
 jobs:
   # Release and linux
