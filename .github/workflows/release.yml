@@ -3,12 +3,14 @@ name: Create Release
 on:
   push:
     # branches to consider in the event; optional, defaults to all
-    branches: ["test-workflow", "release"]
+    branches: ["release","test-workflow"]
 permissions:
   contents: read
 
 jobs:
-  build-and-release:
+
+  # Release and linux
+  builds-on-linux-and-release:
     runs-on: ubuntu-latest
     permissions:
       # write permission is required to create a github release
@@ -24,23 +26,24 @@ jobs:
         run: sudo apt-get install -y jq
       - name: Extract version from package.json
         id: get_version
-        run: echo "APP_VERSION=$(jq -r .version package.json)" >> $GITHUB_ENV && echo "Exacted version ${{ env.APP_VERSION }}"
+        run: echo "APP_VERSION=$(jq -r .version package.json)" >> $GITHUB_ENV && echo 'Exacted version ${{ env.APP_VERSION }}'
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
       - name: Install bun dependencies
         run: bun install
-      - name: Build project
-        run: bun build-all
+      - name: Build linux
+        run: bun build-linux
 
-      - name: RenameMacBuild
-        run: mv ./dist/RomBatchRenamer-Mac-Arm64-Modern ./dist/RomBatchRenamer-Mac-Arm64-Modern-v${{ env.APP_VERSION }}
-      - name: RenameWinBuild
-        run: mv ./dist/RomBatchRenamer-Win-X64-Modern.exe ./dist/RomBatchRenamer-Win-X64-Modern-v${{ env.APP_VERSION }}.exe
+      # - name: RenameMacBuild
+      #   run: mv ./dist/RomBatchRenamer-Mac-Arm64-Modern ./dist/RomBatchRenamer-Mac-Arm64-Modern-v${{ env.APP_VERSION }}
+      # - name: RenameWinBuild
+      #   run: mv ./dist/RomBatchRenamer-Win-X64-Modern.exe ./dist/RomBatchRenamer-Win-X64-Modern-v${{ env.APP_VERSION }}.exe
       - name: RenameLinuxBuild
         run: mv ./dist/RomBatchRenamer-Linux-X64-Modern ./dist/RomBatchRenamer-Linux-X64-Modern-v${{ env.APP_VERSION }}
 
+      # Create draft releases
       - name: Create GitHub Release
         id: create_release
         # Drafts your next Release notes as Pull Requests are merged into "master"
@@ -51,11 +54,30 @@ jobs:
         #   disable-autolabeler: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      # Execute 'tagize' action
-      - uses: langroodi/tagize@v1
 
-      - name: Upload Release Asset
-        uses: actions/upload-artifact@v4
+
+      # Uploads
+      # - name: Upload Mac build
+      #   uses: shogo82148/actions-upload-release-asset@v1
+      #   with:
+      #     upload_url: ${{ steps.create_release.outputs.upload_url }}
+      #     asset_path: ./dist/RomBatchRenamer-Mac-Arm64-Modern-v${{ env.APP_VERSION }}
+      
+      # - name: Upload Win build
+      #   uses: shogo82148/actions-upload-release-asset@v1
+      #   with:
+      #     upload_url: ${{ steps.create_release.outputs.upload_url }}
+      #     asset_path: ./dist/RomBatchRenamer-Win-X64-Modern-v${{ env.APP_VERSION }}.exe
+
+      - name: Upload Linux build
+        uses: shogo82148/actions-upload-release-asset@v1
         with:
-          path: ./dist # or path/to/artifact
-
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/RomBatchRenamer-Linux-X64-Modern-v${{ env.APP_VERSION }}
+      
+      
+      
+    
+    
+  
+  
