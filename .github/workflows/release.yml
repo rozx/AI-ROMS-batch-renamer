@@ -138,8 +138,8 @@ jobs:
         with:
           overwrite: true
           upload_url: ${{ env.RELEASE_UPLOAD_URL }}
-          asset_path: .\RomBatchRenamer-Win-X64-Modern.exe
-          asset_name: .\dist\RomBatchRenamer-Win-X64-Modern-v${{ env.APP_VERSION }}.exe
+          asset_path: .\dist\RomBatchRenamer-Win-X64-Modern.exe
+          asset_name: RomBatchRenamer-Win-X64-Modern-v${{ env.APP_VERSION }}.exe
 
   # Mac
   builds-on-mac:
@@ -186,7 +186,7 @@ jobs:
           overwrite: true
           upload_url: ${{ env.RELEASE_UPLOAD_URL }}
           asset_path: ./dist/RomBatchRenamer-Mac-Arm64-Modern
-          asset_name: ./RomBatchRenamer-Mac-Arm64-Modern-v${{ env.APP_VERSION }}
+          asset_name: RomBatchRenamer-Mac-Arm64-Modern-v${{ env.APP_VERSION }}
       
       
       
