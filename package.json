@@ -2,14 +2,14 @@
   "name": "rom-batch-renamer",
   "module": "src/index.ts",
   "type": "module",
-  "version": "1.6.5",
+  "version": "1.6.2",
   "description": "A command line batch renamer for rom files",
   "scripts": {
     "start": "bun src/index.ts",
     "dev": "bun --hot src/index.ts ",
-    "build-mac": "bun build --compile --minify --sourcemap ./src/index.ts --outfile ./dist/RomBatchRenamer-Mac-Arm64-Modern --target bun-darwin-arm64-modern",
-    "build-win": "bun build --compile --minify --sourcemap ./src/index.ts --outfile ./dist/RomBatchRenamer-Win-X64-Modern --target bun-win-x64-modern",
-    "build-linux": "bun build --compile --minify --sourcemap  ./src/index.ts --outfile ./dist/RomBatchRenamer-Linux-X64-Modern --target bun-linux-x64",
+    "build-mac": "bun build --compile ./src/index.ts --outfile ./dist/RomBatchRenamer-Mac-Arm64-Modern --target bun-darwin-arm64-modern",
+    "build-win": "bun build --compile ./src/index.ts --outfile ./dist/RomBatchRenamer-Win-X64-Modern --target bun-win-x64-modern",
+    "build-linux": "bun build --compile ./src/index.ts --outfile ./dist/RomBatchRenamer-Linux-X64-Modern --target bun-linux-x64",
     "build-all": "bun build-mac && bun build-win && bun build-linux"
   },
   "trustedDependencies":[
