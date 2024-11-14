@@ -150,6 +150,8 @@ jobs:
           bun-version: latest
       - name: Install bun dependencies
         run: bun install
+      - name: test run
+        run: bun start rename -h
       - name: Build mac
         run: bun build-mac
 
