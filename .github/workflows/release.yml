@@ -143,7 +143,7 @@ jobs:
 
   # Mac
   builds-on-mac:
-    runs-on: macOS-latest
+    runs-on: macos-15
     needs: [builds-on-linux-and-release]
     permissions:
       # write permission is required to create a github release
