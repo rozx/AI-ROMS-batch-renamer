@@ -5,6 +5,8 @@ from typing_extensions import Annotated
 
 import modules.rename as renameModule
 
+VERSION = "2.0.0"
+
 app = typer.Typer(
     name="renamer",
     help="一个使用AI来批量重命名ROM文件的命令行工具。(A command line tool for batch renaming ROM files using AI.)",
@@ -24,7 +26,7 @@ def rename(
             dir_okay=True,
             file_okay=False,
         ),
-    ] = ".",
+    ] = None,
     files: Annotated[
         str,
         typer.Option(
@@ -44,6 +46,38 @@ def rename(
             help="去除无用的信息 (Trim the filename)",
         ),
     ] = None,
+    dry: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            "-d",
+            help="只输出结果，不实际重命名 (Output the result without actually renaming)",
+        ),
+    ] = None,
+    pinyin: Annotated[
+        bool,
+        typer.Option(
+            "--pinyin",
+            "-py",
+            help="在开头加上拼音首字符来更好的支持查找 (Add pinyin initials at the beginning for better sort support)",
+        ),
+    ] = None,
+    includes: Annotated[
+        list[str],
+        typer.Option(
+            "--includes <extNames...>",
+            "-i",
+            help="只处理特定的文件类型 (Only process specific file types)",
+        ),
+    ] = [],
+    excludes: Annotated[
+        list[str],
+        typer.Option(
+            "--excludes <extNames...>",
+            "-e",
+            help="不处理特定的文件类型 (Do not process specific file types)",
+        ),
+    ] = [],
 ):
     """
     批量重命名Roms文件 (Batch rename files by providing a directory or files)
@@ -52,11 +86,11 @@ def rename(
     # check if both dir and files are provided, if not, prompt the user to provide them
     if not dir and not files:
         rprint(
-            "请提供要重命名的文件夹路径或文件 (Please provide the directory path or files to rename)"
+            "[red bold]请提供要重命名的文件夹路径或文件 (Please provide the directory path or files to rename)[/red bold]"
         )
         return
 
-    renameModule.rename(dir, files, trim)
+    renameModule.rename(dir, files, trim, dry, pinyin, includes, excludes)
 
     pass
 
@@ -66,6 +100,16 @@ def revert():
     """
     还原重命名后的文件 (Revert changed file names)
     """
+    pass
+
+
+@app.command("version", no_args_is_help=False)
+def version():
+    """
+    显示程序版本 (Show the program version)
+    """
+
+    rprint(f"[bold]v{VERSION}[/bold]")
     pass
 
 

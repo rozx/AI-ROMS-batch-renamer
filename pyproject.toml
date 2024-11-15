@@ -15,7 +15,7 @@ requires-python = ">= 3.8"
 
 [project.scripts]
 build = "hatchling build"
-updateReqs = "pipreqs"
+updateReqs = "pip freeze >> requirements.txt"
 
 [project.urls]
 Repository = "https://github.com/rozx/AI-ROMS-batch-renamer"
