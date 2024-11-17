@@ -4,8 +4,9 @@ from InquirerPy import prompt
 from typing_extensions import Annotated
 
 import modules.rename as renameModule
+import modules.const as constModule
+import modules.revert as revertModule
 
-VERSION = "2.0.0"
 
 app = typer.Typer(
     name="renamer",
@@ -78,6 +79,22 @@ def rename(
             help="不处理特定的文件类型 (Do not process specific file types)",
         ),
     ] = [],
+    output: Annotated[
+        bool,
+        typer.Option(
+            "--output",
+            "-o",
+            help="只输出重命名后的文件名，不附加其他信息 (Only output the renamed file names without additional prompts)",
+        ),
+    ] = None,
+    recursive: Annotated[
+        bool,
+        typer.Option(
+            "--recursive",
+            "-r",
+            help="读取目标目录下的文件夹中的文件 (Read files in the subdirectories of the target directory)",
+        ),
+    ] = None,
 ):
     """
     批量重命名Roms文件 (Batch rename files by providing a directory or files)
@@ -90,16 +107,59 @@ def rename(
         )
         return
 
-    renameModule.rename(dir, files, trim, dry, pinyin, includes, excludes)
+    renameModule.rename(
+        dir, files, trim, dry, pinyin, includes, excludes, output, recursive
+    )
 
     pass
 
 
 @app.command("revert", no_args_is_help=True)
-def revert():
+def revert(
+    dir: Annotated[
+        str,
+        typer.Option(
+            "--directory",
+            "-dir",
+            help="要还原文件名的文件夹路径 (The directory path to rename files in)",
+            resolve_path=True,
+            dir_okay=True,
+            file_okay=False,
+        ),
+    ] = None,
+    files: Annotated[
+        str,
+        typer.Option(
+            "--files",
+            "-files",
+            help="要还原文件名的文件 (The files to rename)",
+            resolve_path=True,
+            dir_okay=False,
+            file_okay=True,
+        ),
+    ] = None,
+    recursive: Annotated[
+        bool,
+        typer.Option(
+            "--recursive",
+            "-r",
+            help="读取目标目录下的文件夹中的文件 (Read files in the subdirectories of the target directory)",
+        ),
+    ] = None,
+    dryrun: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            "-d",
+            help="只输出结果，不实际重命名 (Output the result without actually renaming)",
+        ),
+    ] = None,
+):
     """
     还原重命名后的文件 (Revert changed file names)
     """
+
+    revertModule.revert(dir, files, recursive, dryrun)
     pass
 
 
@@ -109,7 +169,7 @@ def version():
     显示程序版本 (Show the program version)
     """
 
-    rprint(f"[bold]v{VERSION}[/bold]")
+    rprint(f"[bold]v{constModule.VERSION}[/bold]")
     pass
 
 

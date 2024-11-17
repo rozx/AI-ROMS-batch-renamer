@@ -19,3 +19,5 @@ extraSpaceMatchRegEx = r"\s{2,}"
 contentAfterUnderscoreMatchRegEx = r"_.+?(?=\.\w{1,})"
 
 titleInitialMatchRegEx = r"^\w\s"
+
+copyMatchRegEx = r"\scopy\s?\d{0,}$"

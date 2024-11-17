@@ -1,23 +1,33 @@
+import datetime
+import os
+import hashlib
+
+
 def isSystemOrHiddenFile(file: str) -> bool:
 
+    baseName = getBasenameAndExtensions(file)[0]
+    SYSTEM_OR_IGNORED_FILES = [
+        "System Volume Information",
+        "RECYCLE.BIN",
+        "desktop.ini",
+        "Thumbs.db",
+        "ehthumbs.db",
+        "ehthumbs_vista.db",
+        "IconCache.db",
+        "ntuser.ini",
+        "ntuser.dat",
+        "ntuser.dat.log",
+        "ntuser.pol",
+        ".DS_Store",
+    ]
+
     return (
-        file.startswith(".")
-        or file.startswith("__")
-        or file.startswith("~")
-        or file.startswith("$")
-        or file == "System Volume Information"
-        or file == "RECYCLE.BIN"
-        or file == "desktop.ini"
-        or file == "Thumbs.db"
-        or file == "ehthumbs.db"
-        or file == "ehthumbs_vista.db"
-        or file == "IconCache.db"
-        or file == "ntuser.ini"
-        or file == "ntuser.dat"
-        or file == "ntuser.dat.log"
-        or file == "ntuser.pol"
-        or file.startswith("._")
-        or file.startswith(".DS_Store")
+        baseName.startswith(".")
+        or baseName.startswith("__")
+        or baseName.startswith("~")
+        or baseName.startswith("$")
+        or baseName.startswith("._")
+        or baseName in SYSTEM_OR_IGNORED_FILES
     )
 
 
@@ -66,3 +76,42 @@ def getRegionFromRegionDictList(regionList: list[dict], region: str):
         if region in regionDict["keys"]:
             return regionDict["item"]
     return region
+
+
+def traversalDirectory(dir: str) -> list[str]:
+
+    fileList: list[str] = []
+
+    if not os.path.isdir(dir):
+        return fileList
+
+    for file in os.listdir(dir):
+
+        filePath = os.path.join(dir, file)
+
+        if os.path.isdir(filePath):
+            fileList.extend(traversalDirectory(filePath))
+        else:
+            fileList.append(filePath)
+
+    return fileList
+
+
+def getBasenameAndExtensions(fileName: str) -> tuple[str, str]:
+
+    baseName = os.path.basename(fileName)
+
+    return (
+        os.path.splitext(baseName)[0],
+        os.path.splitext(baseName)[1],
+    )
+
+
+def getMD5HashFromFile(file: str) -> str:
+
+    with open(file, "rb") as f:
+        return hashlib.md5(f.read()).hexdigest()
+
+
+def getTimeStamp() -> str:
+    return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
