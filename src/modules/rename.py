@@ -144,7 +144,7 @@ def rename(
             continue
         else:
             rprint(
-                f"[bold]Renamed{' preview' if dry else ''}({value}/{len(fileList)-1}):[/bold] [blue1 underline]{romFile.path}[/blue1 underline] -> [green3]{result}[/green3] | ", 
+                f"[bold]Renamed{' preview' if dry else ''}({value}/{len(fileList)-1}):[/bold] [blue1 underline]{romFile.path}[/blue1 underline] -> [green3]{result}[/green3]", 
             )
 
         
