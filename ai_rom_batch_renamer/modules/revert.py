@@ -25,12 +25,14 @@ def revert(dir: str, files: str, recursive: bool, dry: bool):
             fileList.append(os.path.join(os.path.abspath(dir), file))
 
     # traverse the sub-directories
-    if recursive:
         for file in fileList.copy():
             # check if the file is a directory
             if os.path.isdir(file):
-                fileList.extend(utilsModule.traversalDirectory(file))
-                fileList.remove(file)
+                if recursive:
+                    fileList.extend(utilsModule.traversalDirectory(file))
+                    fileList.remove(file)
+                else:
+                    fileList.remove(file)
 
     # filter out unwanted files
     for file in fileList.copy():
@@ -62,25 +64,25 @@ def revert(dir: str, files: str, recursive: bool, dry: bool):
         # check for cache
         renameHistory: dict = cacheModule.renameHistoryCache.get(file)
 
+        if not renameHistory:
+
+            rprint(f"Skipping [yellow underline]{file}[/yellow underline]: [red bold]No renaming history found.[/red bold]")
+
+            continue
+
         baseName, extName = utilsModule.getBasenameAndExtensions(
             renameHistory["original"]
         )
-
-        if not renameHistory:
-
-            rprint(f"[red bold]Skipping {file}: No renaming history found.[/red bold]")
-
-            continue
 
         if not dry:
             # rename the file
             os.rename(file, renameHistory["original"])
 
+        rprint(
+            f"[bold]Reverted{' preview' if dry else ''}({value}/{len(fileList)-1}):[/bold] [blue1 underline]{file}[/blue1 underline] -> [yellow]{baseName}{extName}[/yellow]",
+        )
+
         # delete rename history
         cacheModule.renameHistoryCache.delete(file)
-
-        rprint(
-            f"[bold]Reverted{' preview' if dry else ''}:[/bold] [blue1 underline]{file}[/blue1 underline] -> [yellow]{baseName}{extName}[/yellow]",
-        )
 
     pass
