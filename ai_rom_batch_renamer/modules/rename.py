@@ -28,6 +28,7 @@ def rename(
     output: bool,
     recursive: bool,
     unzip: bool,
+    pwd: str,
 ):
 
     fileList: list[str] = []
@@ -131,7 +132,7 @@ def rename(
 
         # if the file is a zip file, unzip the file
         if unzip and romFile.extName == ".zip":
-            pendingRenameFiles = utilsModule.unzipFiles(romFile.path, dry)
+            pendingRenameFiles = utilsModule.unzipFiles(romFile.path, dry, pwd)
         else:
             # adds current file to the pending name files renamed files
             pendingRenameFiles = [romFile.path]

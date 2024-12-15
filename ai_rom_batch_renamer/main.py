@@ -1,3 +1,4 @@
+from typing import Optional
 import typer
 from rich import print as rprint, console
 from InquirerPy import prompt
@@ -45,6 +46,7 @@ def rename(
             "--trim",
             "-t",
             help="去除无用的信息 (Trim the filename)",
+            is_flag=True,
         ),
     ] = None,
     dry: Annotated[
@@ -53,6 +55,7 @@ def rename(
             "--dry-run",
             "-d",
             help="只输出结果，不实际重命名 (Output the result without actually renaming)",
+            is_flag=True,
         ),
     ] = None,
     pinyin: Annotated[
@@ -61,6 +64,7 @@ def rename(
             "--pinyin",
             "-py",
             help="在开头加上拼音首字符来更好的支持查找 (Add pinyin initials at the beginning for better sort support)",
+            is_flag=True,
         ),
     ] = None,
     includes: Annotated[
@@ -85,6 +89,7 @@ def rename(
             "--output",
             "-o",
             help="只输出重命名后的文件名，不附加其他信息 (Only output the renamed file names without additional prompts)",
+            is_flag=True,
         ),
     ] = None,
     recursive: Annotated[
@@ -93,6 +98,7 @@ def rename(
             "--recursive",
             "-r",
             help="读取目标目录下的文件夹中的文件 (Read files in the subdirectories of the target directory)",
+            is_flag=True,
         ),
     ] = None,
     unzip: Annotated[
@@ -100,7 +106,16 @@ def rename(
         typer.Option(
             "--unzip",
             "-u",
-            help="解压zip文件 (Also unzip the zip files)",
+            help="解压zip文件(Also unzip the zip files)",
+            is_flag=True,
+        ),
+    ] = None,
+    pwd: Annotated[
+        str,
+        typer.Option(
+            "--password",
+            "-pwd",
+            help="zip文件的密码(Password for the zip files)",
         ),
     ] = None,
 ):
@@ -116,7 +131,7 @@ def rename(
         return
 
     renameModule.rename(
-        dir, files, trim, dry, pinyin, includes, excludes, output, recursive, unzip
+        dir, files, trim, dry, pinyin, includes, excludes, output, recursive, unzip, pwd
     )
 
     pass
@@ -152,6 +167,7 @@ def revert(
             "--recursive",
             "-r",
             help="读取目标目录下的文件夹中的文件 (Read files in the subdirectories of the target directory)",
+            is_flag=True,
         ),
     ] = None,
     dryrun: Annotated[
@@ -160,6 +176,7 @@ def revert(
             "--dry-run",
             "-d",
             help="只输出结果，不实际重命名 (Output the result without actually renaming)",
+            is_flag=True,
         ),
     ] = None,
 ):

@@ -118,7 +118,7 @@ def getTimeStamp() -> str:
     return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
-def unzipFiles(file, dryrun) -> list[str]:
+def unzipFiles(file, dryrun, passwd) -> list[str]:
 
     extractedFiles = []
     hadError = False
@@ -137,7 +137,7 @@ def unzipFiles(file, dryrun) -> list[str]:
 
             try:
                 if not dryrun:
-                    zip_ref.extract(extractFile, os.path.dirname(file))
+                    zip_ref.extract(extractFile, os.path.dirname(file), passwd)
 
                 extractedFiles.append(os.path.join(os.path.dirname(file), extractFile))
             except Exception as e:
