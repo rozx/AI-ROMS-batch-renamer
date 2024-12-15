@@ -20,8 +20,8 @@ def rename(
     dir: Annotated[
         str,
         typer.Option(
-            "--directory <directory path>",
-            "-dir <directory path>",
+            "--directory",
+            "-dir",
             help="要重命名的文件夹路径 (The directory path to rename files in)",
             resolve_path=True,
             dir_okay=True,
@@ -31,8 +31,8 @@ def rename(
     files: Annotated[
         str,
         typer.Option(
-            "--files <file path...>",
-            "-files <file path...>",
+            "--files",
+            "-files",
             help="要重命名的文件 (The files to rename)",
             resolve_path=True,
             dir_okay=False,
@@ -66,16 +66,16 @@ def rename(
     includes: Annotated[
         list[str],
         typer.Option(
-            "--includes <extNames...>",
-            "-i <extNames...>",
+            "--includes",
+            "-i",
             help="只处理特定的文件类型 (Only process specific file types)",
         ),
     ] = [],
     excludes: Annotated[
         list[str],
         typer.Option(
-            "--excludes <extNames...>",
-            "-e <extNames...>",
+            "--excludes",
+            "-e",
             help="不处理特定的文件类型 (Do not process specific file types)",
         ),
     ] = [],
@@ -119,8 +119,8 @@ def revert(
     dir: Annotated[
         str,
         typer.Option(
-            "--directory <directory path>",
-            "-dir  <directory path>",
+            "--directory",
+            "-dir",
             help="要还原文件名的文件夹路径 (The directory path to rename files in)",
             resolve_path=True,
             dir_okay=True,
@@ -130,8 +130,8 @@ def revert(
     files: Annotated[
         str,
         typer.Option(
-            "--files <file path...>",
-            "-files <file path...>",
+            "--files",
+            "-files",
             help="要还原文件名的文件 (The files to rename)",
             resolve_path=True,
             dir_okay=False,

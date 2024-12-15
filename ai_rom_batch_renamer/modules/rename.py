@@ -1,7 +1,6 @@
 import os
 import regex
 import pinyin
-import hashlib
 
 from rich import print as rprint, console
 from rich.progress import track
@@ -12,8 +11,9 @@ import modules.regex as regexModule
 import modules.const as constModule
 import modules.cache as cacheModule
 
-# Rename files
+from classes.RomFile import RomFile
 
+# Rename files
 
 def rename(
     dir: str,
@@ -40,11 +40,13 @@ def rename(
             fileList.append(os.path.join(os.path.abspath(dir), file))
 
     # traverse the sub-directories
-    if recursive:
-        for file in fileList.copy():
-            # check if the file is a directory
-            if os.path.isdir(file):
+    for file in fileList.copy():
+        # check if the file is a directory
+        if os.path.isdir(file):
+            if recursive:
                 fileList.extend(utilsModule.traversalDirectory(file))
+                fileList.remove(file)
+            else:
                 fileList.remove(file)
 
     # filter out unwanted files
@@ -87,22 +89,19 @@ def rename(
     # for each file in the list, processing the file
     for value in track(range(len(fileList)), description="Renaming files..."):
 
+
         # full path of the file
         file = fileList[value]
 
-        # directory of the file
-        dir = os.path.dirname(file)
-
-        # file name, base name and extension name
-        fileName = os.path.basename(file)
-        baseName, extName = utilsModule.getBasenameAndExtensions(fileName)
+        # create new RomFile object
+        romFile =  RomFile(file)
 
         # Match hack naming conventions
-        hackMatch = regex.search(regexModule.hackMatchRegex, baseName, regex.IGNORECASE)
+        hackMatch = regex.search(regexModule.hackMatchRegex, romFile.baseName, regex.IGNORECASE)
 
         # Match region naming conventions
-        chineseMatch = regex.search(regexModule.chineseMatchRegex, baseName)
-        regionMatch = regex.search(regexModule.regionMatchRegex, baseName)
+        chineseMatch = regex.search(regexModule.chineseMatchRegex, romFile.baseName)
+        regionMatch = regex.search(regexModule.regionMatchRegex, romFile.baseName)
 
         if chineseMatch:
             region = "简"
@@ -113,56 +112,51 @@ def rename(
 
         # trim the filename
         if trim:
-            fileName = trimFileName(fileName)
-
-        # update the basename
-        baseName = utilsModule.getBasenameAndExtensions(fileName)[0]
+            trimFileName(romFile)
 
         # add pinyin initials
         if pinyin:
-            fileName = addsPinyinInitials(fileName)
-
-            # update the basename
-            baseName = utilsModule.getBasenameAndExtensions(fileName)[0]
+           addsPinyinInitials(romFile)
 
         # adds hack to the filename
         if hackMatch:
-            fileName = f"{baseName} (Hack){extName}"
-
-            # update the basename
-            baseName = utilsModule.getBasenameAndExtensions(fileName)[0]
+            romFile.updateFileName(f"{romFile.baseName} (Hack){romFile.extName}")
 
         # adds region to the filename
-        fileName = f"{baseName} - {region}{extName}"
-        # update the basename
-        baseName = utilsModule.getBasenameAndExtensions(fileName)[0]
+        romFile.updateFileName(f"{romFile.baseName} [{region}]{romFile.extName}")
 
-        # add file to pending rename files
-        pendingRenamedFiles = [file]
+
+        # ----------- Rename the file -------------
+
+
+        # adds current file to the pending name files renamed files
+        pendingRenameFiles = [romFile.path]
 
         # rename the file
-        result = renameFiles(pendingRenamedFiles, fileName, dir, dry, renamedFiles)
+        result = renameFiles(pendingRenameFiles, romFile, dry, renamedFiles)
 
         # add the file to the pending rename files
         renamedFiles.extend(result)
 
-        # prompt the result
+        # ----------- prompt the result -------------
         if output:
-            print(fileName)
+            print(romFile.fileName)
             continue
         else:
             rprint(
-                f"[bold]Renamed{' preview' if dry else ''}:[/bold] [blue1 underline]{file}[/blue1 underline] -> [green3]{result}[/green3]",
+                f"[bold]Renamed{' preview' if dry else ''}({value}/{len(fileList)-1}):[/bold] [blue1 underline]{romFile.path}[/blue1 underline] -> [green3]{result}[/green3]", 
             )
 
+        
+        
         pass
 
     pass
 
 
-def trimFileName(fileName: str) -> str:
+def trimFileName(romFile: RomFile):
 
-    baseName, extName = utilsModule.getBasenameAndExtensions(fileName)
+    baseName, extName = romFile.baseName, romFile.extName
 
     # Remove the title initials
     baseName = regex.sub(
@@ -190,23 +184,23 @@ def trimFileName(fileName: str) -> str:
     # Remove copy from filename
     baseName = regex.sub(regexModule.copyMatchRegEx, "", baseName, ignore_unused=True)
 
-    fileName = f"{baseName.strip()}{extName}"
+    romFile.updateFileName(f"{baseName.strip()}{extName}")
 
-    return fileName
+    return
 
 
-def addsPinyinInitials(fileName: str) -> str:
+def addsPinyinInitials(romFile: RomFile) -> None:
 
     # get the base name and extension name
-    baseName, extName = utilsModule.getBasenameAndExtensions(fileName)
+    baseName, extName = romFile.baseName, romFile.extName
 
     # get the pinyin initials
     pinyinInitials = pinyin.get_initial(baseName)[0].upper()
 
     # add the pinyin initials to the base name
-    fileName = f"{pinyinInitials} {baseName}{extName}"
+    romFile.updateFileName(f"{pinyinInitials} {baseName}{extName}")
 
-    return fileName
+    return
 
 
 def getNextAvailableName(fileName: str, dir: str, renamedFiles: list[str]) -> str:
@@ -223,9 +217,8 @@ def getNextAvailableName(fileName: str, dir: str, renamedFiles: list[str]) -> st
 
 
 def renameFiles(
-    originalFilePath: list[str],
-    newFileName: str,
-    dir: str,
+    pendingRenameFiles: list[str],
+    romFile: RomFile,
     dryrun: bool,
     renamedFiles: list[str],
 ) -> list[str]:
@@ -233,25 +226,23 @@ def renameFiles(
     _renamedFiles = renamedFiles.copy()
     proceedFiles = []
 
-    for file in originalFilePath:
-
-        # get the md5 hash of the file
-        md5Hash = utilsModule.getMD5HashFromFile(file)
+    for file in pendingRenameFiles:
 
         # get the next available name
-        fileName = getNextAvailableName(newFileName, dir, _renamedFiles)
+        fileName = getNextAvailableName(romFile.fileName, romFile.dir, _renamedFiles)
+        targetRenamePath = os.path.join(romFile.dir, fileName)
 
         # rename file if not in dry run mode
         if not dryrun:
-            os.rename(file, os.path.join(dir, fileName))
+            os.rename(file, targetRenamePath)
 
             # add rename history to cache history
             cacheModule.renameHistoryCache.add(
-                os.path.join(dir, fileName),
+                targetRenamePath,
                 {
-                    "md5": md5Hash,
+                    "md5": romFile.md5,
                     "original": file,
-                    "new": os.path.join(dir, fileName),
+                    "new": targetRenamePath,
                     "version": constModule.VERSION,
                     "timestamp": utilsModule.getTimeStamp(),
                 },
