@@ -2,6 +2,7 @@ import os
 import regex
 import pinyin
 
+
 from rich import print as rprint, console
 from rich.progress import track
 
@@ -15,6 +16,7 @@ from classes.RomFile import RomFile
 
 # Rename files
 
+
 def rename(
     dir: str,
     files: str,
@@ -25,6 +27,7 @@ def rename(
     excludes: list[str],
     output: bool,
     recursive: bool,
+    unzip: bool,
 ):
 
     fileList: list[str] = []
@@ -89,15 +92,16 @@ def rename(
     # for each file in the list, processing the file
     for value in track(range(len(fileList)), description="Renaming files..."):
 
-
         # full path of the file
         file = fileList[value]
 
         # create new RomFile object
-        romFile =  RomFile(file)
+        romFile = RomFile(file)
 
         # Match hack naming conventions
-        hackMatch = regex.search(regexModule.hackMatchRegex, romFile.baseName, regex.IGNORECASE)
+        hackMatch = regex.search(
+            regexModule.hackMatchRegex, romFile.baseName, regex.IGNORECASE
+        )
 
         # Match region naming conventions
         chineseMatch = regex.search(regexModule.chineseMatchRegex, romFile.baseName)
@@ -116,7 +120,7 @@ def rename(
 
         # add pinyin initials
         if pinyin:
-           addsPinyinInitials(romFile)
+            addsPinyinInitials(romFile)
 
         # adds hack to the filename
         if hackMatch:
@@ -125,12 +129,14 @@ def rename(
         # adds region to the filename
         romFile.updateFileName(f"{romFile.baseName} [{region}]{romFile.extName}")
 
+        # if the file is a zip file, unzip the file
+        if unzip and romFile.extName == ".zip":
+            pendingRenameFiles = utilsModule.unzipFiles(romFile.path, dry)
+        else:
+            # adds current file to the pending name files renamed files
+            pendingRenameFiles = [romFile.path]
 
         # ----------- Rename the file -------------
-
-
-        # adds current file to the pending name files renamed files
-        pendingRenameFiles = [romFile.path]
 
         # rename the file
         result = renameFiles(pendingRenameFiles, romFile, dry, renamedFiles)
@@ -144,11 +150,9 @@ def rename(
             continue
         else:
             rprint(
-                f"[bold]Renamed{' preview' if dry else ''}({value}/{len(fileList)-1}):[/bold] [blue1 underline]{romFile.path}[/blue1 underline] -> [green3]{result}[/green3]", 
+                f"[bold]Renamed{' preview' if dry else ''}({value + 1}/{len(fileList)}):[/bold] [blue1 underline]{romFile.path}[/blue1 underline] -> [green3]{result}[/green3]",
             )
 
-        
-        
         pass
 
     pass
@@ -158,13 +162,13 @@ def trimFileName(romFile: RomFile):
 
     baseName, extName = romFile.baseName, romFile.extName
 
+    # Remove index from filename
+    baseName = regex.sub(regexModule.indexMatchRegex, "", baseName, ignore_unused=True)
+
     # Remove the title initials
     baseName = regex.sub(
         regexModule.titleInitialMatchRegEx, "", baseName, ignore_unused=True
     )
-
-    # Remove index from filename
-    baseName = regex.sub(regexModule.indexMatchRegex, "", baseName, ignore_unused=True)
 
     # Remove brackets and contents
     baseName = regex.sub(
@@ -228,8 +232,13 @@ def renameFiles(
 
     for file in pendingRenameFiles:
 
+        extName = utilsModule.getBasenameAndExtensions(file)[1].lower()
+
+        targetFileName = f"{romFile.baseName}{extName}"
+
         # get the next available name
-        fileName = getNextAvailableName(romFile.fileName, romFile.dir, _renamedFiles)
+        fileName = getNextAvailableName(targetFileName, romFile.dir, _renamedFiles)
+
         targetRenamePath = os.path.join(romFile.dir, fileName)
 
         # rename file if not in dry run mode
@@ -241,7 +250,7 @@ def renameFiles(
                 targetRenamePath,
                 {
                     "md5": romFile.md5,
-                    "original": file,
+                    "original": romFile.path,
                     "new": targetRenamePath,
                     "version": constModule.VERSION,
                     "timestamp": utilsModule.getTimeStamp(),

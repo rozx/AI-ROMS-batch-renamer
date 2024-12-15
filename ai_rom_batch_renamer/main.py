@@ -95,6 +95,14 @@ def rename(
             help="读取目标目录下的文件夹中的文件 (Read files in the subdirectories of the target directory)",
         ),
     ] = None,
+    unzip: Annotated[
+        bool,
+        typer.Option(
+            "--unzip",
+            "-u",
+            help="解压zip文件 (Also unzip the zip files)",
+        ),
+    ] = None,
 ):
     """
     批量重命名Roms文件 (Batch rename files by providing a directory or files)
@@ -108,7 +116,7 @@ def rename(
         return
 
     renameModule.rename(
-        dir, files, trim, dry, pinyin, includes, excludes, output, recursive
+        dir, files, trim, dry, pinyin, includes, excludes, output, recursive, unzip
     )
 
     pass

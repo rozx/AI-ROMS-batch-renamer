@@ -1,6 +1,7 @@
 import datetime
 import os
 import hashlib
+import zipfile
 
 
 def isSystemOrHiddenFile(file: str) -> bool:
@@ -115,3 +116,36 @@ def getMD5HashFromFile(file: str) -> str:
 
 def getTimeStamp() -> str:
     return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
+def unzipFiles(file, dryrun) -> list[str]:
+
+    extractedFiles = []
+    hadError = False
+
+    with zipfile.ZipFile(file, "r") as zip_ref:
+        for extractFile in zip_ref.namelist():
+
+            # decodedFileName = ""
+
+            # try:
+            #     decodedFileName = extractFile.encode("cp437").decode("gbk")
+            # except:
+            #     decodedFileName = extractFile.encode("utf-8").decode("utf-8")
+
+            # targetPath = os.path.join(os.path.dirname(file), decodedFileName)
+
+            try:
+                if not dryrun:
+                    zip_ref.extract(extractFile, os.path.dirname(file))
+
+                extractedFiles.append(os.path.join(os.path.dirname(file), extractFile))
+            except Exception as e:
+                hadError = True
+                print(f"Error while unzipping: {e}, Skipping file {file}")
+
+    # finally delete the zip file
+    if not dryrun and not hadError:
+        os.remove(file)
+
+    return extractedFiles

@@ -24,7 +24,7 @@ def revert(dir: str, files: str, recursive: bool, dry: bool):
         for file in os.listdir(dir):
             fileList.append(os.path.join(os.path.abspath(dir), file))
 
-    # traverse the sub-directories
+        # traverse the sub-directories
         for file in fileList.copy():
             # check if the file is a directory
             if os.path.isdir(file):
@@ -66,7 +66,9 @@ def revert(dir: str, files: str, recursive: bool, dry: bool):
 
         if not renameHistory:
 
-            rprint(f"Skipping [yellow underline]{file}[/yellow underline]: [red bold]No renaming history found.[/red bold]")
+            rprint(
+                f"Skipping [yellow underline]{file}[/yellow underline]: [red bold]No renaming history found.[/red bold]"
+            )
 
             continue
 
@@ -74,12 +76,19 @@ def revert(dir: str, files: str, recursive: bool, dry: bool):
             renameHistory["original"]
         )
 
+        currentBaseName, currentExtName = utilsModule.getBasenameAndExtensions(file)
+
+        # Revert the file name to the original name using the current extension name
+        targetFileName = os.path.join(
+            os.path.dirname(file), f"{baseName}{currentExtName}"
+        )
+
         if not dry:
             # rename the file
-            os.rename(file, renameHistory["original"])
+            os.rename(file, targetFileName)
 
         rprint(
-            f"[bold]Reverted{' preview' if dry else ''}({value}/{len(fileList)-1}):[/bold] [blue1 underline]{file}[/blue1 underline] -> [yellow]{baseName}{extName}[/yellow]",
+            f"[bold]Reverted{' preview' if dry else ''}({value + 1}/{len(fileList)}):[/bold] [blue1 underline]{file}[/blue1 underline] -> [yellow]{baseName}{extName}[/yellow]",
         )
 
         # delete rename history
