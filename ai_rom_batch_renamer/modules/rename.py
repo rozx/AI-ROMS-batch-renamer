@@ -234,10 +234,10 @@ def renameFiles(
 
         extName = utilsModule.getBasenameAndExtensions(file)[1].lower()
 
-        targetFileName = f"{romFile.baseName}{extName}"
+        targetBaseName = f"{romFile.baseName}{extName}"
 
         # get the next available name
-        fileName = getNextAvailableName(targetFileName, romFile.dir, _renamedFiles)
+        fileName = getNextAvailableName(targetBaseName, romFile.dir, _renamedFiles)
 
         targetRenamePath = os.path.join(romFile.dir, fileName)
 
