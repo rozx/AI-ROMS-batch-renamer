@@ -163,13 +163,15 @@ def revert(
     pass
 
 
-@app.command("version", no_args_is_help=False)
-def version():
+@app.command("about", no_args_is_help=False)
+def about():
     """
-    显示程序版本 (Show the program version)
+    显示程序信息 (Show the program info)
     """
 
-    rprint(f"[bold]v{constModule.VERSION}[/bold]")
+    rprint(
+        f"AI-rom-batch-renamer [bold]v{constModule.VERSION}[/bold] by [bold blue]@rozx[/bold blue]"
+    )
     pass
 
 
