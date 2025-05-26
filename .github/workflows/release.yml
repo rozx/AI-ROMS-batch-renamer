@@ -1,14 +1,48 @@
 name: Create Release
 
 on:
-  push:
-    # branches to consider in the event; optional, defaults to all
-    branches: ["test-workflow"]
+  pull_request:
+    types: [closed]
+    branches: ["release"]
 
 jobs:
-  # Release and linux
+  create-draft-release:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true && (contains(github.event.pull_request.labels.*.name, 'major') || contains(github.event.pull_request.labels.*.name, 'minor') || contains(github.event.pull_request.labels.*.name, 'patch'))
+    permissions:
+      # write permission is required to create a github release
+      contents: write
+      # write permission is required for autolabeler
+      # otherwise, read permission is required at least
+      pull-requests: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Create GitHub Release
+        id: create_release
+        # Drafts your next Release notes as Pull Requests are merged into "master"
+        uses: release-drafter/release-drafter@v6
+        # (Optional) specify config name to use, relative to .github/. Default: release-drafter.yml
+        # with:
+        #   config-name: my-config.yml
+        #   disable-autolabeler: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Upload the release upload URL as an artifact
+      - name: Make release upload url
+        run: echo '${{ steps.create_release.outputs.upload_url }}' > releaseUploadUrl.txt
+      - name: Upload release upload url
+        uses: actions/upload-artifact@v4
+        with:
+          name: releaseUploadUrl
+          path: releaseUploadUrl.txt
+
+  # Builds on Linux and creates a release
   builds-on-linux-and-release:
     runs-on: ubuntu-latest
+    needs: create-draft-release
     permissions:
       # write permission is required to create a github release
       contents: write
@@ -19,17 +53,50 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Install jq
-        run: sudo apt-get install -y jq
-      - name: Extract version from package.json
-        id: get_version
-        run: echo "APP_VERSION=$(jq -r .version package.json)" >> $GITHUB_ENV && echo 'Exacted version ${{ env.APP_VERSION }}'
-      - name: Set up Bun
-        uses: oven-sh/setup-bun@v2.0.1
+
+      - name: Setup Python
+        uses: actions/setup-python@v5.6.0
         with:
-          bun-version: latest
-      - name: Install bun dependencies
-        run: bun install
+          # Version range or exact version of Python or PyPy to use, using SemVer's version range syntax. Reads from .python-version if unset.
+          python-version: 3.11
+
+      - name: Setup Poetry
+        # You may pin to the exact commit or the version.
+        # uses: Gr1N/setup-poetry@48b0f77c8c1b1b19cb962f0f00dff7b4be8f81ec
+        uses: Gr1N/setup-poetry@v9
+
+      - name: Install dependencies
+        run: |
+          poetry install --no-interaction --no-ansi
+      - name: Get app version
+        run: |
+          APP_VERSION=$(poetry version --short)
+          echo "APP_VERSION=$APP_VERSION" >> $GITHUB_ENV
+          echo "App version: $APP_VERSION"
+
+      # Download the release upload URL artifact
+      - name: download release upload url
+        uses: actions/download-artifact@v4
+        with:
+          name: releaseUploadUrl
+
+      # Save the release upload URL to an environment variable
+      - name: set releaseUploadUrl
+        run: |
+          RELEASE_UPLOAD_URL=$(cat releaseUploadUrl.txt)
+          echo "RELEASE_UPLOAD_URL=$RELEASE_UPLOAD_URL" >> $GITHUB_ENV
+          echo "Upload URL: $RELEASE_UPLOAD_URL"
+
+      - name: Run build script
+        run: |
+          poetry run nuitka \
+          --onefile \
+          --onefile-tempdir-spec="{TEMP}/ai-rom-batch-renamer" \
+          --output-dir=./dist \
+          --output-filename="ai-rom-batch-renamer-Linux-X64" \
+          --assume-yes-for-downloads \
+          --include-package-data=pinyin \
+          ai_rom_batch_renamer/main.py
 
       # Create draft releases
       - name: Create GitHub Release
@@ -44,42 +111,24 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # Upload the build
-      - name: Build linux
-        run: bun build-linux
       - name: Archive the build
         uses: TheDoctor0/zip-release@0.7.6
         with:
           filename: release.zip
           type: zip
-          path: ./dist
+          path: ./dist/ai-rom-batch-renamer-Linux-X64
       - name: Upload Linux build
         uses: shogo82148/actions-upload-release-asset@v1
         with:
           overwrite: true
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          upload_url: ${{ env.RELEASE_UPLOAD_URL }}
           asset_path: release.zip
-          asset_name: RomBatchRenamer-Linux-X64-Modern-v${{ env. APP_VERSION}}.zip
+          asset_name: RomBatchRenamer-Linux-X64-Modern-v${{ env.APP_VERSION }}.zip
 
-      # Upload artifacts
-      - name: Make version artifact
-        run: echo '${{ env.APP_VERSION }}' > appVersion.txt
-      - name: Upload version
-        uses: actions/upload-artifact@v4
-        with:
-          name: appVersion
-          path: appVersion.txt
-      - name: Make release upload url
-        run: echo '${{ steps.create_release.outputs.upload_url }}' > releaseUploadUrl.txt
-      - name: Upload release upload url
-        uses: actions/upload-artifact@v4
-        with:
-          name: releaseUploadUrl
-          path: releaseUploadUrl.txt
-
-  # Windows
-  builds-on-windows:
+  # Builds on Windows and upload the build to the release
+  builds-on-windows-and-release:
     runs-on: windows-latest
-    needs: builds-on-linux-and-release
+    needs: create-draft-release
     permissions:
       # write permission is required to create a github release
       contents: write
@@ -90,52 +139,69 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Set up Bun
-        uses: oven-sh/setup-bun@v2.0.1
-        with:
-          bun-version: latest
-      - name: Install bun dependencies
-        run: bun install
-      - name: Build windows
-        run: bun build-win
 
-      # artifact
-      - name: download appVersion
-        uses: actions/download-artifact@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5.6.0
         with:
-          name: appVersion
+          python-version: 3.11
+
+      - name: Setup Poetry
+        uses: Gr1N/setup-poetry@v9
+
+      - name: Install dependencies
+        run: |
+          poetry install --no-interaction --no-ansi
+
+      - name: Get app version
+        run: |
+          $APP_VERSION = poetry version --short
+          echo "APP_VERSION=$APP_VERSION" >> $env:GITHUB_ENV
+          echo "App version: $APP_VERSION"
+
+      # Download the release upload URL artifact
       - name: download release upload url
         uses: actions/download-artifact@v4
         with:
           name: releaseUploadUrl
-      - name: show appVersion
-        run: echo "$(cat appVersion.txt)"
-      - name: set appVersion
-        run: echo "APP_VERSION=$(cat appVersion.txt)" >> $env:GITHUB_ENV
+
+      # Save the release upload URL to an environment variable
       - name: set releaseUploadUrl
-        run: echo "RELEASE_UPLOAD_URL=$(cat releaseUploadUrl.txt)" >> $env:GITHUB_ENV
+        run: |
+          $RELEASE_UPLOAD_URL=$(cat releaseUploadUrl.txt)
+          echo "RELEASE_UPLOAD_URL=$RELEASE_UPLOAD_URL" >> $env:GITHUB_ENV
+          echo "Upload URL: $RELEASE_UPLOAD_URL"
+      - name: Run build script
+        run: |
+          poetry run nuitka `
+          --onefile `
+          --onefile-tempdir-spec="{TEMP}\ai-rom-batch-renamer" `
+          --output-dir=.\dist `
+          --output-filename="ai-rom-batch-renamer-Windows-X64.exe" `
+          --assume-yes-for-downloads `
+          --include-package-data=pinyin `
+          --windows-icon-from-ico=./icon.png `
+          ai_rom_batch_renamer\main.py
 
-      # rename and upload
-
+      # Archive the build and upload it to the release
       - name: Archive the build
         uses: TheDoctor0/zip-release@0.7.6
         with:
           filename: release.zip
           type: zip
-          path: .\dist
-      
+          path: ./dist/ai-rom-batch-renamer-Windows-X64.exe
+
       - name: Upload Win build
         uses: shogo82148/actions-upload-release-asset@v1
         with:
           overwrite: true
           upload_url: ${{ env.RELEASE_UPLOAD_URL }}
           asset_path: release.zip
-          asset_name: RomBatchRenamer-Win-X64-Modern-v${{ env. APP_VERSION}}.zip
+          asset_name: RomBatchRenamer-Win-X64-Modern-v${{ env.APP_VERSION }}.zip
 
-  # Mac
-  builds-on-mac:
-    runs-on: macos-latest
-    needs: [builds-on-linux-and-release]
+  # Builds on Mac and upload the build to the release
+  builds-on-mac-and-release:
+    runs-on: macOS-latest
+    needs: create-draft-release
     permissions:
       # write permission is required to create a github release
       contents: write
@@ -146,42 +212,62 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Set up Bun
-        uses: oven-sh/setup-bun@v2.0.1
-        with:
-          bun-version: latest
-      - name: Install bun dependencies
-        run: bun install
-      - name: test run
-        run: bun start rename -h
-      - name: Build mac
-        run: bun build-mac
 
-      # artifact
-      - name: download appVersion
-        uses: actions/download-artifact@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5.6.0
         with:
-          name: appVersion
+          python-version: 3.11
+
+      - name: Setup Poetry
+        uses: Gr1N/setup-poetry@v9
+
+      - name: Install dependencies
+        run: |
+          poetry install --no-interaction --no-ansi
+
+      - name: Get app version
+        run: |
+          APP_VERSION=$(poetry version --short)
+          echo "APP_VERSION=$APP_VERSION" >> $GITHUB_ENV
+          echo "App version: $APP_VERSION"
+
+      # Download the release upload URL artifact
       - name: download release upload url
         uses: actions/download-artifact@v4
         with:
           name: releaseUploadUrl
-      - name: set appVersion
-        run: echo "APP_VERSION=$(cat appVersion.txt)" >> $GITHUB_ENV
-      - name: set releaseUploadUrl
-        run: echo "RELEASE_UPLOAD_URL=$(cat releaseUploadUrl.txt)" >> $GITHUB_ENV
 
-      # rename and upload
+      # Save the release upload URL to an environment variable
+      - name: set releaseUploadUrl
+        run: |
+          RELEASE_UPLOAD_URL=$(cat releaseUploadUrl.txt)
+          echo "RELEASE_UPLOAD_URL=$RELEASE_UPLOAD_URL" >> $GITHUB_ENV
+          echo "Upload URL: $RELEASE_UPLOAD_URL"
+
+      - name: Run build script
+        run: |
+          poetry run nuitka \
+          --onefile \
+          --onefile-tempdir-spec="{TEMP}/ai-rom-batch-renamer" \
+          --output-dir=./dist \
+          --output-filename="ai-rom-batch-renamer-MacOS-X64" \
+          --macos-app-icon=./icon.png \
+          --assume-yes-for-downloads \
+          --include-package-data=pinyin \
+          ai_rom_batch_renamer/main.py
+
+      # Archive the build and upload it to the release
       - name: Archive the build
         uses: TheDoctor0/zip-release@0.7.6
         with:
           filename: release.zip
           type: zip
-          path: ./dist
+          path: ./dist/ai-rom-batch-renamer-MacOS-X64
+
       - name: Upload Mac build
         uses: shogo82148/actions-upload-release-asset@v1
         with:
           overwrite: true
           upload_url: ${{ env.RELEASE_UPLOAD_URL }}
           asset_path: release.zip
-          asset_name: RomBatchRenamer-Mac-Arm64-Modern-v${{ env. APP_VERSION}}.zip
+          asset_name: RomBatchRenamer-Mac-X64-Modern-v${{ env.APP_VERSION }}.zip
