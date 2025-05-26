@@ -11,25 +11,36 @@ import modules.utils as utilsModule
 import modules.regex as regexModule
 import modules.const as constModule
 import modules.cache as cacheModule
+import modules.ai as aiScraperModule
 
 from classes.RomFile import RomFile
+from classes.AIConfig import AIConfig
 
 # Rename files
 
 
-def rename(
-    dir: str,
-    files: str,
-    trim: bool,
-    dry: bool,
-    pinyin: bool,
-    includes: list[str],
-    excludes: list[str],
-    output: bool,
-    recursive: bool,
-    unzip: bool,
-    pwd: str,
-):
+def rename(options: dict):
+
+    # get options
+
+    dir = options.get("dir", "")
+    files = options.get("files", "")
+    trim = options.get("trim", False)
+    dry = options.get("dry", False)
+    pinyin = options.get("pinyin", False)
+    includes = options.get("includes", [])
+    excludes = options.get("excludes", [])
+    output = options.get("output", False)
+    recursive = options.get("recursive", False)
+    unzip = options.get("unzip", False)
+    pwd = options.get("pwd", "")
+    ai: bool = options.get("ai", False)
+    model: str = options.get("model", "")
+    apiKey: str = options.get("apiKey", "")
+    endpoint: str = options.get("endpoint", "")
+    platform: str = options.get("platform", "unknown")
+
+    # initialize the file list
 
     fileList: list[str] = []
 
@@ -87,6 +98,40 @@ def rename(
         )
         return
 
+    # load AI config
+
+    aiConfig = AIConfig()
+    aiConfig.load()
+
+    # if AI config is provided, update the config
+    if apiKey:
+        aiConfig.apiKey = apiKey
+        rprint(
+            f"[green]API key 更新成功。 AI API key is set to {aiConfig.apiKey}[/green]"
+        )
+    if endpoint:
+        aiConfig.endpoint = endpoint
+        rprint(
+            f"[green]API endpoint 更新成功。 AI API endpoint is set to {aiConfig.endpoint}[/green]"
+        )
+    if model:
+        aiConfig.model = model
+        rprint(
+            f"[green]API model 更新成功。 AI model is set to {aiConfig.model}[/green]"
+        )
+
+    # update the AI config
+    if apiKey or endpoint or model:
+        rprint("[green]AI配置已更新。 AI config updated successfully[/green]")
+        aiConfig.save()
+
+    if ai:
+        if not aiConfig.apiKey:
+            rprint(
+                "[red bold]无法使用AI功能。APIKey为空。 AI API key is not set. Please set the AI API key in the config file. [/red bold]"
+            )
+            return
+
     # renamed files list
     renamedFiles = []
 
@@ -101,8 +146,8 @@ def rename(
 
         # Match hack naming conventions
         hackMatch = regex.search(
-            regexModule.hackMatchRegex, romFile.baseName, regex.IGNORECASE
-        )
+            regexModule.hackMatchRegex, romFile.baseName, flags=regex.IGNORECASE
+        )  # type: ignore
 
         # Match region naming conventions
         chineseMatch = regex.search(regexModule.chineseMatchRegex, romFile.baseName)
@@ -123,12 +168,20 @@ def rename(
         if pinyin:
             addsPinyinInitials(romFile)
 
-        # adds hack to the filename
-        if hackMatch:
-            romFile.updateFileName(f"{romFile.baseName} (Hack){romFile.extName}")
+        # use AI to get the rom information if AI is enabled
+        if ai:
+            result = aiScraperModule.aiScraper(aiConfig, romFile, platform)
+            if result:
+                romFile.updateFileName(
+                    f"{romFile.baseName} ({result['englishTitle']})({result['releaseYear']}){romFile.extName}"
+                )
 
         # adds region to the filename
-        romFile.updateFileName(f"{romFile.baseName} [{region}]{romFile.extName}")
+        romFile.updateFileName(f"{romFile.baseName}[{region}]{romFile.extName}")
+
+        # adds hack to the filename
+        if hackMatch:
+            romFile.updateFileName(f"{romFile.baseName}[Hack]{romFile.extName}")
 
         # if the file is a zip file, unzip the file
         if unzip and romFile.extName == ".zip":

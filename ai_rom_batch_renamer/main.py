@@ -1,7 +1,7 @@
 from typing import Optional
 import typer
 from rich import print as rprint, console
-from InquirerPy import prompt
+from InquirerPy.resolver import prompt
 from typing_extensions import Annotated
 
 import modules.rename as renameModule
@@ -28,7 +28,7 @@ def rename(
             dir_okay=True,
             file_okay=False,
         ),
-    ] = None,
+    ] = "",
     files: Annotated[
         str,
         typer.Option(
@@ -39,7 +39,7 @@ def rename(
             dir_okay=False,
             file_okay=True,
         ),
-    ] = None,
+    ] = "",
     trim: Annotated[
         bool,
         typer.Option(
@@ -48,7 +48,7 @@ def rename(
             help="去除无用的信息 (Trim the filename)",
             is_flag=True,
         ),
-    ] = None,
+    ] = False,
     dry: Annotated[
         bool,
         typer.Option(
@@ -57,7 +57,7 @@ def rename(
             help="只输出结果，不实际重命名 (Output the result without actually renaming)",
             is_flag=True,
         ),
-    ] = None,
+    ] = False,
     pinyin: Annotated[
         bool,
         typer.Option(
@@ -66,7 +66,7 @@ def rename(
             help="在开头加上拼音首字符来更好的支持查找 (Add pinyin initials at the beginning for better sort support)",
             is_flag=True,
         ),
-    ] = None,
+    ] = False,
     includes: Annotated[
         list[str],
         typer.Option(
@@ -91,7 +91,7 @@ def rename(
             help="只输出重命名后的文件名，不附加其他信息 (Only output the renamed file names without additional prompts)",
             is_flag=True,
         ),
-    ] = None,
+    ] = False,
     recursive: Annotated[
         bool,
         typer.Option(
@@ -100,7 +100,7 @@ def rename(
             help="读取目标目录下的文件夹中的文件 (Read files in the subdirectories of the target directory)",
             is_flag=True,
         ),
-    ] = None,
+    ] = False,
     unzip: Annotated[
         bool,
         typer.Option(
@@ -109,7 +109,7 @@ def rename(
             help="解压zip文件(Also unzip the zip files)",
             is_flag=True,
         ),
-    ] = None,
+    ] = False,
     pwd: Annotated[
         str,
         typer.Option(
@@ -117,7 +117,48 @@ def rename(
             "-pwd",
             help="zip文件的密码(Password for the zip files)",
         ),
-    ] = None,
+    ] = "",
+    ai: Annotated[
+        bool,
+        typer.Option(
+            "--ai",
+            "-ai",
+            help="使用AI来重命名文件,默认为 gpt-4.1 (Use AI to rename files, default is gpt-4.1)",
+            is_flag=True,
+        ),
+    ] = False,
+    model: Annotated[
+        str,
+        typer.Option(
+            "--model",
+            "-m",
+            help="保存使用的AI模型 (Update the AI model to use)",
+        ),
+    ] = "",
+    apiKey: Annotated[
+        str,
+        typer.Option(
+            "--api-key",
+            "-key",
+            help="保存AI模型的API密钥 (Update the API key for the AI model)",
+        ),
+    ] = "",
+    endpoint: Annotated[
+        str,
+        typer.Option(
+            "--endpoint",
+            "-ep",
+            help="保存AI模型的API端点 (Update the API endpoint for the AI model)",
+        ),
+    ] = "",
+    platform: Annotated[
+        str,
+        typer.Option(
+            "--platform",
+            "-p",
+            help="提供Roms的平台来使AI更好的获取游戏信息,只有ai启用时有用 (Provide the platform of the Roms to help AI get better game information, only useful when AI is enabled)",
+        ),
+    ] = "",
 ):
     """
     批量重命名Roms文件 (Batch rename files by providing a directory or files)
@@ -130,9 +171,27 @@ def rename(
         )
         return
 
-    renameModule.rename(
-        dir, files, trim, dry, pinyin, includes, excludes, output, recursive, unzip, pwd
-    )
+    # Saving options in a dictionary
+    options = {
+        "dir": dir,
+        "files": files,
+        "trim": trim,
+        "dry": dry,
+        "pinyin": pinyin,
+        "includes": includes,
+        "excludes": excludes,
+        "output": output,
+        "recursive": recursive,
+        "unzip": unzip,
+        "pwd": pwd,
+        "ai": ai,
+        "model": model,
+        "apiKey": apiKey,
+        "endpoint": endpoint,
+        "platform": platform,
+    }
+
+    renameModule.rename(options)
 
     pass
 
@@ -149,7 +208,7 @@ def revert(
             dir_okay=True,
             file_okay=False,
         ),
-    ] = None,
+    ] = "",
     files: Annotated[
         str,
         typer.Option(
@@ -160,7 +219,7 @@ def revert(
             dir_okay=False,
             file_okay=True,
         ),
-    ] = None,
+    ] = "",
     recursive: Annotated[
         bool,
         typer.Option(
@@ -169,7 +228,7 @@ def revert(
             help="读取目标目录下的文件夹中的文件 (Read files in the subdirectories of the target directory)",
             is_flag=True,
         ),
-    ] = None,
+    ] = False,
     dryrun: Annotated[
         bool,
         typer.Option(
@@ -178,7 +237,7 @@ def revert(
             help="只输出结果，不实际重命名 (Output the result without actually renaming)",
             is_flag=True,
         ),
-    ] = None,
+    ] = False,
 ):
     """
     还原重命名后的文件 (Revert changed file names)

@@ -166,3 +166,4 @@ cython_debug/
 /apiKey.txt
 /.romRenamerCache
 *.cache
+config.json

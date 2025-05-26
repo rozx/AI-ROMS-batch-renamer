@@ -1,98 +1,171 @@
-# Rom-batch-renamer
+# 🎮 ROM AI Batch Renamer | ROM AI批量重命名工具
 
-A command line tool for batch renaming ROM files using AI.
+A powerful command-line tool for batch renaming ROM files using AI technology.
 
-一个使用AI来批量重命名ROM文件的命令行工具。
+一个使用AI技术批量重命名ROM文件的强大命令行工具。
 
-[![HitCount](https://hits.dwyl.com/rozx/rozx/AI-ROMS-batch-renamer.svg?style=flat-square)](http://hits.dwyl.com/rozx/rozx/AI-ROMS-batch-renamer)  [![Github All Releases](https://img.shields.io/github/downloads/rozx/AI-ROMS-batch-renamer/total.svg)]()  [![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/rozx/AI-ROMS-batch-renamer/issues)
+[![HitCount](https://hits.dwyl.com/rozx/rozx/AI-ROMS-batch-renamer.svg?style=flat-square)](http://hits.dwyl.com/rozx/rozx/AI-ROMS-batch-renamer)
+[![Github All Releases](https://img.shields.io/github/downloads/rozx/AI-ROMS-batch-renamer/total.svg)](https://github.com/rozx/AI-ROMS-batch-renamer/releases)
+[![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/rozx/AI-ROMS-batch-renamer/issues)
 
-## Downloads
+## 📥 Downloads | 下载
 
+**[🔗 Click here to download | 点击这里下载](https://github.com/rozx/AI-ROMS-batch-renamer/releases/latest)**
 
-[点击这里下载 | Click here to download](https://github.com/rozx/AI-ROMS-batch-renamer/releases/latest)
+## ✨ Features | 功能特性
 
+- 🤖 **AI-Powered Renaming**: Intelligent file renaming using advanced AI models  
+  **AI智能重命名**: 使用先进AI模型进行智能文件重命名
+- 🔤 **Pinyin Support**: Add pinyin initials for better sorting and searching  
+  **拼音支持**: 添加拼音首字母以便更好地排序和搜索
+- 📁 **Batch Processing**: Process multiple files and directories at once  
+  **批量处理**: 一次性处理多个文件和目录
+- 🔄 **Revert Capability**: Easily restore original filenames  
+  **还原功能**: 轻松恢复原始文件名
+- 🗜️ **ZIP Support**: Extract and rename files from ZIP archives  
+  **ZIP支持**: 从ZIP压缩包中提取并重命名文件
+- 🎯 **File Filtering**: Include or exclude specific file types  
+  **文件过滤**: 包含或排除特定文件类型
+- 🌐 **Platform-Aware**: Optimize renaming based on gaming platform  
+  **平台感知**: 基于游戏平台优化重命名
 
+## 📖 Examples | 示例
 
-## Examples
+### Before → After | 重命名前后对比
 
-- 黄金太阳 - 失落的时代\[Mobile&Elffinal](简)(UE)(128Mb).zip -> H 黄金太阳 - 失落的时代 (Golden Sun: The Lost Age) (2002) - 简.gba
-- 哈利波特 - 阿兹卡班的逃犯\[施珂昱](简)(JP)(128Mb).zip -> H 哈利波特 - 阿兹卡班的逃犯 (Harry Potter and the Prisoner of Azkaban) (2004) - 简.gba
-- 指环王－王者归来(0.4b小字体)\[Advance-004](简)(JP)(136Mb).zip -> Z 指环王－王者归来 (The Lord of the Rings: The Return of the King) (2003) - 简.gba
-- 王国之心 - 记忆之链\[天使汉化组](简)(JP)(256Mb).zip -> W 王国之心 - 记忆之链 (Kingdom Hearts- Chain of Memories) (2004) - 简.gba
+| Original | Renamed |
+|----------|---------|
+| `黄金太阳 - 失落的时代[Mobile&Elffinal](简)(UE)(128Mb).zip` | `H 黄金太阳 - 失落的时代 (Golden Sun: The Lost Age) (2002)[简].gba` |
+| `哈利波特 - 阿兹卡班的逃犯[施珂昱](简)(JP)(128Mb).zip` | `H 哈利波特 - 阿兹卡班的逃犯 (Harry Potter and the Prisoner of Azkaban) (2004)[简].gba` |
+| `指环王－王者归来(0.4b小字体)[Advance-004](简)(JP)(136Mb).zip` | `Z 指环王－王者归来 (The Lord of the Rings: The Return of the King) (2003) [简].gba` |
+| `王国之心 - 记忆之链[天使汉化组](简)(JP)(256Mb).zip` | `W 王国之心 - 记忆之链 (Kingdom Hearts- Chain of Memories) (2004)[简].gba` |
 
-## Usage
+## 🚀 Usage | 使用方法
 
+```bash
+renamer [command] [options]
+```
+
+### 📋 Global Options | 全局选项
 ```
 Options:
-  -V, --version           output the version number
-  -h, --help              display help for command
+  -V, --version           Output the version number
+  -h, --help              Display help for command
 
 Commands:
   rename [options] [dir]  批量重命文件夹中的文件为拼音首字母+原文件名 (Batch rename files to pinyin initials)
   revert [options] <dir>  还原文件名 (Revert file names)
-  help [command]          display help for command
+  help [command]          Display help for command
 ```
 
-## Rename
+## 📝 Rename Command | 重命名命令
 
-```
-Usage: renamer rename [options] [dir]
-
-批量重命文件夹中的文件为拼音首字母+原文件名 (Batch rename files to pinyin initials)
-
-Arguments:
-    dir                      文件夹路径 (Directory path)
-
-Options:
-  -d, --dry-run                       仅显示重命名后的文件名，不实际重命名 (Display the renamed file names without actually renaming them)
-  -n, --name-only                     仅显示重命名后的文件名，不输出其他信息 (Display the renamed file names only, without other information)
-  -r, --recursive                     递归重命名文件夹中的所有文件 (Recursively rename all files in the directory)
-  -t, --trim                          去除文件名中的空格与括号中的信息 (Remove spaces and content in brackets in file names)
-  -f, --force                         强制重命名文件，即使文件名已经被命名过了 (Force rename files even if the file name already being renamed)
-  -fl, --files <files...>             只重命名文件，不重命名文件夹,以空格分隔 (Only rename files, not folders, separated by spaces)
-  -e, --excludes <extension name...>  排除特定的文件后缀名，以空格分隔 (Filer out certain files by extensions, separated by spaces)
-  -i, --includes <extension name...>  只重命名特定的文件后缀名，以空格分隔 (Only rename certain files by extensions, separated by spaces)
-  -u, --unzip                         解压并重命名zip文件 (Unzip and rename zip files)
-  -ai, --ai [chatgpt token]           以 gpt-4o-mini 获取rom的英文名称，方便获取封面资源，[如果没有提供apiKey的话会默认读取本地目录下的apiKey.txt] (Using gpt-4o-mini to fetch rom's English name, will read from 'apiKey.txt' if
-                                      not provided)
-  -m, --no-cache                      强制不使用已有的ai重命名信息缓存，强制获取新的信息, 必须与 -ai 命令一起使用。(Manually invalidate the cache and force to fetch the latest information from AI, must be used with the -ai
-                                      command)
-  -p, --prettify                      使用AI获取的游戏名称取代原有的文件名，必须与 -ai 命令一起使用。 (Use the game title fetched by AI to replace the original file name, must be used with the -ai command)
-  -py, --pinyin                       在文件名前加上拼音首字母来更好的支持排序，也支持英文和字母 (Adds pinyin initials at the beginning of file name for better sorting, also supports English and numbers)
-  -h, --help                          display help for command
+### Syntax | 语法
+```bash
+renamer rename [options] [directory]
 ```
 
-### Example
+### 🛠️ Options | 选项参数
 
-`renamer rename -t -py -ai -p D:/Downloads/`
+| Option | Short | Type | Description |
+|--------|-------|------|-------------|
+| `--directory` | `-dir` | TEXT | 要重命名的文件夹路径 (Directory path to rename files in) |
+| `--files` | `-files` | TEXT | 要重命名的文件 (Specific files to rename) |
+| `--trim` | `-t` | FLAG | 去除无用的信息 (Trim unnecessary information from filename) |
+| `--dry-run` | `-d` | FLAG | 只输出结果，不实际重命名 (Preview results without actual renaming) |
+| `--pinyin` | `-py` | FLAG | 在开头加上拼音首字符 (Add pinyin initials for better sorting) |
+| `--includes` | `-i` | TEXT | 只处理特定的文件类型 (Process only specific file types) |
+| `--excludes` | `-e` | TEXT | 不处理特定的文件类型 (Exclude specific file types) |
+| `--output` | `-o` | FLAG | 只输出重命名后的文件名 (Output only renamed filenames) |
+| `--recursive` | `-r` | FLAG | 读取子目录中的文件 (Process files in subdirectories) |
+| `--unzip` | `-u` | FLAG | 解压ZIP文件 (Extract ZIP files) |
+| `--password` | `-pwd` | TEXT | ZIP文件密码 (Password for ZIP files) |
+| `--ai` | `-ai` | FLAG | 使用AI重命名 (Use AI for intelligent renaming) |
+| `--model` | `-m` | TEXT | AI模型设置 (AI model configuration) |
+| `--api-key` | `-key` | TEXT | AI模型API密钥 (API key for AI model) |
+| `--endpoint` | `-ep` | TEXT | AI模型API端点 (API endpoint for AI model) |
+| `--platform` | `-p` | TEXT | ROM平台信息 (Platform info for better AI recognition) |
 
-铁臂阿童木-阿童木之心的秘密\[v1.0]\[心灵的冬天](简)(66Mb).zip -> /Users/rozx/Downloads/TestDir/T 铁臂阿童木 - 阿童木之心的秘密 (Astro Boy -  The Video Game) (2004) - 简.zip
+### 💡 Example Usage | 使用示例
 
-## Revert
+```bash
+# Basic rename with AI and pinyin support
+renamer rename -t -py -ai -p "D:/Downloads/"
 
+# Dry run to preview changes
+renamer rename -d -t -py -ai --directory "~/ROMs/"
+
+# Process specific file types only
+renamer rename -i "*.gba,*.zip" --directory "~/Games/"
 ```
-Usage: renamer revert [options] <dir>
 
-还原文件名 (Revert file names)
-
-Arguments:
-    dir              文件夹路径 (Directory path)
-
-Options:
-    -d, --dry-run    仅显示还原后的文件名，不实际还原 (Display the reverted file names without actually reverting them)
-    -r, --recursive  递归还原文件夹中的所有文件 (Recursively revert all files in the directory)
-    -h, --help       display help for command
+### 📤 Sample Output | 输出示例
+```
+铁臂阿童木-阿童木之心的秘密[v1.0][心灵的冬天](简)(66Mb).zip 
+→ T 铁臂阿童木 - 阿童木之心的秘密 (Astro Boy - The Video Game) (2004) - 简.zip
 ```
 
-### Example
+## ↩️ Revert Command | 还原命令
 
-`renamer revert -t D:/Downloads/`
+### Syntax | 语法
+```bash
+renamer revert [options] <directory>
+```
 
-T 铁臂阿童木 - 阿童木之心的秘密 (Astro Boy -  The Video Game) (2004) - 简.gba -> 铁臂阿童木-阿童木之心的秘密\[v1.0]\[心灵的冬天](简)(66Mb).gba
+### 🛠️ Options | 选项参数
 
-## Roadmap
+| Option | Short | Type | Description |
+|--------|-------|------|-------------|
+| `--directory` | `-dir` | TEXT | 要还原文件名的文件夹路径 (Directory path to revert files in) |
+| `--files` | `-files` | TEXT | 要还原的特定文件 (Specific files to revert) |
+| `--recursive` | `-r` | FLAG | 处理子目录 (Process subdirectories) |
+| `--dry-run` | `-d` | FLAG | 预览还原结果 (Preview revert results) |
 
-- AI rom title fetch with in-memory cache. (Done in v1.5.0) ✅
-- Store original filename for the revert action. (Done in v1.6.0) ✅
-- Support different AI model and 3rd party api.
-- Prettify rom name using AI. (Done in v1.6.0) ✅
+### 💡 Example Usage | 使用示例
+
+```bash
+# Revert all files in directory
+renamer revert "D:/Downloads/"
+
+# Dry run revert
+renamer revert -d "~/ROMs/"
+```
+
+### 📤 Sample Output | 输出示例
+```
+T 铁臂阿童木 - 阿童木之心的秘密 (Astro Boy -  The Video Game) (2004) - 简.gba 
+→ 铁臂阿童木-阿童木之心的秘密[v1.0][心灵的冬天](简)(66Mb).gba
+```
+
+## 🗺️ Roadmap | 开发路线图
+
+- [x] ✅ **AI ROM Title Fetch** - *(v2.0.0)*  
+  **AI ROM标题获取** *(v2.0.0)*
+- [x] ✅ **Original Filename Storage** - For revert functionality *(v2.0.0)*  
+  **原始文件名存储** - 用于还原功能 *(v2.0.0)*
+- [x] ✅ **AI-Powered Prettification** - Enhanced naming with AI *(v2.0.0)*  
+  **AI智能美化** - 使用AI增强命名 *(v2.0.0)*
+- [x] 🔄 **Multiple AI Model Support** - Support for different AI providers  
+  **多AI模型支持** - 支持不同的AI提供商
+- [x] 🔄 **Third-party OpenAI API Integration** - Extended API compatibility
+  **第三方OpenAI API集成** - 扩展API兼容性
+- [ ] 🔄 **Local cache** - Improve performance and reduce API calls
+  **本地缓存** - 提高性能并减少API调用
+
+## 📝 License | 许可证
+
+This project is open source and available under the [MIT License](LICENSE).
+
+该项目为开源项目，遵循 [MIT 许可证](LICENSE)。
+
+## 🤝 Contributing | 贡献
+
+Contributions are welcome! Please feel free to submit a Pull Request or open an Issue.
+
+欢迎贡献！请随时提交 Pull Request 或创建 Issue。
+
+---
+
+**Made with ❤️ for retro gaming enthusiasts**
+
+**为复古游戏爱好者用心制作 ❤️**

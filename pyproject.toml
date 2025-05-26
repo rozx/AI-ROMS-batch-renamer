@@ -38,6 +38,8 @@ watchdog = "6.0.0"
 wcwidth = "0.2.13"
 yarg = "0.1.10"
 sqlite3-cache = "0.2.2"
+openai = "^1.82.0"
+
 
 
 [build-system]
