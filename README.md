@@ -47,22 +47,20 @@ renamer [command] [options]
 ```
 
 ### 📋 Global Options | 全局选项
+
 ```
-Options:
-  -V, --version           Output the version number
-  -h, --help              Display help for command
 
 Commands:
   rename [options] [dir]  批量重命文件夹中的文件为拼音首字母+原文件名 (Batch rename files to pinyin initials)
   revert [options] <dir>  还原文件名 (Revert file names)
-  help [command]          Display help for command
+  about [command]         显示关于信息 (Show about information)
 ```
 
 ## 📝 Rename Command | 重命名命令
 
 ### Syntax | 语法
 ```bash
-renamer rename [options] [directory]
+renamer rename [options]
 ```
 
 ### 🛠️ Options | 选项参数
@@ -90,13 +88,20 @@ renamer rename [options] [directory]
 
 ```bash
 # Basic rename with AI and pinyin support
+# 基础重命名，使用AI和拼音支持
 renamer rename -t -py -ai -p "D:/Downloads/"
 
 # Dry run to preview changes
+# 预览更改（不实际执行）
 renamer rename -d -t -py -ai --directory "~/ROMs/"
 
 # Process specific file types only
-renamer rename -i "*.gba,*.zip" --directory "~/Games/"
+# 仅处理特定文件类型
+renamer rename -i gba -i zip -dir "~/Games/" -t
+
+# Rename files in subdirectories with AI
+# 使用AI重命名子目录中的文件
+renamer rename -r -ai --directory "~/ROMs/" -t -m "gpt-3.5-turbo" -key "your_api_key"
 ```
 
 ### 📤 Sample Output | 输出示例
@@ -109,7 +114,7 @@ renamer rename -i "*.gba,*.zip" --directory "~/Games/"
 
 ### Syntax | 语法
 ```bash
-renamer revert [options] <directory>
+renamer revert [options]
 ```
 
 ### 🛠️ Options | 选项参数
@@ -125,9 +130,11 @@ renamer revert [options] <directory>
 
 ```bash
 # Revert all files in directory
+# 还原目录中的所有文件
 renamer revert "D:/Downloads/"
 
 # Dry run revert
+# 预览还原结果（不实际执行）
 renamer revert -d "~/ROMs/"
 ```
 
