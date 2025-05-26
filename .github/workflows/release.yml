@@ -8,6 +8,12 @@ on:
 jobs:
   create-draft-release:
     runs-on: ubuntu-latest
+    permissions:
+      # write permission is required to create a github release
+      contents: write
+      # write permission is required for autolabeler
+      # otherwise, read permission is required at least
+      pull-requests: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -64,8 +70,8 @@ jobs:
           poetry install --no-interaction --no-ansi
       - name: Get app version
         run: |
-          $APP_VERSION = poetry version --short
-          echo "APP_VERSION=$APP_VERSION" >> $env:GITHUB_ENV
+          APP_VERSION=$(poetry version --short)
+          echo "APP_VERSION=$APP_VERSION" >> $GITHUB_ENV
           echo "App version: $APP_VERSION"
 
       - name: download release upload url
@@ -218,8 +224,8 @@ jobs:
 
       - name: Get app version
         run: |
-          $APP_VERSION = poetry version --short
-          echo "APP_VERSION=$APP_VERSION" >> $env:GITHUB_ENV
+          APP_VERSION=$(poetry version --short)
+          echo "APP_VERSION=$APP_VERSION" >> $GITHUB_ENV
           echo "App version: $APP_VERSION"
 
       - name: Run build script
