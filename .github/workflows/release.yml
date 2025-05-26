@@ -74,6 +74,7 @@ jobs:
           echo "APP_VERSION=$APP_VERSION" >> $GITHUB_ENV
           echo "App version: $APP_VERSION"
 
+      # Download the release upload URL artifact
       - name: download release upload url
         uses: actions/download-artifact@v4
         with:
@@ -81,7 +82,9 @@ jobs:
 
       # Save the release upload URL to an environment variable
       - name: set releaseUploadUrl
-        run: echo "RELEASE_UPLOAD_URL=$(cat releaseUploadUrl.txt)" >> $GITHUB_ENV
+        run: |
+          echo "RELEASE_UPLOAD_URL=$(cat releaseUploadUrl.txt)" >> $env:GITHUB_ENV
+          echo "Upload URL: $RELEASE_UPLOAD_URL"
 
       - name: Run build script
         run: |
@@ -155,19 +158,6 @@ jobs:
           echo "APP_VERSION=$APP_VERSION" >> $env:GITHUB_ENV
           echo "App version: $APP_VERSION"
 
-      - name: Run build script
-        run: |
-          poetry run nuitka \
-          --onefile \
-          --onefile-tempdir-spec="{TEMP}/ai-rom-batch-renamer" \
-          --output-dir=./dist \
-          --output-filename="ai-rom-batch-renamer-Windows-X64.exe" \
-          --windows-icon-from-ico=./icon.png \
-          --assume-yes-for-downloads \
-          --show-progress \
-          --include-package-data=pinyin \
-          ai_rom_batch_renamer/main.py
-
       # Download the release upload URL artifact
       - name: download release upload url
         uses: actions/download-artifact@v4
@@ -176,7 +166,22 @@ jobs:
 
       # Save the release upload URL to an environment variable
       - name: set releaseUploadUrl
-        run: echo "RELEASE_UPLOAD_URL=$(cat releaseUploadUrl.txt)" >> $env:GITHUB_ENV
+        run: |
+          echo "RELEASE_UPLOAD_URL=$(cat releaseUploadUrl.txt)" >> $env:GITHUB_ENV
+          echo "Upload URL: $RELEASE_UPLOAD_URL"
+
+      - name: Run build script
+        run: |
+          poetry run nuitka `
+          --onefile `
+          --onefile-tempdir-spec="{TEMP}/ai-rom-batch-renamer" `
+          --output-dir=./dist `
+          --output-filename="ai-rom-batch-renamer-Windows-X64.exe" `
+          --windows-icon-from-ico=./icon.png `
+          --assume-yes-for-downloads `
+          --show-progress `
+          --include-package-data=pinyin `
+          ai_rom_batch_renamer/main.py
 
       # Archive the build and upload it to the release
       - name: Archive the build
@@ -228,6 +233,18 @@ jobs:
           echo "APP_VERSION=$APP_VERSION" >> $GITHUB_ENV
           echo "App version: $APP_VERSION"
 
+      # Download the release upload URL artifact
+      - name: download release upload url
+        uses: actions/download-artifact@v4
+        with:
+          name: releaseUploadUrl
+
+      # Save the release upload URL to an environment variable
+      - name: set releaseUploadUrl
+        run: |
+          echo "RELEASE_UPLOAD_URL=$(cat releaseUploadUrl.txt)" >> $env:GITHUB_ENV
+          echo "Upload URL: $RELEASE_UPLOAD_URL"
+
       - name: Run build script
         run: |
           poetry run nuitka \
@@ -240,16 +257,6 @@ jobs:
           --show-progress \
           --include-package-data=pinyin \
           ai_rom_batch_renamer/main.py
-
-      # Download the release upload URL artifact
-      - name: download release upload url
-        uses: actions/download-artifact@v4
-        with:
-          name: releaseUploadUrl
-
-      # Save the release upload URL to an environment variable
-      - name: set releaseUploadUrl
-        run: echo "RELEASE_UPLOAD_URL=$(cat releaseUploadUrl.txt)" >> $env:GITHUB_ENV
 
       # Archive the build and upload it to the release
       - name: Archive the build
