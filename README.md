@@ -72,8 +72,8 @@ renamer rename [options]
 | `--trim` | `-t` | FLAG | 去除无用的信息 (Trim unnecessary information from filename) |
 | `--dry-run` | `-d` | FLAG | 只输出结果，不实际重命名 (Preview results without actual renaming) |
 | `--pinyin` | `-py` | FLAG | 在开头加上拼音首字符 (Add pinyin initials for better sorting) |
-| `--includes` | `-i` | TEXT | 只处理特定的文件类型 (Process only specific file types) |
-| `--excludes` | `-e` | TEXT | 不处理特定的文件类型 (Exclude specific file types) |
+| `--includes` | `-i` | TEXT | 只处理特定的文件类型 e.g: gba (Process only specific file types) |
+| `--excludes` | `-e` | TEXT | 不处理特定的文件类型 e.g: zip (Exclude specific file types) |
 | `--output` | `-o` | FLAG | 只输出重命名后的文件名 (Output only renamed filenames) |
 | `--recursive` | `-r` | FLAG | 读取子目录中的文件 (Process files in subdirectories) |
 | `--unzip` | `-u` | FLAG | 解压ZIP文件 (Extract ZIP files) |
@@ -97,7 +97,7 @@ renamer rename -d -t -py -ai --directory "~/ROMs/"
 
 # Process specific file types only
 # 仅处理特定文件类型
-renamer rename -i gba -i zip -dir "~/Games/" -t
+renamer rename -i "gba" -i "zip" -dir "~/Games/" -t
 
 # Rename files in subdirectories with AI
 # 使用AI重命名子目录中的文件
