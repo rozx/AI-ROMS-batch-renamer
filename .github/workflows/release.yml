@@ -1,13 +1,14 @@
 name: Create Release
 
 on:
-  push:
-    # branches to consider in the event; optional, defaults to all
-    branches: ["release", "test-workflow", "v2.0-build"]
+  pull_request:
+    types: [closed]
+    branches: ["release"]
 
 jobs:
   create-draft-release:
     runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true && (contains(github.event.pull_request.labels.*.name, 'major') || contains(github.event.pull_request.labels.*.name, 'minor') || contains(github.event.pull_request.labels.*.name, 'patch'))
     permissions:
       # write permission is required to create a github release
       contents: write
