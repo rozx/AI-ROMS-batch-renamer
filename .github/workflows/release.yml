@@ -171,9 +171,17 @@ jobs:
           $RELEASE_UPLOAD_URL=$(cat releaseUploadUrl.txt)
           echo "RELEASE_UPLOAD_URL=$RELEASE_UPLOAD_URL" >> $env:GITHUB_ENV
           echo "Upload URL: $RELEASE_UPLOAD_URL"
-
       - name: Run build script
-        run: poetry run nuitka --onefile --onefile-tempdir-spec="%TEMP%\ai-rom-batch-renamer" --output-dir=.\dist --output-filename="ai-rom-batch-renamer-Windows-X64.exe" --assume-yes-for-downloads --include-package-data=pinyin --windows-icon-from-ico=./icon.png ai_rom_batch_renamer\main.py
+        run: |
+          poetry run nuitka `
+          --onefile `
+          --onefile-tempdir-spec="{TEMP}\ai-rom-batch-renamer" `
+          --output-dir=.\dist `
+          --output-filename="ai-rom-batch-renamer-Windows-X64.exe" `
+          --assume-yes-for-downloads `
+          --include-package-data=pinyin `
+          --windows-icon-from-ico=./icon.png `
+          ai_rom_batch_renamer\main.py
 
       # Archive the build and upload it to the release
       - name: Archive the build
