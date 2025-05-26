@@ -30,3 +30,8 @@ jobs:
         # You may pin to the exact commit or the version.
         # uses: Gr1N/setup-poetry@48b0f77c8c1b1b19cb962f0f00dff7b4be8f81ec
         uses: Gr1N/setup-poetry@v9
+
+      - name: Install dependencies
+        run: |
+          poetry config virtualenvs.create false
+          poetry install --no-interaction --no-ansi
