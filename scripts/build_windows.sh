@@ -1,9 +1,8 @@
 poetry run nuitka \
     --onefile \
-    --onefile-tempdir-spec="~/Library/Caches/ai-rom-batch-renamer" \
-    --output-dir=./dist/mac \
-    --output-filename="ai-rom-batch-renamer" \
-    --macos-app-icon=./icon.png \
+    --onefile-tempdir-spec="{TEMP}/ai-rom-batch-renamer" \
+    --output-dir=./dist/windows \
+    --output-filename="ai-rom-batch-renamer-Windows-X64.exe" \
     --windows-icon-from-ico=./icon.png \
     --assume-yes-for-downloads \
     --show-progress \
