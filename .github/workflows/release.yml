@@ -6,9 +6,36 @@ on:
     branches: ["release", "test-workflow", "v2.0-build"]
 
 jobs:
+  create-draft-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Create GitHub Release
+        id: create_release
+        # Drafts your next Release notes as Pull Requests are merged into "master"
+        uses: release-drafter/release-drafter@v6
+        # (Optional) specify config name to use, relative to .github/. Default: release-drafter.yml
+        # with:
+        #   config-name: my-config.yml
+        #   disable-autolabeler: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Upload the release upload URL as an artifact
+      - name: Make release upload url
+        run: echo '${{ steps.create_release.outputs.upload_url }}' > releaseUploadUrl.txt
+      - name: Upload release upload url
+        uses: actions/upload-artifact@v4
+        with:
+          name: releaseUploadUrl
+          path: releaseUploadUrl.txt
+
   # Builds on Linux and creates a release
   builds-on-linux-and-release:
     runs-on: ubuntu-latest
+    needs: create-draft-release
     permissions:
       # write permission is required to create a github release
       contents: write
@@ -37,9 +64,18 @@ jobs:
           poetry install --no-interaction --no-ansi
       - name: Get app version
         run: |
-          APP_VERSION=$(poetry version --short)
-          echo "APP_VERSION=$APP_VERSION" >> $GITHUB_ENV
+          $APP_VERSION = poetry version --short
+          echo "APP_VERSION=$APP_VERSION" >> $env:GITHUB_ENV
           echo "App version: $APP_VERSION"
+
+      - name: download release upload url
+        uses: actions/download-artifact@v4
+        with:
+          name: releaseUploadUrl
+
+      # Save the release upload URL to an environment variable
+      - name: set releaseUploadUrl
+        run: echo "RELEASE_UPLOAD_URL=$(cat releaseUploadUrl.txt)" >> $GITHUB_ENV
 
       - name: Run build script
         run: |
@@ -75,23 +111,14 @@ jobs:
         uses: shogo82148/actions-upload-release-asset@v1
         with:
           overwrite: true
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          upload_url: ${{ env.UPLOAD_URL }}
           asset_path: release.zip
           asset_name: RomBatchRenamer-Linux-X64-Modern-v${{ env.APP_VERSION }}.zip
-
-      # Upload the release upload URL as an artifact
-      - name: Make release upload url
-        run: echo '${{ steps.create_release.outputs.upload_url }}' > releaseUploadUrl.txt
-      - name: Upload release upload url
-        uses: actions/upload-artifact@v4
-        with:
-          name: releaseUploadUrl
-          path: releaseUploadUrl.txt
 
   # Builds on Windows and upload the build to the release
   builds-on-windows-and-release:
     runs-on: windows-latest
-    needs: builds-on-linux-and-release
+    needs: create-draft-release
     permissions:
       # write permission is required to create a github release
       contents: write
@@ -118,8 +145,8 @@ jobs:
 
       - name: Get app version
         run: |
-          APP_VERSION=$(poetry version --short)
-          echo "APP_VERSION=$APP_VERSION" >> $GITHUB_ENV
+          $APP_VERSION = poetry version --short
+          echo "APP_VERSION=$APP_VERSION" >> $env:GITHUB_ENV
           echo "App version: $APP_VERSION"
 
       - name: Run build script
@@ -164,7 +191,7 @@ jobs:
   # Builds on Mac and upload the build to the release
   builds-on-mac-and-release:
     runs-on: macOS-latest
-    needs: builds-on-linux-and-release
+    needs: create-draft-release
     permissions:
       # write permission is required to create a github release
       contents: write
@@ -191,8 +218,8 @@ jobs:
 
       - name: Get app version
         run: |
-          APP_VERSION=$(poetry version --short)
-          echo "APP_VERSION=$APP_VERSION" >> $GITHUB_ENV
+          $APP_VERSION = poetry version --short
+          echo "APP_VERSION=$APP_VERSION" >> $env:GITHUB_ENV
           echo "App version: $APP_VERSION"
 
       - name: Run build script
