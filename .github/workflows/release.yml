@@ -89,14 +89,14 @@ jobs:
 
       - name: Run build script
         run: |
-          poetry run nuitka \
-          --onefile \
-          --onefile-tempdir-spec="{TEMP}/ai-rom-batch-renamer" \
-          --output-dir=./dist \
-          --output-filename="ai-rom-batch-renamer-Linux-X64" \
-          --assume-yes-for-downloads \
-          --include-package-data=pinyin \
-          ai_rom_batch_renamer/main.py
+          poetry run nuitka ^
+            --onefile ^
+            --onefile-tempdir-spec="{TEMP}\ai-rom-batch-renamer" ^
+            --output-dir=.\dist ^
+            --output-filename="ai-rom-batch-renamer-Windows-X64" ^
+            --assume-yes-for-downloads ^
+            --include-package-data=pinyin ^
+            ai_rom_batch_renamer\main.py
 
       # Create draft releases
       - name: Create GitHub Release
