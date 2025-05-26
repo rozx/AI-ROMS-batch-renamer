@@ -83,7 +83,8 @@ jobs:
       # Save the release upload URL to an environment variable
       - name: set releaseUploadUrl
         run: |
-          echo "RELEASE_UPLOAD_URL=$(cat releaseUploadUrl.txt)" >> $env:GITHUB_ENV
+          RELEASE_UPLOAD_URL=$(cat releaseUploadUrl.txt)
+          echo "RELEASE_UPLOAD_URL=$RELEASE_UPLOAD_URL" >> $env:GITHUB_ENV
           echo "Upload URL: $RELEASE_UPLOAD_URL"
 
       - name: Run build script
@@ -167,7 +168,8 @@ jobs:
       # Save the release upload URL to an environment variable
       - name: set releaseUploadUrl
         run: |
-          echo "RELEASE_UPLOAD_URL=$(cat releaseUploadUrl.txt)" >> $env:GITHUB_ENV
+          $RELEASE_UPLOAD_URL=$(cat releaseUploadUrl.txt)
+          echo "RELEASE_UPLOAD_URL=$RELEASE_UPLOAD_URL" >> $env:GITHUB_ENV
           echo "Upload URL: $RELEASE_UPLOAD_URL"
 
       - name: Run build script
@@ -242,7 +244,8 @@ jobs:
       # Save the release upload URL to an environment variable
       - name: set releaseUploadUrl
         run: |
-          echo "RELEASE_UPLOAD_URL=$(cat releaseUploadUrl.txt)" >> $env:GITHUB_ENV
+          RELEASE_UPLOAD_URL=$(cat releaseUploadUrl.txt)
+          echo "RELEASE_UPLOAD_URL=$RELEASE_UPLOAD_URL" >> $env:GITHUB_ENV
           echo "Upload URL: $RELEASE_UPLOAD_URL"
 
       - name: Run build script
