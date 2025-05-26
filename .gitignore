@@ -167,3 +167,6 @@ cython_debug/
 /.romRenamerCache
 *.cache
 config.json
+main.build
+main.dist
+main.onefile-build
