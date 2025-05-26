@@ -89,14 +89,14 @@ jobs:
 
       - name: Run build script
         run: |
-          poetry run nuitka ^
-            --onefile ^
-            --onefile-tempdir-spec="{TEMP}\ai-rom-batch-renamer" ^
-            --output-dir=.\dist ^
-            --output-filename="ai-rom-batch-renamer-Windows-X64" ^
-            --assume-yes-for-downloads ^
-            --include-package-data=pinyin ^
-            ai_rom_batch_renamer\main.py
+          poetry run nuitka \
+          --onefile \
+          --onefile-tempdir-spec="{TEMP}/ai-rom-batch-renamer" \
+          --output-dir=./dist \
+          --output-filename="ai-rom-batch-renamer-Linux-X64" \
+          --assume-yes-for-downloads \
+          --include-package-data=pinyin \
+          ai_rom_batch_renamer/main.py
 
       # Create draft releases
       - name: Create GitHub Release
@@ -173,15 +173,7 @@ jobs:
           echo "Upload URL: $RELEASE_UPLOAD_URL"
 
       - name: Run build script
-        run: poetry run nuitka \
-          --onefile \
-          --onefile-tempdir-spec="{TEMP}/ai-rom-batch-renamer" \
-          --output-dir=./dist \
-          --output-filename="ai-rom-batch-renamer-Windows-X64.exe" \
-          --windows-icon-from-ico=./icon.png \
-          --assume-yes-for-downloads \
-          --include-package-data=pinyin \
-          ai_rom_batch_renamer/main.py
+        run: poetry run nuitka --onefile --onefile-tempdir-spec="%TEMP%\ai-rom-batch-renamer" --output-dir=.\dist --output-filename="ai-rom-batch-renamer-Windows-X64.exe" --assume-yes-for-downloads --include-package-data=pinyin --windows-icon-from-ico=./icon.png ai_rom_batch_renamer\main.py
 
       # Archive the build and upload it to the release
       - name: Archive the build
