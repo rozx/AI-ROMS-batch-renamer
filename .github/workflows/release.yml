@@ -84,7 +84,7 @@ jobs:
       - name: set releaseUploadUrl
         run: |
           RELEASE_UPLOAD_URL=$(cat releaseUploadUrl.txt)
-          echo "RELEASE_UPLOAD_URL=$RELEASE_UPLOAD_URL" >> $env:GITHUB_ENV
+          echo "RELEASE_UPLOAD_URL=$RELEASE_UPLOAD_URL" >> $GITHUB_ENV
           echo "Upload URL: $RELEASE_UPLOAD_URL"
 
       - name: Run build script
@@ -173,8 +173,7 @@ jobs:
           echo "Upload URL: $RELEASE_UPLOAD_URL"
 
       - name: Run build script
-        run: |
-          poetry run nuitka `
+        run: poetry run nuitka `
           --onefile `
           --onefile-tempdir-spec="{TEMP}/ai-rom-batch-renamer" `
           --output-dir=./dist `
@@ -245,7 +244,7 @@ jobs:
       - name: set releaseUploadUrl
         run: |
           RELEASE_UPLOAD_URL=$(cat releaseUploadUrl.txt)
-          echo "RELEASE_UPLOAD_URL=$RELEASE_UPLOAD_URL" >> $env:GITHUB_ENV
+          echo "RELEASE_UPLOAD_URL=$RELEASE_UPLOAD_URL" >> $GITHUB_ENV
           echo "Upload URL: $RELEASE_UPLOAD_URL"
 
       - name: Run build script
