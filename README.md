@@ -4,7 +4,7 @@ A powerful command-line tool for batch renaming ROM files using AI technology.
 
 一个使用AI技术批量重命名ROM文件的强大命令行工具。
 
-[![HitCount](https://hits.dwyl.com/rozx/rozx/AI-ROMS-batch-renamer.svg?style=flat-square)](http://hits.dwyl.com/rozx/rozx/AI-ROMS-batch-renamer)
+![GitHub Release](https://img.shields.io/github/v/release/rozx/AI-ROMS-batch-renamer)
 [![Github All Releases](https://img.shields.io/github/downloads/rozx/AI-ROMS-batch-renamer/total.svg)](https://github.com/rozx/AI-ROMS-batch-renamer/releases)
 [![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/rozx/AI-ROMS-batch-renamer/issues)
 
