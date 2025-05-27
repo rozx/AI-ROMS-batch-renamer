@@ -51,9 +51,9 @@ renamer [command] [options]
 ```
 
 Commands:
-  rename [options] [dir]  批量重命文件夹中的文件为拼音首字母+原文件名 (Batch rename files to pinyin initials)
-  revert [options] <dir>  还原文件名 (Revert file names)
-  about [command]         显示关于信息 (Show about information)
+  rename [options]  批量重命文件夹中的文件为拼音首字母+原文件名 (Batch rename files to pinyin initials)
+  revert [options]  还原文件名 (Revert file names)
+  about             显示关于信息 (Show about information)
 ```
 
 ## 📝 Rename Command | 重命名命令
