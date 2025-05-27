@@ -89,7 +89,7 @@ renamer rename [options]
 ```bash
 # Basic rename with AI and pinyin support
 # 基础重命名，使用AI和拼音支持
-renamer rename -t -py -ai -p "D:/Downloads/"
+renamer rename -t -py -dir "D:/Downloads/"
 
 # Dry run to preview changes
 # 预览更改（不实际执行）
@@ -101,7 +101,7 @@ renamer rename -i "gba" -i "zip" -dir "~/Games/" -t
 
 # Rename files in subdirectories with AI
 # 使用AI重命名子目录中的文件
-renamer rename -r -ai --directory "~/ROMs/" -t -m "gpt-3.5-turbo" -key "your_api_key"
+renamer rename -r -ai --directory "~/ROMs/" -t -m "gpt-3.5-turbo" -key "your_api_key" -p "GBＡ"
 ```
 
 ### 📤 Sample Output | 输出示例
