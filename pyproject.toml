@@ -1,7 +1,7 @@
 [tool.poetry]
 maintainers = ["Rozx <lisida900710@gmail.com>"]
 name = "AI-rom-batch-renamer"
-version = "2.0.0"
+version = "2.0.1"
 authors = ["Rozx <lisida900710@gmail.com>"]
 description = "A command line tool for batch renaming ROM files using AI."
 license = "LICENSE"
@@ -9,7 +9,7 @@ readme = "README.md"
 repository = "https://github.com/rozx/AI-ROMS-batch-renamer"
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.14"
+python = "^3.11"
 certifi = "2024.8.30"
 charset-normalizer = "3.4.0"
 click = "8.1.7"

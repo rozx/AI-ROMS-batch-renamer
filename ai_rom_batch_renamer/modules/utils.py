@@ -22,6 +22,12 @@ def isSystemOrHiddenFile(file: str) -> bool:
         ".DS_Store",
     ]
 
+    currentScript = os.path.basename(__file__)
+
+    # If the file is the same as the current application, then ignore it
+    if baseName == os.path.splitext(currentScript)[0]:
+        return True
+
     return (
         baseName.startswith(".")
         or baseName.startswith("__")
