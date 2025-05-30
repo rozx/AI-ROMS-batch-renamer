@@ -7,6 +7,9 @@ import zipfile
 def isSystemOrHiddenFile(file: str) -> bool:
 
     baseName = getBasenameAndExtensions(file)[0]
+    extension = getBasenameAndExtensions(file)[1]
+    fileName = baseName + extension
+
     SYSTEM_OR_IGNORED_FILES = [
         "System Volume Information",
         "RECYCLE.BIN",
@@ -22,6 +25,25 @@ def isSystemOrHiddenFile(file: str) -> bool:
         ".DS_Store",
     ]
 
+    IGNORED_FILE_EXTENSIONS = [
+        ".bak",
+        ".tmp",
+        ".log",
+        ".old",
+        ".swp",
+        ".swo",
+        ".part",
+        ".crdownload",
+        ".part",
+        ".torrent",
+        ".json",
+        ".xml",
+        ".cache",
+        ".db",
+        ".sqlite",
+        ".sqlite3",
+    ]
+
     currentScript = os.path.basename(__file__)
 
     # If the file is the same as the current application, then ignore it
@@ -34,7 +56,8 @@ def isSystemOrHiddenFile(file: str) -> bool:
         or baseName.startswith("~")
         or baseName.startswith("$")
         or baseName.startswith("._")
-        or baseName in SYSTEM_OR_IGNORED_FILES
+        or fileName in SYSTEM_OR_IGNORED_FILES
+        or extension in IGNORED_FILE_EXTENSIONS
     )
 
 
@@ -104,14 +127,13 @@ def traversalDirectory(dir: str) -> list[str]:
     return fileList
 
 
-def getBasenameAndExtensions(fileName: str) -> tuple[str, str]:
+def getBasenameAndExtensions(path: str) -> tuple[str, str]:
 
-    baseName = os.path.basename(fileName)
+    fileName = os.path.basename(path)
 
-    return (
-        os.path.splitext(baseName)[0],
-        os.path.splitext(baseName)[1],
-    )
+    baseName, extension = os.path.splitext(fileName)
+
+    return (baseName, extension)
 
 
 def getMD5HashFromFile(file: str) -> str:

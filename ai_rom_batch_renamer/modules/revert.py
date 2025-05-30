@@ -45,7 +45,7 @@ def revert(dir: str, files: str, recursive: bool, dry: bool):
             fileList.remove(file)
             continue
 
-        if utilsModule.isSystemOrHiddenFile(baseName):
+        if utilsModule.isSystemOrHiddenFile(file):
             fileList.remove(file)
             continue
 
