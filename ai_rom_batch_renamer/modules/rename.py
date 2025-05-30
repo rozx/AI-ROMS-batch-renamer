@@ -87,7 +87,7 @@ def rename(options: dict):
             fileList.remove(file)
             continue
 
-        if utilsModule.isSystemOrHiddenFile(baseName):
+        if utilsModule.isSystemOrHiddenFile(file):
             fileList.remove(file)
             continue
 
