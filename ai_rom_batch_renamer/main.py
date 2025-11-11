@@ -131,7 +131,7 @@ def rename(
         str,
         typer.Option(
             "--model",
-            "-m",
+            "-model",
             help="保存使用的AI模型 (Update the AI model to use)",
         ),
     ] = "",

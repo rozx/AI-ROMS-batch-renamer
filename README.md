@@ -79,7 +79,7 @@ renamer rename [options]
 | `--unzip` | `-u` | FLAG | 解压ZIP文件 (Extract ZIP files) |
 | `--password` | `-pwd` | TEXT | ZIP文件密码 (Password for ZIP files) |
 | `--ai` | `-ai` | FLAG | 使用AI重命名 (Use AI for intelligent renaming) |
-| `--model` | `-m` | TEXT | AI模型设置 (AI model configuration) |
+| `--model` | `-model` | TEXT | AI模型设置 (AI model configuration) |
 | `--api-key` | `-key` | TEXT | AI模型API密钥 (API key for AI model) |
 | `--endpoint` | `-ep` | TEXT | AI模型API端点 (API endpoint for AI model) |
 | `--platform` | `-p` | TEXT | ROM平台信息 (Platform info for better AI recognition) |
