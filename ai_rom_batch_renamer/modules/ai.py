@@ -1,15 +1,11 @@
 from openai import OpenAI
+from ai_rom_batch_renamer.modules import cache as cacheModule
 
-try:
-    from ai_rom_batch_renamer.classes import AIConfig, RomFile
-except Exception:
-    from ..classes.AIConfig import AIConfig
-    from ..classes.RomFile import RomFile
-
+from ai_rom_batch_renamer.classes import AIConfig, RomFile
 from rich import print as rprint, console
 
 
-def aiScraper(config: AIConfig, romFile: RomFile, platform: str = "unknown"):
+def aiScraper(config: AIConfig, romFile: RomFile, useCache: bool = True, platform: str = "unknown"):
 
     # rprint(
     #     f"[blue]Using AI to scrape information for ROM file: {romFile.originalFilename}[/blue]"
@@ -18,6 +14,14 @@ def aiScraper(config: AIConfig, romFile: RomFile, platform: str = "unknown"):
     # rprint(f"[blue]Model: {config.model}[/blue]")
     # rprint(f"[blue]API Key: {config.apiKey}[/blue]")
     # rprint(f"[blue]Endpoint: {config.endpoint}[/blue]")
+    
+    cache = cacheModule.romInfoCache()
+    
+    if useCache:
+        cachedResult = cache.get(romFile.md5)
+        if cachedResult is not None:
+            rprint(f"[green]Found cached result for {romFile.originalFilename}[/green]")
+            return cachedResult
 
     client = OpenAI(
         api_key=config.apiKey,
@@ -53,8 +57,8 @@ def aiScraper(config: AIConfig, romFile: RomFile, platform: str = "unknown"):
         content = response.choices[0].message.content
         if content is not None:
             split_content = content.split("|")
-
-            return {
+            
+            ai_result = {
                 "englishTitle": split_content[0].strip(),
                 "chineseTitle": split_content[1].strip(),
                 "region": split_content[2].strip(),
@@ -63,6 +67,9 @@ def aiScraper(config: AIConfig, romFile: RomFile, platform: str = "unknown"):
                 "publisher": split_content[5].strip(),
                 "developer": split_content[6].strip(),
             }
+
+            cache.add(romFile.md5, ai_result, timeout=-1)
+            return ai_result
 
         else:
             rprint("[red]No content returned from AI response.[/red]")

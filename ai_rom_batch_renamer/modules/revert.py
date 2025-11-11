@@ -1,11 +1,8 @@
 import os
 
-try:
-    from ai_rom_batch_renamer.modules import cache as cacheModule
-    from ai_rom_batch_renamer.modules import utils as utilsModule
-except Exception:
-    from . import cache as cacheModule
-    from . import utils as utilsModule
+
+from ai_rom_batch_renamer.modules import cache as cacheModule
+from ai_rom_batch_renamer.modules import utils as utilsModule
 
 from rich import print as rprint, console
 from rich.progress import track

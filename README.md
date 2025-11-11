@@ -144,6 +144,58 @@ T 铁臂阿童木 - 阿童木之心的秘密 (Astro Boy -  The Video Game) (2004
 → 铁臂阿童木-阿童木之心的秘密[v1.0][心灵的冬天](简)(66Mb).gba
 ```
 
+## 🛠️ Build from Source | 从源码构建
+
+```bash
+# 1) Install dependencies
+poetry install
+
+# 2) Build cross-platform onefile binary (dynamic spec)
+poetry run build --verbose
+
+# Options:
+#   --outdir ./dist         指定输出目录
+#   --name my-binary        自定义输出文件名
+#   --icon ./icon.png       指定图标 (Windows/MacOS)
+#   --extra ...             追加原生 Nuitka 参数
+#   --dry-run               仅打印命令，不实际构建
+```
+
+版本来源优先级：环境变量 APP_VERSION > pyproject.toml 中的 version。
+
+## 🔁 Versioning & Releases | 版本与发布
+
+- CI 使用 Release Drafter 计算版本标签（例如 `v2.1.0`）。
+- 构建任务下载标签并设置 `APP_VERSION`，然后执行 `poetry version "$APP_VERSION"` 以同步元数据。
+- 构建调用 `poetry run build --verbose`，自动按平台生成 Nuitka 参数。
+- 产物以版本号命名并上传至同一个草稿发布。
+
+如果你更偏向以本地 `pyproject.toml` 为真源（Option A），也可以直接基于其版本创建发布并跳过标签到版本的转换。
+
+## 🔧 Version bump (local) | 本地版本号更新
+
+本仓库使用 bump2version 同步版本至多个文件（`pyproject.toml` 与 `ai_rom_batch_renamer/modules/const.py`）。
+
+配置文件：`.bumpversion.cfg`
+
+```bash
+# 交互式选择 patch/minor/major
+poetry run bump
+
+# 直接按位更新
+poetry run bump-patch
+poetry run bump-minor
+poetry run bump-major
+```
+
+在 CI 的 Option B 模式下（Release Drafter 生成 tag），如需让构建产物内的 `const.py` 与 tag 保持一致但不提交修改，可在构建前加入（允许工作区脏状态）：
+
+```bash
+bump2version --allow-dirty --new-version "$APP_VERSION" patch
+```
+
+这样应用的 About/版本输出将与发布标签一致。
+
 ## 🗺️ Roadmap | 开发路线图
 
 - [x] ✅ **AI ROM Title Fetch** - *(v2.0.0)*  
@@ -178,31 +230,3 @@ Contributions are welcome! Please feel free to submit a Pull Request or open an 
 **Made with ❤️ for retro gaming enthusiasts**
 
 **为复古游戏爱好者用心制作 ❤️**
-
-## 🛠️ Build from Source | 从源码构建
-
-```bash
-# 1) Install dependencies
-poetry install
-
-# 2) Build cross-platform onefile binary (dynamic spec)
-poetry run build --verbose
-
-# Options:
-#   --outdir ./dist         指定输出目录
-#   --name my-binary        自定义输出文件名
-#   --icon ./icon.png       指定图标 (Windows/MacOS)
-#   --extra ...             追加原生 Nuitka 参数
-#   --dry-run               仅打印命令，不实际构建
-```
-
-版本来源优先级：环境变量 APP_VERSION > pyproject.toml 中的 version。
-
-## 🔁 Versioning & Releases | 版本与发布
-
-- CI 使用 Release Drafter 计算版本标签（例如 `v2.1.0`）。
-- 构建任务下载标签并设置 `APP_VERSION`，然后执行 `poetry version "$APP_VERSION"` 以同步元数据。
-- 构建调用 `poetry run build --verbose`，自动按平台生成 Nuitka 参数。
-- 产物以版本号命名并上传至同一个草稿发布。
-
-如果你更偏向以本地 `pyproject.toml` 为真源（Option A），也可以直接基于其版本创建发布并跳过标签到版本的转换。

@@ -126,6 +126,34 @@ Notes:
 - `scripts/build.py` computes platform-specific Nuitka flags (icon, temp dir, output name) automatically.
 - You can override defaults: `--outdir`, `--name`, `--icon`, `--extra` for raw Nuitka args, `--dry-run`.
 
+### 7.2 Local Version Bumping (bump2version)
+
+This repo uses bump2version to keep versions in sync across files.
+
+- Config: `.bumpversion.cfg` updates both `pyproject.toml` and `ai_rom_batch_renamer/modules/const.py`.
+- Default behavior (no commit, no tag):
+
+```bash
+# Interactive (select patch/minor/major via Poetry script)
+poetry run bump
+
+# Direct part bump
+poetry run bump-patch
+poetry run bump-minor
+poetry run bump-major
+```
+
+Optional CI sync of const.py:
+
+- If you use Option B (Release Drafter tag) and want `const.py` to reflect the tag in build artifacts without committing it, add a pre-build step:
+
+```bash
+# Example: set const.py to the tag-derived version in CI without committing changes
+bump2version --allow-dirty --new-version "$APP_VERSION" patch
+```
+
+This ensures the app's About/version output matches the release tag.
+
 ## 8. Exit / Error Semantics (Recommended)
 
 - Exit 0: All requested operations succeeded

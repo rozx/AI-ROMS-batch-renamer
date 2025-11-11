@@ -1,9 +1,7 @@
 import hashlib
 import os
-try:
-    from ai_rom_batch_renamer.modules import utils as utilsModule
-except Exception:
-    from ..modules import utils as utilsModule
+
+from ai_rom_batch_renamer.modules import utils as utilsModule
 
 
 class RomFile:

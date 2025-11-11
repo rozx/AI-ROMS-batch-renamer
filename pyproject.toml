@@ -40,6 +40,7 @@ bump-patch = "scripts.version:bump_patch"
 bump-minor = "scripts.version:bump_minor"
 bump-major = "scripts.version:bump_major"
 build = "scripts.build:main"
+test = "pytest:main"
 
 [tool.poetry.group.dev.dependencies]
 nuitka = "^2.7.3"
@@ -56,3 +57,4 @@ six = "1.16.0"
 watchdog = "6.0.0"
 yarg = "0.1.10"
 bump2version = "1.0.1"
+pytest = "^8.3.3"

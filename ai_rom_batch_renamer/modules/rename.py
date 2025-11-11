@@ -7,24 +7,13 @@ from rich import print as rprint, console
 from rich.progress import track
 
 
-try:
-    # Absolute imports for compiled/standalone context
-    from ai_rom_batch_renamer.modules import utils as utilsModule
-    from ai_rom_batch_renamer.modules import regex as regexModule
-    from ai_rom_batch_renamer.modules import const as constModule
-    from ai_rom_batch_renamer.modules import cache as cacheModule
-    from ai_rom_batch_renamer.modules import ai as aiScraperModule
-    from ai_rom_batch_renamer.classes import RomFile as _RomFile
-    from ai_rom_batch_renamer.classes import AIConfig as _AIConfig
-except Exception:
-    # Relative fallback for normal package execution
-    from . import utils as utilsModule
-    from . import regex as regexModule
-    from . import const as constModule
-    from . import cache as cacheModule
-    from . import ai as aiScraperModule
-    from ..classes.RomFile import RomFile as _RomFile
-    from ..classes.AIConfig import AIConfig as _AIConfig
+from ai_rom_batch_renamer.modules import utils as utilsModule
+from ai_rom_batch_renamer.modules import regex as regexModule
+from ai_rom_batch_renamer.modules import const as constModule
+from ai_rom_batch_renamer.modules import cache as cacheModule
+from ai_rom_batch_renamer.modules import ai as aiScraperModule
+from ai_rom_batch_renamer.classes import RomFile as _RomFile
+from ai_rom_batch_renamer.classes import AIConfig as _AIConfig
 
 # Alias unified names
 RomFile = _RomFile
@@ -187,7 +176,7 @@ def rename(options: dict):
             result = aiScraperModule.aiScraper(aiConfig, romFile, platform)
             if result:
                 romFile.updateFileName(
-                    f"{romFile.baseName} ({result['englishTitle']})({result['releaseYear']}){romFile.extName}"
+                    f"{result['chineseTitle']} ({result['englishTitle']})({result['releaseYear']}){romFile.extName}"
                 )
 
         # adds region to the filename
@@ -205,17 +194,18 @@ def rename(options: dict):
             pendingRenameFiles = [romFile.path]
 
         # ----------- Rename the file -------------
+        # Pass None to allow autodetect of current OS; if needed, a future CLI flag
+        # could override this behaviour for cross-platform normalization.
+        result = renameFiles(
+            pendingRenameFiles, romFile, dry, renamedFiles, None
+        )
 
-        # rename the file
-        result = renameFiles(pendingRenameFiles, romFile, dry, renamedFiles)
-
-        # add the file to the pending rename files
+        # add the file to the renamed files tracking
         renamedFiles.extend(result)
 
         # ----------- prompt the result -------------
         if output:
             print(romFile.fileName)
-            continue
         else:
             rprint(
                 f"[bold]Renamed{' preview' if dry else ''}({value + 1}/{len(fileList)}):[/bold] [blue1 underline]{romFile.path}[/blue1 underline] -> [green3]{result}[/green3]",
@@ -275,13 +265,69 @@ def addsPinyinInitials(romFile: RomFile) -> None:
     return
 
 
-def getNextAvailableName(fileName: str, dir: str, renamedFiles: list[str]) -> str:
+def sanitize_for_os(base_name: str, os_platform: str | None = None) -> str:
+    """
+    Sanitize a ROM base filename based on OS-specific filesystem constraints.
+
+    - Windows: remove <>:"/\|?* and control chars; trim trailing dots/spaces
+    - macOS: remove '/' and control chars
+    - Linux: remove '/' and control chars
+    We keep Unicode letters/numbers to preserve CJK.
+    """
+
+    # Detect OS platform if not provided
+    try:
+        import platform as _platform
+        detected = _platform.system().lower()
+    except Exception:
+        detected = "unknown"
+
+    os_norm = (os_platform or detected or "unknown").lower()
+    if os_norm.startswith("win"):
+        os_norm = "windows"
+    elif os_norm in {"darwin", "mac", "macos", "osx"}:
+        os_norm = "mac"
+    elif os_norm.startswith("linux"):
+        os_norm = "linux"
+
+    # 1) Remove control characters (including NUL if any)
+    base_name = regex.sub(r"[\x00\r\n\t\f\v]", " ", base_name)
+
+    # 2) Remove reserved chars per OS
+    if os_norm == "windows":
+        # Windows forbids: <>:"/\|?*
+        base_name = regex.sub(r"[<>:\"/\\\|\?\*]+", "", base_name)
+        # Also trim trailing dots/spaces
+        base_name = base_name.strip().rstrip(". ")
+    else:
+        # macOS/Linux forbid only '/'
+        base_name = regex.sub(r"/", "", base_name)
+        base_name = base_name.strip()
+
+    # Keep unicode letters/numbers, spaces and common safe separators
+    allowed = r"\p{L}\p{N} _\-\[\]\(\)&',\.+\+"
+    base_name = regex.sub(fr"[^ {allowed}]", "", base_name)
+
+    # Collapse spaces
+    base_name = regex.sub(r"\s{2,}", " ", base_name).strip()
+
+    if not base_name:
+        base_name = "file"
+
+    return base_name
+
+
+def getNextAvailableName(
+    fileName: str, dir: str, renamedFiles: list[str], os_platform: str | None = None
+) -> str:
 
     baseName, extName = utilsModule.getBasenameAndExtensions(fileName)
+    # Sanitize base name with OS filesystem rules before uniqueness resolution
+    baseName = sanitize_for_os(baseName, os_platform)
+    fileName = f"{baseName}{extName}"
 
     fileNameIndex = 0
     while fileName in renamedFiles or os.path.exists(os.path.join(dir, fileName)):
-
         fileNameIndex += 1
         fileName = f"{baseName}({fileNameIndex}){extName}"
 
@@ -293,6 +339,7 @@ def renameFiles(
     romFile: RomFile,
     dryrun: bool,
     renamedFiles: list[str],
+    os_platform: str | None = None,
 ) -> list[str]:
 
     _renamedFiles = renamedFiles.copy()
@@ -305,7 +352,9 @@ def renameFiles(
         targetBaseName = f"{romFile.baseName}{extName}"
 
         # get the next available name
-        fileName = getNextAvailableName(targetBaseName, romFile.dir, _renamedFiles)
+        fileName = getNextAvailableName(
+            targetBaseName, romFile.dir, _renamedFiles, os_platform
+        )
 
         targetRenamePath = os.path.join(romFile.dir, fileName)
 
