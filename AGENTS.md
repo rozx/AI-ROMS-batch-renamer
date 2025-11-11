@@ -104,6 +104,28 @@ ROOT="$1"
 renamer rename -r -ai -py -t -dir "$ROOT" -m "gpt-4o-mini" -p "GBA" --includes gba --includes zip --unzip
 ```
 
+### 7.1 CI/CD Build and Versioning (Option B)
+
+- Source of truth for version is the Release Drafter tag (e.g. `v2.1.0`).
+- Build jobs read the tag from an artifact, derive `APP_VERSION` (strip `v`), and force Poetry to that version before building.
+- Assets are uploaded to the same drafted release using the provided upload URL.
+
+Key environment flow per job:
+
+1) Download `releaseUploadUrl.txt` and `releaseTagName.txt` artifacts.
+2) Set `APP_VERSION` from `TAG_NAME` by removing the leading `v`.
+3) Run `poetry version "$APP_VERSION"` to sync app metadata with the release tag.
+4) Build using the dynamic builder:
+
+```bash
+poetry run build --verbose
+```
+
+Notes:
+
+- `scripts/build.py` computes platform-specific Nuitka flags (icon, temp dir, output name) automatically.
+- You can override defaults: `--outdir`, `--name`, `--icon`, `--extra` for raw Nuitka args, `--dry-run`.
+
 ## 8. Exit / Error Semantics (Recommended)
 
 - Exit 0: All requested operations succeeded
@@ -151,6 +173,8 @@ Potential automated PRs:
 - Abstract AI provider interface (strategy pattern)
 - Integrate logging verbosity flags (`--verbose`, `--quiet`)
 - Add JSON output mode for machine parsing (`--json`) for pipeline consumption
+- Add release notes validation to ensure `pyproject.toml` version matches tag when using Option A
+- Add smoke tests for built binaries (hash, basic `--help` run) in CI
 
 ## 14. License
 

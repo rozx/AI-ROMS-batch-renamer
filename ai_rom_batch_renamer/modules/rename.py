@@ -7,14 +7,28 @@ from rich import print as rprint, console
 from rich.progress import track
 
 
-import modules.utils as utilsModule
-import modules.regex as regexModule
-import modules.const as constModule
-import modules.cache as cacheModule
-import modules.ai as aiScraperModule
+try:
+    # Absolute imports for compiled/standalone context
+    from ai_rom_batch_renamer.modules import utils as utilsModule
+    from ai_rom_batch_renamer.modules import regex as regexModule
+    from ai_rom_batch_renamer.modules import const as constModule
+    from ai_rom_batch_renamer.modules import cache as cacheModule
+    from ai_rom_batch_renamer.modules import ai as aiScraperModule
+    from ai_rom_batch_renamer.classes import RomFile as _RomFile
+    from ai_rom_batch_renamer.classes import AIConfig as _AIConfig
+except Exception:
+    # Relative fallback for normal package execution
+    from . import utils as utilsModule
+    from . import regex as regexModule
+    from . import const as constModule
+    from . import cache as cacheModule
+    from . import ai as aiScraperModule
+    from ..classes.RomFile import RomFile as _RomFile
+    from ..classes.AIConfig import AIConfig as _AIConfig
 
-from classes.RomFile import RomFile
-from classes.AIConfig import AIConfig
+# Alias unified names
+RomFile = _RomFile
+AIConfig = _AIConfig
 
 # Rename files
 

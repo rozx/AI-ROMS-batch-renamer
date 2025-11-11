@@ -4,9 +4,10 @@ from rich import print as rprint, console
 from InquirerPy.resolver import prompt
 from typing_extensions import Annotated
 
-import modules.rename as renameModule
-import modules.const as constModule
-import modules.revert as revertModule
+# Use absolute package imports so it works for both package entry and compiled onefile
+from ai_rom_batch_renamer.modules import rename as renameModule
+from ai_rom_batch_renamer.modules import const as constModule
+from ai_rom_batch_renamer.modules import revert as revertModule
 
 
 app = typer.Typer(
@@ -123,7 +124,7 @@ def rename(
         typer.Option(
             "--ai",
             "-ai",
-            help="使用AI来重命名文件,默认为 gpt-4.1 (Use AI to rename files, default is gpt-4.1)",
+            help="使用AI来重命名文件,默认为 deepseek-chat (Use AI to rename files, default is deepseek-chat)",
             is_flag=True,
         ),
     ] = False,

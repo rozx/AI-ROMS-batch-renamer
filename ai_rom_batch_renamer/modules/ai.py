@@ -1,7 +1,10 @@
 from openai import OpenAI
 
-from classes.AIConfig import AIConfig
-from classes.RomFile import RomFile
+try:
+    from ai_rom_batch_renamer.classes import AIConfig, RomFile
+except Exception:
+    from ..classes.AIConfig import AIConfig
+    from ..classes.RomFile import RomFile
 
 from rich import print as rprint, console
 

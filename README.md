@@ -78,7 +78,7 @@ renamer rename [options]
 | `--recursive` | `-r` | FLAG | 读取子目录中的文件 (Process files in subdirectories) |
 | `--unzip` | `-u` | FLAG | 解压ZIP文件 (Extract ZIP files) |
 | `--password` | `-pwd` | TEXT | ZIP文件密码 (Password for ZIP files) |
-| `--ai` | `-ai` | FLAG | 使用AI重命名 (Use AI for intelligent renaming) |
+| `--ai` | `-ai` | FLAG | 使用AI重命名 (Use AI for intelligent renaming, 默认为deepseek-chat) |
 | `--model` | `-model` | TEXT | AI模型设置 (AI model configuration) |
 | `--api-key` | `-key` | TEXT | AI模型API密钥 (API key for AI model) |
 | `--endpoint` | `-ep` | TEXT | AI模型API端点 (API endpoint for AI model) |
@@ -101,7 +101,7 @@ renamer rename -i "gba" -i "zip" -dir "~/Games/" -t
 
 # Rename files in subdirectories with AI
 # 使用AI重命名子目录中的文件
-renamer rename -r -ai --directory "~/ROMs/" -t -m "gpt-3.5-turbo" -key "your_api_key" -p "GBＡ"
+renamer rename -r -ai --directory "~/ROMs/" -t -model "deepseek-chat" -ep "https://api.deepseek.com" -key "your_api_key" -p "GBＡ"
 ```
 
 ### 📤 Sample Output | 输出示例
@@ -178,3 +178,31 @@ Contributions are welcome! Please feel free to submit a Pull Request or open an 
 **Made with ❤️ for retro gaming enthusiasts**
 
 **为复古游戏爱好者用心制作 ❤️**
+
+## 🛠️ Build from Source | 从源码构建
+
+```bash
+# 1) Install dependencies
+poetry install
+
+# 2) Build cross-platform onefile binary (dynamic spec)
+poetry run build --verbose
+
+# Options:
+#   --outdir ./dist         指定输出目录
+#   --name my-binary        自定义输出文件名
+#   --icon ./icon.png       指定图标 (Windows/MacOS)
+#   --extra ...             追加原生 Nuitka 参数
+#   --dry-run               仅打印命令，不实际构建
+```
+
+版本来源优先级：环境变量 APP_VERSION > pyproject.toml 中的 version。
+
+## 🔁 Versioning & Releases | 版本与发布
+
+- CI 使用 Release Drafter 计算版本标签（例如 `v2.1.0`）。
+- 构建任务下载标签并设置 `APP_VERSION`，然后执行 `poetry version "$APP_VERSION"` 以同步元数据。
+- 构建调用 `poetry run build --verbose`，自动按平台生成 Nuitka 参数。
+- 产物以版本号命名并上传至同一个草稿发布。
+
+如果你更偏向以本地 `pyproject.toml` 为真源（Option A），也可以直接基于其版本创建发布并跳过标签到版本的转换。
