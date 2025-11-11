@@ -362,16 +362,27 @@ def renameFiles(
         if not dryrun:
             os.rename(file, targetRenamePath)
 
-            # add rename history to cache history
+            # add rename history to cache history (md5 optional; avoid heavy I/O on large files)
+            history = {
+                "original": romFile.path,
+                "new": targetRenamePath,
+                "version": constModule.VERSION,
+                "timestamp": utilsModule.getTimeStamp(),
+            }
+            try:
+                # Compute MD5 only for small files to avoid saturating I/O on SD cards
+                size = os.path.getsize(targetRenamePath)
+                # 64 MiB threshold
+                if size <= 64 * 1024 * 1024:
+                    history["md5"] = utilsModule.getMD5HashFromFile(targetRenamePath)
+                else:
+                    history["md5"] = ""
+            except Exception:
+                history["md5"] = ""
+
             cacheModule.renameHistoryCache.add(
                 targetRenamePath,
-                {
-                    "md5": romFile.md5,
-                    "original": romFile.path,
-                    "new": targetRenamePath,
-                    "version": constModule.VERSION,
-                    "timestamp": utilsModule.getTimeStamp(),
-                },
+                history,
                 timeout=-1,
             )
 

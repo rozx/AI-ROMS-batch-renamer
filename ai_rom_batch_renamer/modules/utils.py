@@ -136,10 +136,23 @@ def getBasenameAndExtensions(path: str) -> tuple[str, str]:
     return (baseName, extension)
 
 
-def getMD5HashFromFile(file: str) -> str:
+def getMD5HashFromFile(file: str, chunk_size: int = 1024 * 1024) -> str:
+    """Compute an MD5 hash for a file using streaming reads.
 
-    with open(file, "rb") as f:
-        return hashlib.md5(f.read()).hexdigest()
+    Reading the entire file at once can saturate I/O on slow media (e.g. SD cards).
+    Streaming in chunks reduces peak usage and allows the OS to interleave other operations.
+    """
+    md5 = hashlib.md5()
+    try:
+        with open(file, "rb") as f:
+            while True:
+                chunk = f.read(chunk_size)
+                if not chunk:
+                    break
+                md5.update(chunk)
+    except FileNotFoundError:
+        return ""
+    return md5.hexdigest()
 
 
 def getTimeStamp() -> str:

@@ -5,7 +5,7 @@ from ai_rom_batch_renamer.classes import AIConfig, RomFile
 from rich import print as rprint, console
 
 
-def aiScraper(config: AIConfig, romFile: RomFile, useCache: bool = True, platform: str = "unknown"):
+def aiScraper(config: AIConfig, romFile: RomFile, platform: str = "unknown", useCache: bool = True):
 
     # rprint(
     #     f"[blue]Using AI to scrape information for ROM file: {romFile.originalFilename}[/blue]"
@@ -15,7 +15,8 @@ def aiScraper(config: AIConfig, romFile: RomFile, useCache: bool = True, platfor
     # rprint(f"[blue]API Key: {config.apiKey}[/blue]")
     # rprint(f"[blue]Endpoint: {config.endpoint}[/blue]")
     
-    cache = cacheModule.romInfoCache()
+    # cacheModule.romInfoCache is a Cache instance, not a callable
+    cache = cacheModule.romInfoCache
     
     if useCache:
         cachedResult = cache.get(romFile.md5)
