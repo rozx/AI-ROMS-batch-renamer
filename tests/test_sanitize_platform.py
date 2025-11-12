@@ -1,4 +1,3 @@
-import os
 from ai_rom_batch_renamer.modules import rename as renameModule
 
 

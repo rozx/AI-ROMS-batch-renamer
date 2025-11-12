@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import argparse
 import os
-import platform
 import subprocess
 import sys
 from pathlib import Path
@@ -56,7 +55,7 @@ def default_output_name(base: str = "ai-rom-batch-renamer") -> str:
         "Linux": "Linux-X64",
     }[plat]
     ext = ".exe" if plat == "Windows" else ""
-    return f"{base}-{plat}-X64{ext}" if plat != "Linux" else f"{base}-Linux-X64"
+    return f"{base}-{suffix}{ext}"
 
 
 def default_temp_dir_spec() -> str:
