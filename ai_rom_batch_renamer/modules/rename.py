@@ -325,15 +325,27 @@ def sanitize_for_os(base_name: str, os_platform: str | None = None) -> str:
     # 1) Remove control characters (including NUL if any)
     base_name = regex.sub(r"[\x00\r\n\t\f\v]", " ", base_name)
 
+    # 1.5) Replace colon with a space (safer cross-platform; ':' is invalid on Windows and
+    # sometimes leads to confusion when moving archives between OSes). Doing this before
+    # other reserved character stripping keeps intentional separation while later space
+    # collapsing will normalize multiples.
+    base_name = base_name.replace(":", " ")
+
+    # 1.6) Replace path separators with spaces to avoid word concatenation when removed.
+    # They are illegal in filenames and later collapsing will normalize multiple spaces.
+    base_name = base_name.replace("/", " ")
+
     # 2) Remove reserved chars per OS
     if os_norm == "windows":
         # Windows forbids: <>:"/\|?*
-        base_name = regex.sub(r"[<>:\"/\\\|\?\*]+", "", base_name)
+        # (Colon already converted to space above.)
+        base_name = regex.sub(r"[<>\"/\\\|\?\*]+", "", base_name)
         # Also trim trailing dots/spaces
         base_name = base_name.strip().rstrip(". ")
     else:
         # macOS/Linux forbid only '/'
-        base_name = regex.sub(r"/", "", base_name)
+        # Slash already converted to space above; any remaining (unlikely) remove.
+        base_name = regex.sub(r"/", " ", base_name)
         base_name = base_name.strip()
 
     # Keep unicode letters/numbers, spaces and common safe separators

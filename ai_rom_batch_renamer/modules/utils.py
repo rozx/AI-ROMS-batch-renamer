@@ -208,6 +208,16 @@ def isFileRenamed(filePath: str) -> bool:
         if all(t == "Hack" for t in region_tokens):
             return False
 
+        # Validate that every region token is among the allowed canonical set.
+        # Canonical region codes are those produced by rename logic (getRegion):
+        # US, JP, EU, 繁, 简, 简&繁, WW, UE plus special block Hack.
+        allowed_regions = {"US", "JP", "EU", "繁", "简", "简&繁", "WW", "UE"}
+        for t in region_tokens:
+            if t == "Hack":
+                continue
+            if t not in allowed_regions:
+                return False
+
         # Optional year at end of prefix
         year_match = regex.search(r"\(\d{4}\)$", prefix)
         if year_match:

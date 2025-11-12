@@ -18,6 +18,10 @@ from ai_rom_batch_renamer.modules import utils as utilsModule
     ("Kirby Planet Robobot.3ds", False),  # Not renamed pattern
     ("星之卡比 (Kirby)2016[US].3ds", False),  # Year not properly parenthesized
     ("A 星之卡比 (Kirby)[US]Extra.3ds", False),  # Extra trailing text
+    ("星之卡比 (Kirby)(2016)[震动].3ds", False),  # Invalid region
+    ("星之卡比 (Kirby)(2016)[Hack].3ds", False),  # Hack alone not allowed
+    ("星之卡比 (Kirby)(2016)[简&繁].3ds", True),  # Combined Simplified/Traditional
+    ("星之卡比 (Kirby)(2016)[简][Unknown].3ds", False),  # Unknown second region
 ])
 def test_is_file_renamed(filename, expected):
     assert utilsModule.isFileRenamed(filename) == expected
