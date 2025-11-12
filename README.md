@@ -16,18 +16,26 @@ A powerful command-line tool for batch renaming ROM files using AI technology.
 
 - 🤖 **AI-Powered Renaming**: Intelligent file renaming using advanced AI models  
   **AI智能重命名**: 使用先进AI模型进行智能文件重命名
+- 🧠 **Batch AI Enrichment**: Query multiple filenames in one request (`--ai-batch-size`) to reduce latency & cost  
+  **批量AI增强**: 使用批量查询降低延迟与成本
 - 🔤 **Pinyin Support**: Add pinyin initials for better sorting and searching  
   **拼音支持**: 添加拼音首字母以便更好地排序和搜索
-- 📁 **Batch Processing**: Process multiple files and directories at once  
-  **批量处理**: 一次性处理多个文件和目录
+- 📁 **Batch Processing**: Process multiple files and directories (with recursion)  
+  **批量处理**: 支持递归处理多个文件与目录
 - 🔄 **Revert Capability**: Easily restore original filenames  
   **还原功能**: 轻松恢复原始文件名
-- 🗜️ **ZIP Support**: Extract and rename files from ZIP archives  
-  **ZIP支持**: 从ZIP压缩包中提取并重命名文件
+- 🗜️ **ZIP Support**: Extract and rename files from ZIP archives (with optional password)  
+  **ZIP支持**: 支持解压（含密码）并重命名压缩包内容
 - 🎯 **File Filtering**: Include or exclude specific file types  
   **文件过滤**: 包含或排除特定文件类型
-- 🌐 **Platform-Aware**: Optimize renaming based on gaming platform  
-  **平台感知**: 基于游戏平台优化重命名
+- 🌐 **Platform-Aware**: Optimize AI enrichment via platform hints (`--platform`)  
+  **平台感知**: 通过平台提示优化 AI 结果
+- 💾 **Smart Caching**: Avoid duplicate AI calls (disable with `--ai-no-cache`)  
+  **智能缓存**: 避免重复 AI 请求（可用 `--ai-no-cache` 禁用）
+- 🛡️ **Safe Idempotent Runs**: Skip already-renamed files unless forced (`--force`)  
+  **安全幂等**: 自动跳过已处理文件，除非使用 `--force`
+- 🧹 **Filename Trimming**: Remove noisy segments before enrichment (`--trim`)  
+  **文件名清理**: 清理噪声后再进行处理
 
 ## 📖 Examples | 示例
 
@@ -66,26 +74,27 @@ renamer rename [options]
 
 ### 🛠️ Options | 选项参数
 
-| Option            | Short    | Type | Description                                                         |
-| ----------------- | -------- | ---- | ------------------------------------------------------------------- |
-| `--directory`     | `-dir`   | TEXT | 要重命名的文件夹路径 (Directory path to rename files in)            |
-| `--files`         | `-files` | TEXT | 要重命名的文件 (Specific files to rename)                           |
-| `--trim`          | `-t`     | FLAG | 去除无用的信息 (Trim unnecessary information from filename)         |
-| `--dry-run`       | `-d`     | FLAG | 只输出结果，不实际重命名 (Preview results without actual renaming)  |
-| `--pinyin`        | `-py`    | FLAG | 在开头加上拼音首字符 (Add pinyin initials for better sorting)       |
-| `--includes`      | `-i`     | TEXT | 只处理特定的文件类型 e.g: gba (Process only specific file types)    |
-| `--excludes`      | `-e`     | TEXT | 不处理特定的文件类型 e.g: zip (Exclude specific file types)         |
-| `--output`        | `-o`     | FLAG | 只输出重命名后的文件名 (Output only renamed filenames)              |
-| `--recursive`     | `-r`     | FLAG | 读取子目录中的文件 (Process files in subdirectories)                |
-| `--unzip`         | `-u`     | FLAG | 解压ZIP文件 (Extract ZIP files)                                     |
-| `--password`      | `-pwd`   | TEXT | ZIP文件密码 (Password for ZIP files)                                |
-| `--ai`            | `-ai`    | FLAG | 使用AI重命名 (Use AI for intelligent renaming, 默认为deepseek-chat) |
-| `--model`         | `-model` | TEXT | AI模型设置 (AI model configuration)                                 |
-| `--api-key`       | `-key`   | TEXT | AI模型API密钥 (API key for AI model)                                |
-| `--endpoint`      | `-ep`    | TEXT | AI模型API端点 (API endpoint for AI model)                           |
-| `--platform`      | `-p`     | TEXT | ROM平台信息 (Platform info for better AI recognition)               |
-| `--ai-batch-size` |          | INT  | 批量AI查询大小 (Batch size for AI lookups)                          |
-| `--ai-no-cache`   |          | FLAG | 禁用AI缓存 (Do not use AI cache; always query the API)              |
+| Option            | Short    | Type | Description                                                    |
+| ----------------- | -------- | ---- | -------------------------------------------------------------- |
+| `--directory`     | `-dir`   | TEXT | 要重命名的文件夹路径 (Directory path to rename files in)       |
+| `--files`         | `-files` | TEXT | 要重命名的文件 (Specific file to rename; single path)          |
+| `--trim`          | `-t`     | FLAG | 去除无用的信息 (Trim noisy segments from filename)             |
+| `--dry-run`       | `-d`     | FLAG | 只输出结果，不实际重命名 (Preview only; no changes)            |
+| `--pinyin`        | `-py`    | FLAG | 在开头加上拼音首字符 (Add pinyin initial for sorting)          |
+| `--includes`      | `-i`     | TEXT | 只处理特定扩展 (Only process these extensions; repeatable)     |
+| `--excludes`      | `-e`     | TEXT | 排除特定扩展 (Skip these extensions; repeatable)               |
+| `--output`        | `-o`     | FLAG | 只输出新文件名 (Print new names only; quiet mode)              |
+| `--recursive`     | `-r`     | FLAG | 递归处理子目录 (Process subdirectories)                        |
+| `--unzip`         | `-u`     | FLAG | 解压 zip 再处理 (Unzip archives then rename contents)          |
+| `--password`      | `-pwd`   | TEXT | zip 文件密码 (Password for encrypted ZIP)                      |
+| `--ai`            | `-ai`    | FLAG | 使用 AI 获取游戏信息 (Enable AI enrichment)                    |
+| `--model`         | `-model` | TEXT | AI 模型 (Model identifier)                                     |
+| `--api-key`       | `-key`   | TEXT | AI API 密钥 (Override API key)                                 |
+| `--endpoint`      | `-ep`    | TEXT | AI API 端点 (Custom base URL)                                  |
+| `--platform`      | `-p`     | TEXT | 平台提示 (Platform hint: GBA, NDS, PSX...)                     |
+| `--ai-batch-size` |          | INT  | AI 批量查询大小 (Batch size for multi-file AI requests)        |
+| `--ai-no-cache`   | `-nc`    | FLAG | 禁用 AI 缓存 (Disable caching; force fresh calls)              |
+| `--force`         | `-f`     | FLAG | 强制重命名已处理文件 (Force rename even if previously renamed) |
 
 ### 💡 Example Usage | 使用示例
 
@@ -109,9 +118,120 @@ renamer rename -r -ai --directory "~/ROMs/" -t -model "deepseek-chat" -ep "https
 # Force fresh AI results (no cache)
 # 强制不使用缓存，始终从AI获取
 renamer rename -r -ai --directory "~/ROMs/" -t -p "GBA" --ai-no-cache
+
+### 🔧 Additional Examples | 更多示例
+
+```bash
+# 1. Dry run first, then execute (推荐先预览)
+renamer rename -d -r -ai -dir "~/ROMs/GBA" -p GBA --ai-batch-size 15
+renamer rename -r -ai -dir "~/ROMs/GBA" -p GBA --ai-batch-size 15
+
+# 2. Force reprocess already renamed files (强制重新处理已重命名文件)
+renamer rename -r -ai -f -dir "~/ROMs/GBA" -p GBA
+
+# 3. Unzip with password then rename (带密码解压后重命名)
+renamer rename -r -u -pwd "mypassword" -dir "~/Incoming/Archives" -includes zip -ai -p NDS
+
+# 4. Includes + Excludes combo (组合过滤)
+renamer rename -dir "~/MixedRoms" -i gba -i zip -e txt -t
+
+# 5. Quiet output (只输出新文件名)
+renamer rename -dir "~/ROMs/GBA" -o -ai -p GBA
+
+# 6. Disable cache for troubleshooting (禁用缓存以排查)
+renamer rename -dir "~/ROMs/GBA" -ai -p GBA --ai-no-cache
+
+# 7. Minimal AI single file (单文件 AI 处理)
+renamer rename -files "~/ROMs/GBA/黄金太阳.zip" -ai -p GBA
+
+# 8. Environment variable driven config (通过环境变量配置)
+export RENAMER_API_KEY="sk-xxx"
+export RENAMER_ENDPOINT="https://api.deepseek.com"
+export RENAMER_MODEL="deepseek-chat"
+renamer rename -dir "~/ROMs/GBA" -ai -p GBA
+
+# 9. Large batch size tuning (大批量调优)
+renamer rename -r -ai -dir "~/ROMs/GBA" --ai-batch-size 25 -p GBA
+
+# 10. Pinyin only normalization (仅拼音首字母规范化)
+renamer rename -dir "~/ChineseRoms" -py -trim
 ```
 
-### 📤 Sample Output | 输出示例
+### ⚡ Quickstart | 快速开始
+
+1. Install dependencies | 安装依赖
+
+```bash
+git clone https://github.com/rozx/AI-ROMS-batch-renamer.git
+cd AI-ROMS-batch-renamer
+poetry install
+```
+
+1. (Optional) Set AI environment variables | (可选) 设置 AI 环境变量
+
+```bash
+export RENAMER_API_KEY="sk-xxx"
+export RENAMER_MODEL="deepseek-chat"
+export RENAMER_ENDPOINT="https://api.deepseek.com"
+```
+
+1. Run a dry preview | 运行预览
+
+```bash
+poetry run main rename -d -r -ai -dir "~/ROMs/GBA" -p GBA --ai-batch-size 15 -trim -py
+```
+
+1. Execute for real | 真正执行
+
+```bash
+poetry run main rename -r -ai -dir "~/ROMs/GBA" -p GBA --ai-batch-size 15 -trim -py
+```
+
+1. Revert if needed | 如需还原
+
+```bash
+poetry run main revert -d -dir "~/ROMs/GBA"
+poetry run main revert -dir "~/ROMs/GBA"
+```
+
+1. Build onefile binary | 构建单文件可执行
+
+```bash
+poetry run build --verbose
+```
+
+#### ✅ Recommended Workflow | 推荐工作流
+
+| Step | Action                          | Rationale            |
+| ---- | ------------------------------- | -------------------- |
+| 1    | Dry run (`-d`)                  | 确认重命名结果安全   |
+| 2    | Enable trim & pinyin            | 清理噪声并优化排序   |
+| 3    | Add platform hint               | 更精确的 AI 标题匹配 |
+| 4    | Increase batch size (10–25)     | 减少 API 调用次数    |
+| 5    | Inspect cache file              | 复用结果，节约配额   |
+| 6    | Use `--force` only if necessary | 避免无意义重复处理   |
+
+#### 🔍 Tips | 小贴士
+
+- Prefer starting with smaller batches to validate AI results.
+  **建议先从较小批次开始验证 AI 结果，确保重命名逻辑正确。**
+- Use `--output` for scripting pipelines (e.g., feeding names to another tool).
+  **使用 `--output` 便于脚本管道处理（例如传递结果给其他工具）。**
+- Avoid `--ai-no-cache` for large runs unless debugging freshness.
+  **大量处理时避免使用 `--ai-no-cache`，除非需要调试最新结果。**
+- Revert stores original path keyed by new filename; keep `renamerHistory.cache` safe.
+  **还原功能依赖 `renamerHistory.cache`，请妥善保存避免误删。**
+
+#### 🛡️ Safety | 安全
+
+- Always keep backups of curated ROM sets.
+  **务必保留 ROM 集合的备份，以防意外修改。**
+- Run on a copy first if unsure.
+  **不确定时先在副本目录执行，确认结果后再处理正式目录。**
+- Encrypted ZIPs are handled only if password provided; errors will skip gracefully.
+  **加密 ZIP 需提供密码才能处理，失败会被跳过而不中断整体流程。**
+
+### � Sample Output | 输出示例
 
 ```text
 铁臂阿童木-阿童木之心的秘密[v1.0][心灵的冬天](简)(66Mb).zip 
@@ -131,7 +251,7 @@ renamer revert [options]
 | Option        | Short    | Type | Description                                                  |
 | ------------- | -------- | ---- | ------------------------------------------------------------ |
 | `--directory` | `-dir`   | TEXT | 要还原文件名的文件夹路径 (Directory path to revert files in) |
-| `--files`     | `-files` | TEXT | 要还原的特定文件 (Specific files to revert)                  |
+| `--files`     | `-files` | TEXT | 要还原的特定文件 (Specific file to revert; single path)      |
 | `--recursive` | `-r`     | FLAG | 处理子目录 (Process subdirectories)                          |
 | `--dry-run`   | `-d`     | FLAG | 预览还原结果 (Preview revert results)                        |
 
