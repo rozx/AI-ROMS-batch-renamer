@@ -339,7 +339,7 @@ APP_VERSION="$APP_VERSION" poetry run bump
   **多AI模型支持** - 支持不同的AI提供商
 - [x] 🔄 **Third-party OpenAI API Integration** - Extended API compatibility
   **第三方OpenAI API集成** - 扩展API兼容性
-- [ ] 🔄 **Local cache** - Improve performance and reduce API calls
+- [x] 🔄 **Local cache** - Improve performance and reduce API calls
   **本地缓存** - 提高性能并减少API调用
 - [ ] 🔄 **GUI Support** - Add GUI support for easier use.
   **图形界面支持** - 增加图形界面。
