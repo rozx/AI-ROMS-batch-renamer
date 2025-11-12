@@ -33,12 +33,12 @@ A powerful command-line tool for batch renaming ROM files using AI technology.
 
 ### Before → After | 重命名前后对比
 
-| Original | Renamed |
-|----------|---------|
-| `黄金太阳 - 失落的时代[Mobile&Elffinal](简)(UE)(128Mb).zip` | `H 黄金太阳 - 失落的时代 (Golden Sun: The Lost Age) (2002)[简].gba` |
-| `哈利波特 - 阿兹卡班的逃犯[施珂昱](简)(JP)(128Mb).zip` | `H 哈利波特 - 阿兹卡班的逃犯 (Harry Potter and the Prisoner of Azkaban) (2004)[简].gba` |
-| `指环王－王者归来(0.4b小字体)[Advance-004](简)(JP)(136Mb).zip` | `Z 指环王－王者归来 (The Lord of the Rings: The Return of the King) (2003) [简].gba` |
-| `王国之心 - 记忆之链[天使汉化组](简)(JP)(256Mb).zip` | `W 王国之心 - 记忆之链 (Kingdom Hearts- Chain of Memories) (2004)[简].gba` |
+| Original                                                       | Renamed                                                                                 |
+| -------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `黄金太阳 - 失落的时代[Mobile&Elffinal](简)(UE)(128Mb).zip`    | `H 黄金太阳 - 失落的时代 (Golden Sun: The Lost Age) (2002)[简].gba`                     |
+| `哈利波特 - 阿兹卡班的逃犯[施珂昱](简)(JP)(128Mb).zip`         | `H 哈利波特 - 阿兹卡班的逃犯 (Harry Potter and the Prisoner of Azkaban) (2004)[简].gba` |
+| `指环王－王者归来(0.4b小字体)[Advance-004](简)(JP)(136Mb).zip` | `Z 指环王－王者归来 (The Lord of the Rings: The Return of the King) (2003) [简].gba`    |
+| `王国之心 - 记忆之链[天使汉化组](简)(JP)(256Mb).zip`           | `W 王国之心 - 记忆之链 (Kingdom Hearts- Chain of Memories) (2004)[简].gba`              |
 
 ## 🚀 Usage | 使用方法
 
@@ -48,7 +48,7 @@ renamer [command] [options]
 
 ### 📋 Global Options | 全局选项
 
-```
+```text
 
 Commands:
   rename [options]  批量重命文件夹中的文件为拼音首字母+原文件名 (Batch rename files to pinyin initials)
@@ -59,30 +59,33 @@ Commands:
 ## 📝 Rename Command | 重命名命令
 
 ### Syntax | 语法
+
 ```bash
 renamer rename [options]
 ```
 
 ### 🛠️ Options | 选项参数
 
-| Option | Short | Type | Description |
-|--------|-------|------|-------------|
-| `--directory` | `-dir` | TEXT | 要重命名的文件夹路径 (Directory path to rename files in) |
-| `--files` | `-files` | TEXT | 要重命名的文件 (Specific files to rename) |
-| `--trim` | `-t` | FLAG | 去除无用的信息 (Trim unnecessary information from filename) |
-| `--dry-run` | `-d` | FLAG | 只输出结果，不实际重命名 (Preview results without actual renaming) |
-| `--pinyin` | `-py` | FLAG | 在开头加上拼音首字符 (Add pinyin initials for better sorting) |
-| `--includes` | `-i` | TEXT | 只处理特定的文件类型 e.g: gba (Process only specific file types) |
-| `--excludes` | `-e` | TEXT | 不处理特定的文件类型 e.g: zip (Exclude specific file types) |
-| `--output` | `-o` | FLAG | 只输出重命名后的文件名 (Output only renamed filenames) |
-| `--recursive` | `-r` | FLAG | 读取子目录中的文件 (Process files in subdirectories) |
-| `--unzip` | `-u` | FLAG | 解压ZIP文件 (Extract ZIP files) |
-| `--password` | `-pwd` | TEXT | ZIP文件密码 (Password for ZIP files) |
-| `--ai` | `-ai` | FLAG | 使用AI重命名 (Use AI for intelligent renaming, 默认为deepseek-chat) |
-| `--model` | `-model` | TEXT | AI模型设置 (AI model configuration) |
-| `--api-key` | `-key` | TEXT | AI模型API密钥 (API key for AI model) |
-| `--endpoint` | `-ep` | TEXT | AI模型API端点 (API endpoint for AI model) |
-| `--platform` | `-p` | TEXT | ROM平台信息 (Platform info for better AI recognition) |
+| Option            | Short    | Type | Description                                                         |
+| ----------------- | -------- | ---- | ------------------------------------------------------------------- |
+| `--directory`     | `-dir`   | TEXT | 要重命名的文件夹路径 (Directory path to rename files in)            |
+| `--files`         | `-files` | TEXT | 要重命名的文件 (Specific files to rename)                           |
+| `--trim`          | `-t`     | FLAG | 去除无用的信息 (Trim unnecessary information from filename)         |
+| `--dry-run`       | `-d`     | FLAG | 只输出结果，不实际重命名 (Preview results without actual renaming)  |
+| `--pinyin`        | `-py`    | FLAG | 在开头加上拼音首字符 (Add pinyin initials for better sorting)       |
+| `--includes`      | `-i`     | TEXT | 只处理特定的文件类型 e.g: gba (Process only specific file types)    |
+| `--excludes`      | `-e`     | TEXT | 不处理特定的文件类型 e.g: zip (Exclude specific file types)         |
+| `--output`        | `-o`     | FLAG | 只输出重命名后的文件名 (Output only renamed filenames)              |
+| `--recursive`     | `-r`     | FLAG | 读取子目录中的文件 (Process files in subdirectories)                |
+| `--unzip`         | `-u`     | FLAG | 解压ZIP文件 (Extract ZIP files)                                     |
+| `--password`      | `-pwd`   | TEXT | ZIP文件密码 (Password for ZIP files)                                |
+| `--ai`            | `-ai`    | FLAG | 使用AI重命名 (Use AI for intelligent renaming, 默认为deepseek-chat) |
+| `--model`         | `-model` | TEXT | AI模型设置 (AI model configuration)                                 |
+| `--api-key`       | `-key`   | TEXT | AI模型API密钥 (API key for AI model)                                |
+| `--endpoint`      | `-ep`    | TEXT | AI模型API端点 (API endpoint for AI model)                           |
+| `--platform`      | `-p`     | TEXT | ROM平台信息 (Platform info for better AI recognition)               |
+| `--ai-batch-size` |          | INT  | 批量AI查询大小 (Batch size for AI lookups)                          |
+| `--ai-no-cache`   |          | FLAG | 禁用AI缓存 (Do not use AI cache; always query the API)              |
 
 ### 💡 Example Usage | 使用示例
 
@@ -99,34 +102,40 @@ renamer rename -d -t -py -ai --directory "~/ROMs/"
 # 仅处理特定文件类型
 renamer rename -i "gba" -i "zip" -dir "~/Games/" -t
 
-# Rename files in subdirectories with AI
-# 使用AI重命名子目录中的文件
-renamer rename -r -ai --directory "~/ROMs/" -t -model "deepseek-chat" -ep "https://api.deepseek.com" -key "your_api_key" -p "GBＡ"
+# Rename files in subdirectories with AI (batched calls)
+# 使用AI重命名子目录中的文件（批量调用）
+renamer rename -r -ai --directory "~/ROMs/" -t -model "deepseek-chat" -ep "https://api.deepseek.com" -key "your_api_key" -p "GBA" --ai-batch-size 20
+
+# Force fresh AI results (no cache)
+# 强制不使用缓存，始终从AI获取
+renamer rename -r -ai --directory "~/ROMs/" -t -p "GBA" --ai-no-cache
 ```
 
 ### 📤 Sample Output | 输出示例
-```
+
+```text
 铁臂阿童木-阿童木之心的秘密[v1.0][心灵的冬天](简)(66Mb).zip 
 → T 铁臂阿童木 - 阿童木之心的秘密 (Astro Boy - The Video Game) (2004) - 简.zip
 ```
 
 ## ↩️ Revert Command | 还原命令
 
-### Syntax | 语法
+### Syntax (Revert) | 语法（还原）
+
 ```bash
 renamer revert [options]
 ```
 
-### 🛠️ Options | 选项参数
+### 🛠️ Options (Revert) | 选项参数（还原）
 
-| Option | Short | Type | Description |
-|--------|-------|------|-------------|
-| `--directory` | `-dir` | TEXT | 要还原文件名的文件夹路径 (Directory path to revert files in) |
-| `--files` | `-files` | TEXT | 要还原的特定文件 (Specific files to revert) |
-| `--recursive` | `-r` | FLAG | 处理子目录 (Process subdirectories) |
-| `--dry-run` | `-d` | FLAG | 预览还原结果 (Preview revert results) |
+| Option        | Short    | Type | Description                                                  |
+| ------------- | -------- | ---- | ------------------------------------------------------------ |
+| `--directory` | `-dir`   | TEXT | 要还原文件名的文件夹路径 (Directory path to revert files in) |
+| `--files`     | `-files` | TEXT | 要还原的特定文件 (Specific files to revert)                  |
+| `--recursive` | `-r`     | FLAG | 处理子目录 (Process subdirectories)                          |
+| `--dry-run`   | `-d`     | FLAG | 预览还原结果 (Preview revert results)                        |
 
-### 💡 Example Usage | 使用示例
+### 💡 Example Usage (Revert) | 使用示例（还原）
 
 ```bash
 # Revert all files in directory
@@ -138,8 +147,9 @@ renamer revert "D:/Downloads/"
 renamer revert -d "~/ROMs/"
 ```
 
-### 📤 Sample Output | 输出示例
-```
+### 📤 Sample Output (Revert) | 输出示例（还原）
+
+```text
 T 铁臂阿童木 - 阿童木之心的秘密 (Astro Boy -  The Video Game) (2004) - 简.gba 
 → 铁臂阿童木-阿童木之心的秘密[v1.0][心灵的冬天](简)(66Mb).gba
 ```
@@ -227,6 +237,6 @@ Contributions are welcome! Please feel free to submit a Pull Request or open an 
 
 ---
 
-**Made with ❤️ for retro gaming enthusiasts**
+Made with ❤️ for retro gaming enthusiasts
 
-**为复古游戏爱好者用心制作 ❤️**
+为复古游戏爱好者用心制作 ❤️

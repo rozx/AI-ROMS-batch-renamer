@@ -2,6 +2,7 @@ import datetime
 import os
 import hashlib
 import zipfile
+import regex
 
 
 def isSystemOrHiddenFile(file: str) -> bool:
@@ -190,3 +191,54 @@ def unzipFiles(file, dryrun, passwd) -> list[str]:
         os.remove(file)
 
     return extractedFiles
+
+def isFileRenamed(filePath: str) -> bool:
+    baseName, _ = getBasenameAndExtensions(filePath)
+
+    # 1. Extract contiguous region / hack suffix blocks: [...][...][Hack]
+    m_suffix = regex.search(r"(\[[^\]]+\])+\s*$", baseName)
+    if not m_suffix:
+        return False  # must have at least one region/hack block
+    suffix = m_suffix.group(0).strip()
+    prefix = baseName[: m_suffix.start()].rstrip()
+
+    # Collect region tokens
+    region_tokens = regex.findall(r"\[([^\]]+)\]", suffix)
+    if not region_tokens:
+        return False
+    # Require at least one genuine region (allow Hack optionally)
+    if all(t == "Hack" for t in region_tokens):
+        return False
+
+    # 2. Optional year in parentheses at end of prefix
+    year_match = regex.search(r"\(\d{4}\)$", prefix)
+    if year_match:
+        prefix = prefix[: year_match.start()].rstrip()
+    else:
+        # If a naked 4-digit year appears right before regions, disqualify
+        if regex.search(r"\d{4}$", prefix):
+            return False
+
+    # 3. Optional English title parentheses at end of prefix
+    # Examples: (Kirby), (Kirby: Planet Robobot)
+    eng_match = regex.search(r"\([^()]+\)$", prefix)
+    if eng_match:
+        # ensure it has at least one ASCII letter/digit
+        inner = eng_match.group(0)
+        if regex.search(r"[A-Za-z0-9]", inner):
+            prefix = prefix[: eng_match.start()].rstrip()
+
+    # 4. Optional leading pinyin initial: 'X ' or 'A ' etc.
+    prefix = regex.sub(r"^[A-Z]\s+", "", prefix)
+
+    # 5. Validate remaining prefix contains at least one CJK or Latin letter
+    if not regex.search(r"[\p{Han}A-Za-z]", prefix):
+        return False
+
+    # 6. No leftover unmatched brackets or parentheses
+    if regex.search(r"[\[\]]", prefix):
+        return False
+    if prefix.count("(") != prefix.count(")"):
+        return False
+
+    return True

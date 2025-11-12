@@ -160,6 +160,31 @@ def rename(
             help="提供Roms的平台来使AI更好的获取游戏信息,只有ai启用时有用 (Provide the platform of the Roms to help AI get better game information, only useful when AI is enabled)",
         ),
     ] = "",
+    ai_batch_size: Annotated[
+        int,
+        typer.Option(
+            "--ai-batch-size",
+            help="批量AI查询的大小 (Batch size for AI lookups; query multiple filenames per request)",
+        ),
+    ] = 10,
+    ai_no_cache: Annotated[
+        bool,
+        typer.Option(
+            "--ai-no-cache",
+            "-nc",
+            help="禁用AI缓存 (Do not use AI cache; always query the API)",
+            is_flag=True,
+        ),
+    ] = False,
+    force: Annotated[
+        bool,
+        typer.Option(
+            "--force",
+            "-f",
+            help="强制重命名文件 (Force rename files)",
+            is_flag=True,
+        ),
+    ] = False,
 ):
     """
     批量重命名Roms文件 (Batch rename files by providing a directory or files)
@@ -190,6 +215,9 @@ def rename(
         "apiKey": apiKey,
         "endpoint": endpoint,
         "platform": platform,
+        "ai_batch_size": ai_batch_size,
+        "ai_no_cache": ai_no_cache,
+        "force": force,
     }
 
     renameModule.rename(options)

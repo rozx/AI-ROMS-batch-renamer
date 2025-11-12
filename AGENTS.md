@@ -49,10 +49,10 @@ Commands:
 | --endpoint | -ep | TEXT | Custom API base URL |
 | --platform | -p | TEXT | Platform hint (e.g. GBA, NDS) |
 
-Minimal example (recursive + AI + pinyin, preview only):
+Minimal example (recursive + AI + pinyin, preview only; batched lookups):
 
 ```bash
-renamer rename -r -d -ai -py -dir "~/ROMs" -m "gpt-4o-mini" -p "GBA"
+renamer rename -r -d -ai -py -dir "~/ROMs" -model "gpt-4o-mini" -p "GBA" --ai-batch-size 20
 ```
 
 ## 5. Revert Command Options (Summary)
@@ -82,9 +82,10 @@ Suggested environment variables:
 
 Performance tips:
 
-- Batch files to reduce API round trips.
+- Use `--ai-batch-size` to batch AI lookups and cut round trips (typical 10–25).
 - Use `--includes` to narrow extensions and avoid waste.
-- Future: local cache layer (see Roadmap) will reduce duplicate AI calls.
+- Results are cached by `filename+platform` to avoid repeated AI calls.
+- Future: local cache layer (see Roadmap) will further reduce duplicate AI calls.
 
 ## 7. Automation Patterns
 
@@ -101,7 +102,7 @@ Pseudo workflow script sketch:
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$1"
-renamer rename -r -ai -py -t -dir "$ROOT" -m "gpt-4o-mini" -p "GBA" --includes gba --includes zip --unzip
+renamer rename -r -ai -py -t -dir "$ROOT" -model "gpt-4o-mini" -p "GBA" --ai-batch-size 20 --includes gba --includes zip --unzip
 ```
 
 ### 7.1 CI/CD Build and Versioning (Option B)

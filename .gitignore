@@ -170,3 +170,8 @@ config.json
 main.build
 main.dist
 main.onefile-build
+renamerHistory.cache-shm
+.gitignore
+renamerRomInfoCache.cache-shm
+renamerRomInfoCache.cache-wal
+renamerHistory.cache-wal
