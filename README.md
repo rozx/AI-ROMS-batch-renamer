@@ -318,13 +318,14 @@ poetry run bump-minor
 poetry run bump-major
 ```
 
-在 CI 的 Option B 模式下（Release Drafter 生成 tag），如需让构建产物内的 `const.py` 与 tag 保持一致但不提交修改，可在构建前加入（允许工作区脏状态）：
+在 CI 的 Option B 模式下（Release Drafter 生成 tag），构建任务会设置 `APP_VERSION` 环境变量并运行统一脚本：
 
 ```bash
-bump2version --allow-dirty --new-version "$APP_VERSION" patch
+# 同步 pyproject.toml 与 ai_rom_batch_renamer/modules/const.py
+APP_VERSION="$APP_VERSION" poetry run bump
 ```
 
-这样应用的 About/版本输出将与发布标签一致。
+如果提供了 `APP_VERSION`，该脚本会直接写入对应版本；否则会回退为 patch 自动递增。这样应用的 About/版本输出将与发布标签一致。
 
 ## 🗺️ Roadmap | 开发路线图
 
