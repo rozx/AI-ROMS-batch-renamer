@@ -30,24 +30,24 @@ Commands:
 
 ## 4. Rename Command Options (Summary)
 
-| Option | Alias | Type | Notes |
-|--------|-------|------|-------|
-| --directory | -dir | TEXT | Target directory root |
-| --files | -files | TEXT | One or more explicit files (may repeat) |
-| --trim | -t | FLAG | Clean noisy filename segments |
-| --dry-run | -d | FLAG | No mutation; output planned changes |
-| --pinyin | -py | FLAG | Add leading pinyin initial (Chinese title) |
-| --includes | -i | TEXT | Process only these extensions (repeatable) |
-| --excludes | -e | TEXT | Skip these extensions (repeatable) |
-| --output | -o | FLAG | Print only new names (quiet mode) |
-| --recursive | -r | FLAG | Descend into subdirectories |
-| --unzip | -u | FLAG | Extract ZIPs then operate on contents |
-| --password | -pwd | TEXT | ZIP password (if encrypted) |
-| --ai | -ai | FLAG | Enable AI beautification / translation |
-| --model | -m | TEXT | AI model identifier (e.g. gpt-4o-mini) |
-| --api-key | -key | TEXT | API key (overrides config) |
-| --endpoint | -ep | TEXT | Custom API base URL |
-| --platform | -p | TEXT | Platform hint (e.g. GBA, NDS) |
+| Option      | Alias  | Type | Notes                                      |
+| ----------- | ------ | ---- | ------------------------------------------ |
+| --directory | -dir   | TEXT | Target directory root                      |
+| --files     | -files | TEXT | One or more explicit files (may repeat)    |
+| --trim      | -t     | FLAG | Clean noisy filename segments              |
+| --dry-run   | -d     | FLAG | No mutation; output planned changes        |
+| --pinyin    | -py    | FLAG | Add leading pinyin initial (Chinese title) |
+| --includes  | -i     | TEXT | Process only these extensions (repeatable) |
+| --excludes  | -e     | TEXT | Skip these extensions (repeatable)         |
+| --output    | -o     | FLAG | Print only new names (quiet mode)          |
+| --recursive | -r     | FLAG | Descend into subdirectories                |
+| --unzip     | -u     | FLAG | Extract ZIPs then operate on contents      |
+| --password  | -pwd   | TEXT | ZIP password (if encrypted)                |
+| --ai        | -ai    | FLAG | Enable AI beautification / translation     |
+| --model     | -m     | TEXT | AI model identifier (e.g. gpt-4o-mini)     |
+| --api-key   | -key   | TEXT | API key (overrides config)                 |
+| --endpoint  | -ep    | TEXT | Custom API base URL                        |
+| --platform  | -p     | TEXT | Platform hint (e.g. GBA, NDS)              |
 
 Minimal example (recursive + AI + pinyin, preview only; batched lookups):
 
@@ -57,12 +57,12 @@ renamer rename -r -d -ai -py -dir "~/ROMs" -model "gpt-4o-mini" -p "GBA" --ai-ba
 
 ## 5. Revert Command Options (Summary)
 
-| Option | Alias | Type | Notes |
-|--------|-------|------|-------|
-| --directory | -dir | TEXT | Root to search for renamed files |
-| --files | -files | TEXT | Explicit files to revert |
-| --recursive | -r | FLAG | Traverse subfolders |
-| --dry-run | -d | FLAG | Show intended reverts only |
+| Option      | Alias  | Type | Notes                            |
+| ----------- | ------ | ---- | -------------------------------- |
+| --directory | -dir   | TEXT | Root to search for renamed files |
+| --files     | -files | TEXT | Explicit files to revert         |
+| --recursive | -r     | FLAG | Traverse subfolders              |
+| --dry-run   | -d     | FLAG | Show intended reverts only       |
 
 Example (dry-run revert):
 
@@ -146,14 +146,18 @@ poetry run bump-major
 
 Optional CI sync of const.py:
 
-- If you use Option B (Release Drafter tag) and want `const.py` to reflect the tag in build artifacts without committing it, add a pre-build step:
+- Using Option B (Release Drafter tag), set `APP_VERSION` and invoke the unified Poetry script instead of raw bump2version:
 
 ```bash
-# Example: set const.py to the tag-derived version in CI without committing changes
-bump2version --allow-dirty --new-version "$APP_VERSION" patch
+# Example: set const.py and pyproject.toml to tag-derived version (no commit required)
+APP_VERSION="$APP_VERSION" poetry run bump
 ```
 
-This ensures the app's About/version output matches the release tag.
+Behavior:
+ 
+1. If `APP_VERSION` is present the script writes that exact version to both `pyproject.toml` and `ai_rom_batch_renamer/modules/const.py`.
+2. If `APP_VERSION` is absent it falls back to a patch bump via bump2version.
+3. Keeps runtime About/version output aligned with the release tag.
 
 ## 8. Exit / Error Semantics (Recommended)
 
@@ -187,12 +191,12 @@ This ensures the app's About/version output matches the release tag.
 
 ## 12. Troubleshooting
 
-| Symptom | Cause | Mitigation |
-|---------|-------|-----------|
-| Slow runs | Large ZIPs / many API calls | Use includes/excludes, enable caching when available |
-| Wrong year in title | AI hallucination | Provide platform (`-p`), consider manual override pass |
-| Missing pinyin initial | Non-Chinese title | Expected (only added when Chinese characters parsed) |
-| Revert fails | Cache entry missing | Ensure cache file not deleted; fallback manual rename |
+| Symptom                | Cause                       | Mitigation                                             |
+| ---------------------- | --------------------------- | ------------------------------------------------------ |
+| Slow runs              | Large ZIPs / many API calls | Use includes/excludes, enable caching when available   |
+| Wrong year in title    | AI hallucination            | Provide platform (`-p`), consider manual override pass |
+| Missing pinyin initial | Non-Chinese title           | Expected (only added when Chinese characters parsed)   |
+| Revert fails           | Cache entry missing         | Ensure cache file not deleted; fallback manual rename  |
 
 ## 13. Contribution Hooks (Agent Perspective)
 
