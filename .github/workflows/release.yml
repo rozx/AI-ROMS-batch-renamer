@@ -113,7 +113,7 @@ jobs:
       # Sync const.py using bump2version (no commit) so runtime VERSION matches tag (Option B)
       - name: Sync const.py to version (Linux)
         run: |
-          bump2version --allow-dirty --new-version "$APP_VERSION" patch
+          APP_VERSION="$APP_VERSION" poetry run bump
           echo "Const version now: $(grep VERSION ai_rom_batch_renamer/modules/const.py)"
 
       - name: Run build script
@@ -199,7 +199,7 @@ jobs:
       - name: Sync const.py to version (Windows)
         shell: pwsh
         run: |
-          bump2version --allow-dirty --new-version $env:APP_VERSION patch
+          $env:APP_VERSION=$env:APP_VERSION; poetry run bump
           Get-Content ai_rom_batch_renamer/modules/const.py | Select-String VERSION
       - name: Run build script
         run: |
@@ -282,7 +282,7 @@ jobs:
       # Sync const.py using bump2version (no commit) so runtime VERSION matches tag (Option B)
       - name: Sync const.py to version (macOS)
         run: |
-          bump2version --allow-dirty --new-version "$APP_VERSION" patch
+          APP_VERSION="$APP_VERSION" poetry run bump
           echo "Const version now: $(grep VERSION ai_rom_batch_renamer/modules/const.py)"
 
       - name: Run build script
