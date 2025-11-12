@@ -30,6 +30,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # Persist the release tag name (e.g. v2.1.0) as an artifact for downstream jobs
+      - name: Make release tag name
+        run: echo '${{ steps.create_release.outputs.tag_name }}' > releaseTagName.txt
+
       # Upload the release upload URL as an artifact
       - name: Make release upload url
         run: echo '${{ steps.create_release.outputs.upload_url }}' > releaseUploadUrl.txt
@@ -38,6 +42,13 @@ jobs:
         with:
           name: releaseUploadUrl
           path: releaseUploadUrl.txt
+
+      # Upload the release tag name as an artifact
+      - name: Upload release tag name
+        uses: actions/upload-artifact@v4
+        with:
+          name: releaseTagName
+          path: releaseTagName.txt
 
   # Builds on Linux and creates a release
   builds-on-linux-and-release:
@@ -69,39 +80,45 @@ jobs:
         run: |
           poetry install --no-interaction --no-ansi
 
-      - name: Run update app version script
-        run: |
-          poetry run update-version
-
-      - name: Get app version
-        run: |
-          APP_VERSION=$(poetry version --short)
-          echo "APP_VERSION=$APP_VERSION" >> $GITHUB_ENV
-          echo "App version: $APP_VERSION"
-
-      # Download the release upload URL artifact
+      # Download the release tag name and release upload URL artifacts
       - name: download release upload url
         uses: actions/download-artifact@v4
         with:
           name: releaseUploadUrl
 
-      # Save the release upload URL to an environment variable
-      - name: set releaseUploadUrl
+      - name: download release tag name
+        uses: actions/download-artifact@v4
+        with:
+          name: releaseTagName
+
+      # Save the release upload URL and tag name to environment variables and sync Poetry version; expose as step outputs
+      - name: Set release metadata (Linux)
+        id: set_release_metadata
         run: |
           RELEASE_UPLOAD_URL=$(cat releaseUploadUrl.txt)
           echo "RELEASE_UPLOAD_URL=$RELEASE_UPLOAD_URL" >> $GITHUB_ENV
           echo "Upload URL: $RELEASE_UPLOAD_URL"
+          TAG_NAME=$(cat releaseTagName.txt)
+          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
+          APP_VERSION=${TAG_NAME#v}
+          echo "APP_VERSION=$APP_VERSION" >> $GITHUB_ENV
+          echo "Resolved App version from tag: $APP_VERSION"
+          poetry version "$APP_VERSION"
+          echo "Poetry version now: $(poetry version --short)"
+          # Expose as outputs for later steps
+          echo "release_upload_url=$RELEASE_UPLOAD_URL" >> $GITHUB_OUTPUT
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "app_version=$APP_VERSION" >> $GITHUB_OUTPUT
+
+      # Sync const.py using bump2version (no commit) so runtime VERSION matches tag (Option B)
+      - name: Sync const.py to version (Linux)
+        run: |
+          bump2version --allow-dirty --new-version "$APP_VERSION" patch
+          echo "Const version now: $(grep VERSION ai_rom_batch_renamer/modules/const.py)"
 
       - name: Run build script
         run: |
-          poetry run nuitka \
-          --onefile \
-          --onefile-tempdir-spec="{TEMP}/ai-rom-batch-renamer" \
-          --output-dir=./dist \
-          --output-filename="ai-rom-batch-renamer-Linux-X64" \
-          --assume-yes-for-downloads \
-          --include-package-data=pinyin \
-          ai_rom_batch_renamer/main.py
+          poetry run build --verbose
 
       # Upload the build
       - name: Archive the build
@@ -114,9 +131,9 @@ jobs:
         uses: shogo82148/actions-upload-release-asset@v1
         with:
           overwrite: true
-          upload_url: ${{ env.RELEASE_UPLOAD_URL }}
+          upload_url: ${{ steps.set_release_metadata.outputs.release_upload_url }}
           asset_path: release.zip
-          asset_name: RomBatchRenamer-Linux-X64-Modern-v${{ env.APP_VERSION }}.zip
+          asset_name: RomBatchRenamer-Linux-X64-Modern-v${{ steps.set_release_metadata.outputs.app_version }}.zip
 
   # Builds on Windows and upload the build to the release
   builds-on-windows-and-release:
@@ -145,39 +162,48 @@ jobs:
         run: |
           poetry install --no-interaction --no-ansi
 
-      - name: Run update app version script
-        run: |
-          poetry run update-version
-
-      - name: Get app version
-        run: |
-          $APP_VERSION = poetry version --short
-          echo "APP_VERSION=$APP_VERSION" >> $env:GITHUB_ENV
-          echo "App version: $APP_VERSION"
-
       # Download the release upload URL artifact
       - name: download release upload url
         uses: actions/download-artifact@v4
         with:
           name: releaseUploadUrl
 
-      # Save the release upload URL to an environment variable
-      - name: set releaseUploadUrl
+      # Download the release tag name artifact
+      - name: download release tag name
+        uses: actions/download-artifact@v4
+        with:
+          name: releaseTagName
+
+      # Save the release upload URL to an environment variable and sync Poetry version; expose as step outputs
+      - name: Set release metadata (Windows)
+        id: set_release_metadata
         run: |
-          $RELEASE_UPLOAD_URL=$(cat releaseUploadUrl.txt)
+          $RELEASE_UPLOAD_URL = Get-Content .\releaseUploadUrl.txt -Raw
+          $RELEASE_UPLOAD_URL = $RELEASE_UPLOAD_URL.Trim()
           echo "RELEASE_UPLOAD_URL=$RELEASE_UPLOAD_URL" >> $env:GITHUB_ENV
           echo "Upload URL: $RELEASE_UPLOAD_URL"
+          $TAG_NAME = Get-Content .\releaseTagName.txt -Raw
+          $TAG_NAME = $TAG_NAME.Trim()
+          echo "TAG_NAME=$TAG_NAME" >> $env:GITHUB_ENV
+          $APP_VERSION = $TAG_NAME.TrimStart('v')
+          echo "APP_VERSION=$APP_VERSION" >> $env:GITHUB_ENV
+          echo "Resolved App version from tag: $APP_VERSION"
+          poetry version $APP_VERSION
+          $pv = poetry version --short
+          echo "Poetry version now: $pv"
+          # Expose as outputs
+          echo "release_upload_url=$RELEASE_UPLOAD_URL" >> $env:GITHUB_OUTPUT
+          echo "tag_name=$TAG_NAME" >> $env:GITHUB_OUTPUT
+          echo "app_version=$APP_VERSION" >> $env:GITHUB_OUTPUT
+      # Sync const.py using bump2version (no commit) so runtime VERSION matches tag (Option B)
+      - name: Sync const.py to version (Windows)
+        shell: pwsh
+        run: |
+          bump2version --allow-dirty --new-version $env:APP_VERSION patch
+          Get-Content ai_rom_batch_renamer/modules/const.py | Select-String VERSION
       - name: Run build script
         run: |
-          poetry run nuitka `
-          --onefile `
-          --onefile-tempdir-spec="{TEMP}\ai-rom-batch-renamer" `
-          --output-dir=.\dist `
-          --output-filename="ai-rom-batch-renamer-Windows-X64.exe" `
-          --assume-yes-for-downloads `
-          --include-package-data=pinyin `
-          --windows-icon-from-ico=./icon.png `
-          ai_rom_batch_renamer\main.py
+          poetry run build --verbose
 
       # Archive the build and upload it to the release
       - name: Archive the build
@@ -191,9 +217,9 @@ jobs:
         uses: shogo82148/actions-upload-release-asset@v1
         with:
           overwrite: true
-          upload_url: ${{ env.RELEASE_UPLOAD_URL }}
+          upload_url: ${{ steps.set_release_metadata.outputs.release_upload_url }}
           asset_path: release.zip
-          asset_name: RomBatchRenamer-Win-X64-Modern-v${{ env.APP_VERSION }}.zip
+          asset_name: RomBatchRenamer-Win-X64-Modern-v${{ steps.set_release_metadata.outputs.app_version }}.zip
 
   # Builds on Mac and upload the build to the release
   builds-on-mac-and-release:
@@ -222,40 +248,46 @@ jobs:
         run: |
           poetry install --no-interaction --no-ansi
 
-      - name: Run update app version script
-        run: |
-          poetry run update-version
-
-      - name: Get app version
-        run: |
-          APP_VERSION=$(poetry version --short)
-          echo "APP_VERSION=$APP_VERSION" >> $GITHUB_ENV
-          echo "App version: $APP_VERSION"
-
       # Download the release upload URL artifact
       - name: download release upload url
         uses: actions/download-artifact@v4
         with:
           name: releaseUploadUrl
 
-      # Save the release upload URL to an environment variable
-      - name: set releaseUploadUrl
+      # Download the release tag name artifact
+      - name: download release tag name
+        uses: actions/download-artifact@v4
+        with:
+          name: releaseTagName
+
+      # Save the release upload URL and tag name to environment variables and sync Poetry version; expose as step outputs
+      - name: Set release metadata (macOS)
+        id: set_release_metadata
         run: |
           RELEASE_UPLOAD_URL=$(cat releaseUploadUrl.txt)
           echo "RELEASE_UPLOAD_URL=$RELEASE_UPLOAD_URL" >> $GITHUB_ENV
           echo "Upload URL: $RELEASE_UPLOAD_URL"
+          TAG_NAME=$(cat releaseTagName.txt)
+          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
+          APP_VERSION=${TAG_NAME#v}
+          echo "APP_VERSION=$APP_VERSION" >> $GITHUB_ENV
+          echo "Resolved App version from tag: $APP_VERSION"
+          poetry version "$APP_VERSION"
+          echo "Poetry version now: $(poetry version --short)"
+          # Expose as outputs for later steps
+          echo "release_upload_url=$RELEASE_UPLOAD_URL" >> $GITHUB_OUTPUT
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "app_version=$APP_VERSION" >> $GITHUB_OUTPUT
+
+      # Sync const.py using bump2version (no commit) so runtime VERSION matches tag (Option B)
+      - name: Sync const.py to version (macOS)
+        run: |
+          bump2version --allow-dirty --new-version "$APP_VERSION" patch
+          echo "Const version now: $(grep VERSION ai_rom_batch_renamer/modules/const.py)"
 
       - name: Run build script
         run: |
-          poetry run nuitka \
-          --onefile \
-          --onefile-tempdir-spec="{TEMP}/ai-rom-batch-renamer" \
-          --output-dir=./dist \
-          --output-filename="ai-rom-batch-renamer-MacOS-X64" \
-          --macos-app-icon=./icon.png \
-          --assume-yes-for-downloads \
-          --include-package-data=pinyin \
-          ai_rom_batch_renamer/main.py
+          poetry run build --verbose
 
       # Archive the build and upload it to the release
       - name: Archive the build
@@ -269,6 +301,6 @@ jobs:
         uses: shogo82148/actions-upload-release-asset@v1
         with:
           overwrite: true
-          upload_url: ${{ env.RELEASE_UPLOAD_URL }}
+          upload_url: ${{ steps.set_release_metadata.outputs.release_upload_url }}
           asset_path: release.zip
-          asset_name: RomBatchRenamer-Mac-X64-Modern-v${{ env.APP_VERSION }}.zip
+          asset_name: RomBatchRenamer-Mac-X64-Modern-v${{ steps.set_release_metadata.outputs.app_version }}.zip

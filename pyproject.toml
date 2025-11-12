@@ -1,12 +1,12 @@
 [build-system]
-requires = [ "poetry-core",]
+requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
-maintainers = [ "Rozx <lisida900710@gmail.com>",]
+maintainers = ["Rozx <lisida900710@gmail.com>"]
 name = "AI-rom-batch-renamer"
-version = "2.0.2"
-authors = [ "Rozx <lisida900710@gmail.com>",]
+version = "2.1.0"
+authors = ["Rozx <lisida900710@gmail.com>"]
 description = "A command line tool for batch renaming ROM files using AI."
 license = "LICENSE"
 readme = "README.md"
@@ -18,35 +18,43 @@ certifi = "2024.8.30"
 charset-normalizer = "3.4.0"
 click = "8.1.7"
 colorama = "0.4.6"
-docopt = "0.6.2"
 idna = "3.10"
 inquirerpy = "0.3.4"
-markdown-it-py = "3.0.0"
-mdurl = "0.1.2"
 pfzy = "0.3.4"
 pinyin = "0.4.0"
-pipreqs = "0.4.13"
 prompt-toolkit = "3.0.48"
-py-mon = "2.0.5"
-pygments = "2.18.0"
 regex = "2024.11.6"
-requests = "2.32.4"
 rich = "13.9.4"
-shellingham = "1.5.4"
-six = "1.16.0"
 toml = "0.10.2"
 typer = "0.13.0"
 typing-extensions = "4.12.2"
 urllib3 = "2.2.3"
-watchdog = "6.0.0"
 wcwidth = "0.2.13"
-yarg = "0.1.10"
 sqlite3-cache = "0.2.2"
 openai = "^1.82.0"
 
 [tool.poetry.scripts]
-update-version = "scripts.update_version:update_version"
+main = "ai_rom_batch_renamer.main:app"
+bump = "scripts.version:bump_version"
+bump-patch = "scripts.version:bump_patch"
+bump-minor = "scripts.version:bump_minor"
+bump-major = "scripts.version:bump_major"
+build = "scripts.build:main"
+test = "pytest:main"
 
 [tool.poetry.group.dev.dependencies]
 nuitka = "^2.7.3"
 imageio = "^2.37.0"
+docopt = "0.6.2"
+markdown-it-py = "3.0.0"
+mdurl = "0.1.2"
+pipreqs = "0.4.13"
+py-mon = "2.0.5"
+pygments = "2.18.0"
+requests = "2.32.4"
+shellingham = "1.5.4"
+six = "1.16.0"
+watchdog = "6.0.0"
+yarg = "0.1.10"
+bump2version = "1.0.1"
+pytest = "^8.3.3"

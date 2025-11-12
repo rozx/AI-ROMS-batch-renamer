@@ -1,6 +1,6 @@
-import hashlib
 import os
-import modules.utils as utilsModule
+
+from ai_rom_batch_renamer.modules import utils as utilsModule
 
 
 class RomFile:
@@ -9,7 +9,8 @@ class RomFile:
         self.dir = os.path.dirname(path)
         self.originalFilename = os.path.basename(path)
         self.fileName = self.originalFilename
-        self.md5 = utilsModule.getMD5HashFromFile(path)
+        # Defer MD5 computation until explicitly needed to avoid heavy I/O on large files
+        self._md5: str | None = None
         self.targetPath = os.path.join(self.dir, self.fileName)
 
         self.baseName, self.extName = os.path.splitext(self.fileName)
@@ -29,3 +30,14 @@ class RomFile:
         self.targetPath = os.path.join(self.dir, self.fileName)
 
         return self.fileName
+
+    @property
+    def md5(self) -> str:
+        """Lazily compute and cache the MD5 of the file in streaming mode.
+
+        This avoids reading the entire file eagerly during construction, which
+        is especially costly on slow media like SD cards.
+        """
+        if self._md5 is None:
+            self._md5 = utilsModule.getMD5HashFromFile(self.path)
+        return self._md5

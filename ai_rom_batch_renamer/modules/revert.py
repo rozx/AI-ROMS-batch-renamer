@@ -1,7 +1,8 @@
 import os
 
-import modules.cache as cacheModule
-import modules.utils as utilsModule
+
+from ai_rom_batch_renamer.modules import cache as cacheModule
+from ai_rom_batch_renamer.modules import utils as utilsModule
 
 from rich import print as rprint, console
 from rich.progress import track

@@ -4,8 +4,8 @@ import json
 class AIConfig:
     def __init__(self):
         self.apiKey = ""
-        self.model = "gpt-4.1"
-        self.endpoint = "https://api.openai.com/v1"
+        self.model = "deepseek-chat"
+        self.endpoint = "https://api.deepseek.com"
         self.v1ChatCompletionsEndpoint = f"{self.endpoint}/chat/completions"
 
     def to_dict(self):
@@ -13,8 +13,8 @@ class AIConfig:
 
     def from_dict(self, data):
         self.apiKey = data.get("apiKey", "")
-        self.model = data.get("model", "gpt-4.1")
-        self.endpoint = data.get("endpoint", "https://api.openai.com/v1")
+        self.model = data.get("model", "deepseek-chat")
+        self.endpoint = data.get("endpoint", "https://api.deepseek.com")
 
     def load(self):
         try:

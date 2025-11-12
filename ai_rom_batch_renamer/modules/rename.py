@@ -7,14 +7,13 @@ from rich import print as rprint, console
 from rich.progress import track
 
 
-import modules.utils as utilsModule
-import modules.regex as regexModule
-import modules.const as constModule
-import modules.cache as cacheModule
-import modules.ai as aiScraperModule
-
-from classes.RomFile import RomFile
-from classes.AIConfig import AIConfig
+from ai_rom_batch_renamer.modules import utils as utilsModule
+from ai_rom_batch_renamer.modules import regex as regexModule
+from ai_rom_batch_renamer.modules import const as constModule
+from ai_rom_batch_renamer.modules import cache as cacheModule
+from ai_rom_batch_renamer.modules import ai as aiScraperModule
+from ai_rom_batch_renamer.classes.RomFile import RomFile as RomFile
+from ai_rom_batch_renamer.classes.AIConfig import AIConfig as AIConfig
 
 # Rename files
 
@@ -39,6 +38,9 @@ def rename(options: dict):
     apiKey: str = options.get("apiKey", "")
     endpoint: str = options.get("endpoint", "")
     platform: str = options.get("platform", "unknown")
+    ai_batch_size: int = options.get("ai_batch_size", 10)
+    ai_no_cache: bool = options.get("ai_no_cache", False)
+    force: bool = options.get("force", False)
 
     # initialize the file list
 
@@ -82,12 +84,19 @@ def rename(options: dict):
 
         if not os.path.exists(file):
             rprint(
-                f"[red bold]Skipping file {baseName} due to it does not exist.[/red bold]"
+                f"[red bold]跳过文件 {baseName} 因为文件不存在。Skipping file due to it does not exist.[/red bold]"
             )
             fileList.remove(file)
             continue
 
         if utilsModule.isSystemOrHiddenFile(file):
+            fileList.remove(file)
+            continue
+        
+        if utilsModule.isFileRenamed(file) and not force:
+            rprint(
+                f"[yellow]跳过文件 {baseName} 因为已经被重命名过了。Skipping file as it appears to be already renamed.[/yellow]"
+            )
             fileList.remove(file)
             continue
 
@@ -132,17 +141,27 @@ def rename(options: dict):
             )
             return
 
+    # Prepare RomFile objects first (needed for batching)
+    romFiles: list[RomFile] = [RomFile(path) for path in fileList]
+
+    # Batch AI enrichment to reduce per-file calls
+    ai_results: dict[str, dict] = {}
+    if ai:
+        ai_results = aiScraperModule.aiScraperBatch(
+            aiConfig,
+            romFiles,
+            platform=platform,
+            useCache=(not ai_no_cache),
+            batch_size=ai_batch_size,
+        )
+
     # renamed files list
-    renamedFiles = []
+    renamedFiles: list[str] = []
 
     # for each file in the list, processing the file
-    for value in track(range(len(fileList)), description="Renaming files..."):
+    for value in track(range(len(romFiles)), description="Renaming files..."):
 
-        # full path of the file
-        file = fileList[value]
-
-        # create new RomFile object
-        romFile = RomFile(file)
+        romFile = romFiles[value]
 
         # Match hack naming conventions
         hackMatch = regex.search(
@@ -168,16 +187,32 @@ def rename(options: dict):
         if pinyin:
             addsPinyinInitials(romFile)
 
-        # use AI to get the rom information if AI is enabled
-        if ai:
-            result = aiScraperModule.aiScraper(aiConfig, romFile, platform)
-            if result:
-                romFile.updateFileName(
-                    f"{romFile.baseName} ({result['englishTitle']})({result['releaseYear']}){romFile.extName}"
-                )
+        # apply AI enrichment if present (supports partial info)
+        if ai and romFile.originalFilename in ai_results:
+            result = ai_results[romFile.originalFilename]
+            cn = (result.get('chineseTitle') or '').strip()
+            en = (result.get('englishTitle') or '').strip()
+            year = (result.get('releaseYear') or '').strip()
+
+            new_base = None
+            if cn and en:
+                # CN + EN
+                new_base = f"{cn} ({en})"
+            elif cn:
+                # CN only
+                new_base = cn
+            elif en:
+                # EN only
+                new_base = en
+
+            if new_base:
+                if year and year.isdigit() and len(year) == 4:
+                    new_base = f"{new_base}({year})"
+                romFile.updateFileName(f"{new_base}{romFile.extName}")
 
         # adds region to the filename
-        romFile.updateFileName(f"{romFile.baseName}[{region}]{romFile.extName}")
+        if region != "Unknown":
+            romFile.updateFileName(f"{romFile.baseName}[{region}]{romFile.extName}")
 
         # adds hack to the filename
         if hackMatch:
@@ -191,17 +226,18 @@ def rename(options: dict):
             pendingRenameFiles = [romFile.path]
 
         # ----------- Rename the file -------------
+        # Pass None to allow autodetect of current OS; if needed, a future CLI flag
+        # could override this behaviour for cross-platform normalization.
+        result = renameFiles(
+            pendingRenameFiles, romFile, dry, renamedFiles, None
+        )
 
-        # rename the file
-        result = renameFiles(pendingRenameFiles, romFile, dry, renamedFiles)
-
-        # add the file to the pending rename files
+        # add the file to the renamed files tracking
         renamedFiles.extend(result)
 
         # ----------- prompt the result -------------
         if output:
             print(romFile.fileName)
-            continue
         else:
             rprint(
                 f"[bold]Renamed{' preview' if dry else ''}({value + 1}/{len(fileList)}):[/bold] [blue1 underline]{romFile.path}[/blue1 underline] -> [green3]{result}[/green3]",
@@ -261,13 +297,69 @@ def addsPinyinInitials(romFile: RomFile) -> None:
     return
 
 
-def getNextAvailableName(fileName: str, dir: str, renamedFiles: list[str]) -> str:
+def sanitize_for_os(base_name: str, os_platform: str | None = None) -> str:
+    """
+    Sanitize a ROM base filename based on OS-specific filesystem constraints.
+
+    - Windows: remove <>:"/\|?* and control chars; trim trailing dots/spaces
+    - macOS: remove '/' and control chars
+    - Linux: remove '/' and control chars
+    We keep Unicode letters/numbers to preserve CJK.
+    """
+
+    # Detect OS platform if not provided
+    try:
+        import platform as _platform
+        detected = _platform.system().lower()
+    except Exception:
+        detected = "unknown"
+
+    os_norm = (os_platform or detected or "unknown").lower()
+    if os_norm.startswith("win"):
+        os_norm = "windows"
+    elif os_norm in {"darwin", "mac", "macos", "osx"}:
+        os_norm = "mac"
+    elif os_norm.startswith("linux"):
+        os_norm = "linux"
+
+    # 1) Remove control characters (including NUL if any)
+    base_name = regex.sub(r"[\x00\r\n\t\f\v]", " ", base_name)
+
+    # 2) Remove reserved chars per OS
+    if os_norm == "windows":
+        # Windows forbids: <>:"/\|?*
+        base_name = regex.sub(r"[<>:\"/\\\|\?\*]+", "", base_name)
+        # Also trim trailing dots/spaces
+        base_name = base_name.strip().rstrip(". ")
+    else:
+        # macOS/Linux forbid only '/'
+        base_name = regex.sub(r"/", "", base_name)
+        base_name = base_name.strip()
+
+    # Keep unicode letters/numbers, spaces and common safe separators
+    allowed = r"\p{L}\p{N} _\-\[\]\(\)&',\.+\+"
+    base_name = regex.sub(fr"[^ {allowed}]", "", base_name)
+
+    # Collapse spaces
+    base_name = regex.sub(r"\s{2,}", " ", base_name).strip()
+
+    if not base_name:
+        base_name = "file"
+
+    return base_name
+
+
+def getNextAvailableName(
+    fileName: str, dir: str, renamedFiles: list[str], os_platform: str | None = None
+) -> str:
 
     baseName, extName = utilsModule.getBasenameAndExtensions(fileName)
+    # Sanitize base name with OS filesystem rules before uniqueness resolution
+    baseName = sanitize_for_os(baseName, os_platform)
+    fileName = f"{baseName}{extName}"
 
     fileNameIndex = 0
     while fileName in renamedFiles or os.path.exists(os.path.join(dir, fileName)):
-
         fileNameIndex += 1
         fileName = f"{baseName}({fileNameIndex}){extName}"
 
@@ -279,6 +371,7 @@ def renameFiles(
     romFile: RomFile,
     dryrun: bool,
     renamedFiles: list[str],
+    os_platform: str | None = None,
 ) -> list[str]:
 
     _renamedFiles = renamedFiles.copy()
@@ -289,9 +382,17 @@ def renameFiles(
         extName = utilsModule.getBasenameAndExtensions(file)[1].lower()
 
         targetBaseName = f"{romFile.baseName}{extName}"
+        
+        # check if target filename is same as current filename, if so, skip renaming
+        if os.path.basename(file) == targetBaseName:
+            _renamedFiles.append(os.path.basename(file))
+            proceedFiles.append(os.path.basename(file))
+            continue
 
         # get the next available name
-        fileName = getNextAvailableName(targetBaseName, romFile.dir, _renamedFiles)
+        fileName = getNextAvailableName(
+            targetBaseName, romFile.dir, _renamedFiles, os_platform
+        )
 
         targetRenamePath = os.path.join(romFile.dir, fileName)
 
@@ -299,16 +400,27 @@ def renameFiles(
         if not dryrun:
             os.rename(file, targetRenamePath)
 
-            # add rename history to cache history
+            # add rename history to cache history (md5 optional; avoid heavy I/O on large files)
+            history = {
+                "original": romFile.path,
+                "new": targetRenamePath,
+                "version": constModule.VERSION,
+                "timestamp": utilsModule.getTimeStamp(),
+            }
+            try:
+                # Compute MD5 only for small files to avoid saturating I/O on SD cards
+                size = os.path.getsize(targetRenamePath)
+                # 64 MiB threshold
+                if size <= 64 * 1024 * 1024:
+                    history["md5"] = utilsModule.getMD5HashFromFile(targetRenamePath)
+                else:
+                    history["md5"] = ""
+            except Exception:
+                history["md5"] = ""
+
             cacheModule.renameHistoryCache.add(
                 targetRenamePath,
-                {
-                    "md5": romFile.md5,
-                    "original": romFile.path,
-                    "new": targetRenamePath,
-                    "version": constModule.VERSION,
-                    "timestamp": utilsModule.getTimeStamp(),
-                },
+                history,
                 timeout=-1,
             )
 

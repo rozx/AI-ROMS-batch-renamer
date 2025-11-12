@@ -1,0 +1,17 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Run tests",
+      "type": "shell",
+      "command": "poetry",
+      "args": [
+        "run",
+        "pytest",
+        "-q"
+      ],
+      "group": "test",
+      "problemMatcher": []
+    }
+  ]
+}
