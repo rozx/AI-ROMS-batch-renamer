@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import re
+import locale
 import subprocess
 import sys
 from pathlib import Path
@@ -45,13 +46,28 @@ def _const_path() -> Path:
     return _project_root() / "ai_rom_batch_renamer" / "modules" / "const.py"
 
 
+def _supports_unicode() -> bool:
+    enc = (getattr(sys.stdout, "encoding", None) or locale.getpreferredencoding(False) or "").lower()
+    return "utf" in enc
+
+
+def _symbol(ok: bool = True, warn: bool = False) -> str:
+    if not _supports_unicode():
+        if warn:
+            return "WARN"
+        return "OK" if ok else "ERR"
+    if warn:
+        return "⚠"
+    return "✓" if ok else "✗"
+
+
 def _normalize_version(v: str) -> str:
     v = v.strip()
     if v.startswith("v"):
         v = v[1:]
     # Basic semantic version validation (major.minor.patch)
     if not re.match(r"^\d+\.\d+\.\d+$", v):
-        print(f"✗ Provided version '{v}' is not in form X.Y.Z", file=sys.stderr)
+        print(f"{_symbol(False)} Provided version '{v}' is not in form X.Y.Z", file=sys.stderr)
         sys.exit(2)
     return v
 
@@ -100,7 +116,7 @@ def set_version(explicit_version: str) -> None:
     version = _normalize_version(explicit_version)
     _write_pyproject(version)
     _write_const(version)
-    print(f"✓ Set version to {version}")
+    print(f"{_symbol(True)} Set version to {version}")
 
 
 def current_version() -> str:
@@ -117,16 +133,16 @@ def _run_bump2version(args: Iterable[str]) -> int:
         subprocess.run(["bump2version", *args], cwd=_project_root(), check=True)
         return 0
     except FileNotFoundError:
-        print("✗ bump2version not installed", file=sys.stderr)
+        print(f"{_symbol(False)} bump2version not installed", file=sys.stderr)
         return 127
     except subprocess.CalledProcessError as e:
-        print(f"✗ bump2version failed: {e}", file=sys.stderr)
+        print(f"{_symbol(False)} bump2version failed: {e}", file=sys.stderr)
         return e.returncode or 1
 
 
 def bump_part(part: str, allow_dirty: bool = True) -> None:
     if part not in {"patch", "minor", "major"}:
-        print(f"Invalid part '{part}'", file=sys.stderr)
+        print(f"{_symbol(False)} Invalid part '{part}'", file=sys.stderr)
         sys.exit(2)
     args = []
     if allow_dirty:
@@ -134,7 +150,7 @@ def bump_part(part: str, allow_dirty: bool = True) -> None:
     args.append(part)
     rc = _run_bump2version(args)
     if rc == 0:
-        print(f"✓ bump2version {part} succeeded")
+        print(f"{_symbol(True)} bump2version {part} succeeded")
     else:
         print("Fallback: derive +1 version manually not implemented; use --set instead", file=sys.stderr)
         sys.exit(rc)
@@ -198,7 +214,7 @@ def main(argv: list[str] | None = None) -> None:
     mapping = {"1": "patch", "2": "minor", "3": "major"}
     part = mapping.get(choice)
     if not part:
-        print("Invalid choice", file=sys.stderr)
+        print(f"{_symbol(False)} Invalid choice", file=sys.stderr)
         sys.exit(1)
     bump_part(part)
 

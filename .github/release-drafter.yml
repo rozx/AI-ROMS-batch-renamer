@@ -1,5 +1,22 @@
 name-template: 'v$RESOLVED_VERSION 🚀'
 tag-template: 'v$RESOLVED_VERSION'
+version-template: '$MAJOR.$MINOR.$PATCH'
+version-resolver:
+  major:
+    labels:
+      - 'major'
+  minor:
+    labels:
+      - 'minor'
+      - 'enhancement'
+      - 'feature'
+  patch:
+    labels:
+      - 'patch'
+      - 'fix'
+      - 'bugfix'
+      - 'bug'
+  default: patch
 categories:
   - title: '🍰 Features'
     labels:
