@@ -194,13 +194,15 @@ def rename(options: dict):
             en = (result.get('englishTitle') or '').strip()
             year = (result.get('releaseYear') or '').strip()
 
+            
+            # Use original base name as source of truth
             new_base = None
             if cn and en:
                 # CN + EN
-                new_base = f"{cn} ({en})"
+                new_base = f"{romFile.baseName} ({en})"
             elif cn:
                 # CN only
-                new_base = cn
+                new_base = f"{romFile.baseName}"
             elif en:
                 # EN only
                 new_base = en
