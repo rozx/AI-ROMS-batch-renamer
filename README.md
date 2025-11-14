@@ -144,16 +144,10 @@ renamer rename -dir "~/ROMs/GBA" -ai -p GBA --ai-no-cache
 # 7. Minimal AI single file (单文件 AI 处理)
 renamer rename -files "~/ROMs/GBA/黄金太阳.zip" -ai -p GBA
 
-# 8. Environment variable driven config (通过环境变量配置)
-export RENAMER_API_KEY="sk-xxx"
-export RENAMER_ENDPOINT="https://api.deepseek.com"
-export RENAMER_MODEL="deepseek-chat"
-renamer rename -dir "~/ROMs/GBA" -ai -p GBA
-
-# 9. Large batch size tuning (大批量调优)
+# 8. Large batch size tuning (大批量调优)
 renamer rename -r -ai -dir "~/ROMs/GBA" --ai-batch-size 25 -p GBA
 
-# 10. Pinyin only normalization (仅拼音首字母规范化)
+# 9. Pinyin only normalization (仅拼音首字母规范化)
 renamer rename -dir "~/ChineseRoms" -py -trim
 ```
 
