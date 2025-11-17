@@ -121,7 +121,7 @@ renamer rename -r -ai --directory "~/ROMs/" -t -p "GBA" --ai-no-cache
 
 ### 🔧 Additional Examples | 更多示例
 
-```bash
+
 # 1. Dry run first, then execute (推荐先预览)
 renamer rename -d -r -ai -dir "~/ROMs/GBA" -p GBA --ai-batch-size 15
 renamer rename -r -ai -dir "~/ROMs/GBA" -p GBA --ai-batch-size 15
@@ -161,13 +161,6 @@ cd AI-ROMS-batch-renamer
 poetry install
 ```
 
-1. (Optional) Set AI environment variables | (可选) 设置 AI 环境变量
-
-```bash
-export RENAMER_API_KEY="sk-xxx"
-export RENAMER_MODEL="deepseek-chat"
-export RENAMER_ENDPOINT="https://api.deepseek.com"
-```
 
 1. Run a dry preview | 运行预览
 
