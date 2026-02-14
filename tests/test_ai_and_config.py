@@ -19,6 +19,26 @@ def test_parse_single_pipe_content_invalid_text():
     assert parsed is None
 
 
+def test_parse_json_object_with_code_fence():
+    text = """```json
+{"englishTitle":"Kirby","chineseTitle":"星之卡比","region":"JP","platform":"FC","releaseYear":"1992","publisher":"Nintendo","developer":"HAL"}
+```"""
+    parsed = aiModule._parse_json_object(text)
+    assert parsed is not None
+    assert parsed["englishTitle"] == "Kirby"
+    assert parsed["chineseTitle"] == "星之卡比"
+
+
+def test_parse_single_content_prefers_json_object():
+    parsed = aiModule._parse_single_content(
+        '{"englishTitle":"Contra","chineseTitle":"魂斗罗","region":"US","platform":"NES","releaseYear":"1988","publisher":"Konami","developer":"Konami"}'
+    )
+    assert parsed is not None
+    assert parsed["englishTitle"] == "Contra"
+    assert parsed["chineseTitle"] == "魂斗罗"
+    assert parsed["releaseYear"] == "1988"
+
+
 def test_ai_config_save_load_in_user_config_dir(tmp_path, monkeypatch):
     if os.name == "nt":
         monkeypatch.setenv("APPDATA", str(tmp_path))

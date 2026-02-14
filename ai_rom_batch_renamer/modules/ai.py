@@ -1,5 +1,6 @@
 from openai import OpenAI
 import json
+import time
 from ai_rom_batch_renamer.modules import cache as cacheModule
 
 from ai_rom_batch_renamer.classes.AIConfig import AIConfig
@@ -24,12 +25,39 @@ def _chat_completion_content(
     temperature: float = 1,
     stream: bool = True,
     progress_prefix: str | None = None,
+    max_retries: int = 2,
+    retry_backoff_seconds: float = 1.0,
 ) -> str | None:
     """Fetch chat completion content, optionally via streaming.
 
     When streaming, prints a lightweight progress indicator (dots) while
     accumulating the full content to return.
     """
+
+    def _request_with_retry(use_stream: bool):
+        attempts = max(0, max_retries) + 1
+        last_error: Exception | None = None
+        for attempt in range(attempts):
+            try:
+                return client.chat.completions.create(
+                    model=model,
+                    messages=messages,
+                    temperature=temperature,
+                    stream=use_stream,
+                )
+            except Exception as e:
+                last_error = e
+                if attempt >= attempts - 1:
+                    raise
+                sleep_seconds = retry_backoff_seconds * (2**attempt)
+                rprint(
+                    f"[yellow]AI 请求重试 (Retry) {attempt + 1}/{max_retries}，"
+                    f"等待 {sleep_seconds:.1f}s：{e}[/yellow]"
+                )
+                time.sleep(sleep_seconds)
+        if last_error:
+            raise last_error
+
     if stream:
         # Minimal progress indicator without leaking content
         if progress_prefix:
@@ -37,12 +65,7 @@ def _chat_completion_content(
         content = ""
         dot_count = 0
         try:
-            resp = client.chat.completions.create(
-                model=model,
-                messages=messages,
-                temperature=temperature,
-                stream=True,
-            )
+            resp = _request_with_retry(True)
             for event in resp:  # type: ignore[assignment]
                 try:
                     delta = event.choices[0].delta.content or ""
@@ -61,16 +84,73 @@ def _chat_completion_content(
         return content
     else:
         try:
-            response = client.chat.completions.create(
-                model=model,
-                messages=messages,
-                temperature=temperature,
-                stream=False,
-            )
+            response = _request_with_retry(False)
         except Exception as e:
             rprint(f"[red]Error during AI processing: {e}[/red]")
             return None
         return response.choices[0].message.content if response.choices else None
+
+
+def _extract_json_object(text: str) -> str | None:
+    """Extract the first top-level JSON object substring from text."""
+    in_string = False
+    escape = False
+    depth = 0
+    start = -1
+    for i, ch in enumerate(text):
+        if in_string:
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_string = False
+            continue
+        else:
+            if ch == '"':
+                in_string = True
+                continue
+            if ch == '{':
+                if depth == 0:
+                    start = i
+                depth += 1
+            elif ch == '}':
+                if depth > 0:
+                    depth -= 1
+                    if depth == 0 and start != -1:
+                        return text[start : i + 1]
+    return None
+
+
+def _parse_json_object(content: str) -> dict | None:
+    if not content:
+        return None
+    try:
+        parsed = json.loads(content)
+        if isinstance(parsed, dict):
+            return parsed
+    except Exception:
+        pass
+
+    obj = _extract_json_object(content)
+    if obj:
+        try:
+            parsed = json.loads(obj)
+            if isinstance(parsed, dict):
+                return parsed
+        except Exception:
+            pass
+
+    if "```" in content:
+        try:
+            inner = content.split("```", 2)[1]
+            maybe = _extract_json_object(inner) or inner
+            parsed = json.loads(maybe)
+            if isinstance(parsed, dict):
+                return parsed
+        except Exception:
+            pass
+    return None
 
 
 def _extract_json_array(text: str) -> str | None:
@@ -181,6 +261,22 @@ def _parse_single_pipe_content(content: str) -> dict | None:
     }
 
 
+def _parse_single_content(content: str) -> dict | None:
+    """Parse single-item AI content. Prefer JSON object, fallback to pipe format."""
+    parsed = _parse_json_object(content)
+    if isinstance(parsed, dict):
+        return {
+            "englishTitle": str(parsed.get("englishTitle", "")).strip(),
+            "chineseTitle": str(parsed.get("chineseTitle", "")).strip(),
+            "region": str(parsed.get("region", "")).strip(),
+            "platform": str(parsed.get("platform", "")).strip(),
+            "releaseYear": str(parsed.get("releaseYear", "")).strip(),
+            "publisher": str(parsed.get("publisher", "")).strip(),
+            "developer": str(parsed.get("developer", "")).strip(),
+        }
+    return _parse_single_pipe_content(content)
+
+
 def aiScraper(config: AIConfig, romFile: RomFile, platform: str = "unknown", useCache: bool = True):
 
     # rprint(
@@ -219,13 +315,14 @@ def aiScraper(config: AIConfig, romFile: RomFile, platform: str = "unknown", use
             messages=[
                 {
                     "role": "system",
-                    "content": "You will help to scrape emulator ROM file information from internet sources. Return the result in the format of [English title]|[Chinese title]|[region]|[platform]|[release year]|[publisher]|[developer]. Do not return any other information.",
+                    "content": "You will help to scrape emulator ROM file information from internet sources. Return ONLY one JSON object with fields: englishTitle, chineseTitle, region, platform, releaseYear, publisher, developer. Use empty string when unknown. Do not return any other information.",
                 },
                 {
                     "role": "user",
                     "content": f"Here is a ROM file name: {romFile.originalFilename}. The game platform might be on: {platform} platform.",
                 },
             ],
+            temperature=0.1,
             stream=True,
             progress_prefix=f"AI 正在流式返回 (Streaming) {romFile.originalFilename}",
         )
@@ -233,7 +330,7 @@ def aiScraper(config: AIConfig, romFile: RomFile, platform: str = "unknown", use
         raise AIQueryError(str(e)) from e
 
     if content is not None:
-        ai_result = _parse_single_pipe_content(content)
+        ai_result = _parse_single_content(content)
         if ai_result is None:
             rprint(
                 f"[yellow]AI 返回格式无法解析 (Unparseable response), filename: {romFile.originalFilename}[/yellow]"
@@ -334,6 +431,7 @@ def aiScraperBatch(
                         "content": json.dumps(user, ensure_ascii=False),
                     },
                 ],
+                temperature=0.1,
                 stream=True,
                 progress_prefix=f"AI 批次流式返回 (Batch streaming) {batch_idx + 1}/{total_batches}",
             )
@@ -406,6 +504,7 @@ def aiScraperBatch(
                         {"role": "system", "content": simple_system},
                         {"role": "user", "content": json.dumps(simple_user, ensure_ascii=False)},
                     ],
+                    temperature=0.1,
                     stream=True,
                     progress_prefix=f"AI 批次重试流式返回 (Batch retry streaming) {batch_idx + 1}/{total_batches}",
                 )
@@ -502,7 +601,7 @@ def aiScraperBatch(
                 user_msg = (
                     "Filename: " + rf.originalFilename + "; Platform hint: " + platform +
                     ". Provide missing fields only if you are certain."
-                    " Return full pipe-delimited row: English Title|Chinese Title|region|platform|release year|publisher|developer."
+                    " Return ONLY one JSON object with fields: englishTitle, chineseTitle, region, platform, releaseYear, publisher, developer."
                     " Missing fields: " + ",".join(missing_list) + ". Present fields (keep identical): " + json.dumps(present_summary, ensure_ascii=False)
                 )
                 try:
@@ -510,21 +609,24 @@ def aiScraperBatch(
                         client,
                         model=config.model,
                         messages=[
-                            {"role": "system", "content": "Return pipe-delimited: English Title|Chinese Title|region|platform|release year|publisher|developer. Use empty string if unknown. Do NOT alter existing non-empty values."},
+                            {"role": "system", "content": "Return ONLY one JSON object with fields: englishTitle, chineseTitle, region, platform, releaseYear, publisher, developer. Use empty string if unknown. Do NOT alter existing non-empty values."},
                             {"role": "user", "content": user_msg},
                         ],
+                        temperature=0.1,
                         stream=True,
                         progress_prefix=f"AI 字段补全重试 (Field fill retry) {rf.originalFilename}",
                     )
                 except Exception as e:
                     raise AIQueryError(str(e)) from e
                 if single:
-                    parts = [p.strip() for p in single.split("|")]
-                    if len(parts) >= 7:
+                    single_data = _parse_json_object(single)
+                    if single_data:
                         update_fields = ["englishTitle", "chineseTitle", "region", "platform", "releaseYear", "publisher", "developer"]
-                        for idx, field in enumerate(update_fields):
-                            if field in missing_list and parts[idx]:
-                                results[rf.originalFilename][field] = parts[idx]
+                        for field in update_fields:
+                            if field in missing_list:
+                                value = str(single_data.get(field, "")).strip()
+                                if value:
+                                    results[rf.originalFilename][field] = value
                         # If after fill both titles present, store to cache
                         filled = results[rf.originalFilename]
                         if useCache and filled.get("chineseTitle") and filled.get("englishTitle"):
