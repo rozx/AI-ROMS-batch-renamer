@@ -32,9 +32,11 @@ urllib3 = "2.2.3"
 wcwidth = "0.2.13"
 sqlite3-cache = "0.2.2"
 openai = "^1.82.0"
+PySide6 = { version = ">=6.10.2,<7.0.0", python = ">=3.11,<3.15" }
 
 [tool.poetry.scripts]
 main = "ai_rom_batch_renamer.main:app"
+gui = "ai_rom_batch_renamer.gui:main"
 bump = "scripts.version:bump_version"
 bump-patch = "scripts.version:bump_patch"
 bump-minor = "scripts.version:bump_minor"

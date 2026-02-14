@@ -326,6 +326,30 @@ def about():
     pass
 
 
+@app.command("gui", no_args_is_help=False)
+def gui():
+    """
+    启动图形界面 (Launch GUI)
+    """
+
+    try:
+        from ai_rom_batch_renamer.gui import launch_gui
+    except Exception as e:
+        rprint(
+            f"[red bold]无法启动GUI，请确认已安装 PySide6。 (Failed to launch GUI, ensure PySide6 is installed): {e}[/red bold]"
+        )
+        _raise_exit(1)
+
+    try:
+        code = launch_gui()
+    except Exception as e:
+        rprint(f"[red bold]GUI运行失败 (GUI runtime error): {e}[/red bold]")
+        _raise_exit(1)
+
+    if code != 0:
+        _raise_exit(code)
+
+
 @app.command("clear-cache", no_args_is_help=True)
 def clear_cache(
     delete_files: Annotated[

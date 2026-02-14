@@ -36,6 +36,8 @@ A powerful command-line tool for batch renaming ROM files using AI technology.
   **安全幂等**: 自动跳过已处理文件，除非使用 `--force`
 - 🧹 **Filename Trimming**: Remove noisy segments before enrichment (`--trim`)  
   **文件名清理**: 清理噪声后再进行处理
+- 🧼 **Cache Management**: Clear cache data or delete cache files (`clear-cache`)  
+  **缓存管理**: 支持清空缓存数据或删除缓存文件（`clear-cache`）
 
 ## 📖 Examples | 示例
 
@@ -59,10 +61,27 @@ renamer [command] [options]
 ```text
 
 Commands:
-  rename [options]  批量重命文件夹中的文件为拼音首字母+原文件名 (Batch rename files to pinyin initials)
+  rename [options]       批量重命名文件 (Batch rename files)
   revert [options]  还原文件名 (Revert file names)
-  about             显示关于信息 (Show about information)
+  gui                   启动图形界面 (Launch GUI)
+  clear-cache [options] 清除缓存数据 (Clear cache data)
+  about                 显示关于信息 (Show about information)
 ```
+
+## 🖥️ GUI Mode | 图形界面模式
+
+```bash
+# via CLI app command
+poetry run main gui
+
+# via dedicated script entry
+poetry run gui
+```
+
+- Requires `PySide6` dependency.
+  **需要安装 `PySide6` 依赖。**
+- GUI internally calls CLI commands, so behavior/exit codes stay consistent.
+  **GUI 内部复用 CLI 命令，行为与退出码保持一致。**
 
 ## 📝 Rename Command | 重命名命令
 
@@ -119,8 +138,11 @@ renamer rename -r -ai --directory "~/ROMs/" -t -model "deepseek-chat" -ep "https
 # 强制不使用缓存，始终从AI获取
 renamer rename -r -ai --directory "~/ROMs/" -t -p "GBA" --ai-no-cache
 
+```
+
 ### 🔧 Additional Examples | 更多示例
 
+```bash
 
 # 1. Dry run first, then execute (推荐先预览)
 renamer rename -d -r -ai -dir "~/ROMs/GBA" -p GBA --ai-batch-size 15
@@ -130,7 +152,7 @@ renamer rename -r -ai -dir "~/ROMs/GBA" -p GBA --ai-batch-size 15
 renamer rename -r -ai -f -dir "~/ROMs/GBA" -p GBA
 
 # 3. Unzip with password then rename (带密码解压后重命名)
-renamer rename -r -u -pwd "mypassword" -dir "~/Incoming/Archives" -includes zip -ai -p NDS
+renamer rename -r -u -pwd "mypassword" -dir "~/Incoming/Archives" -i zip -ai -p NDS
 
 # 4. Includes + Excludes combo (组合过滤)
 renamer rename -dir "~/MixedRoms" -i gba -i zip -e txt -t
@@ -148,7 +170,7 @@ renamer rename -files "~/ROMs/GBA/黄金太阳.zip" -ai -p GBA
 renamer rename -r -ai -dir "~/ROMs/GBA" --ai-batch-size 25 -p GBA
 
 # 9. Pinyin only normalization (仅拼音首字母规范化)
-renamer rename -dir "~/ChineseRoms" -py -trim
+renamer rename -dir "~/ChineseRoms" -py -t
 ```
 
 ### ⚡ Quickstart | 快速开始
@@ -162,26 +184,26 @@ poetry install
 ```
 
 
-1. Run a dry preview | 运行预览
+2. Run a dry preview | 运行预览
 
 ```bash
-poetry run main rename -d -r -ai -dir "~/ROMs/GBA" -p GBA --ai-batch-size 15 -trim -py
+poetry run main rename -d -r -ai -dir "~/ROMs/GBA" -p GBA --ai-batch-size 15 -t -py
 ```
 
-1. Execute for real | 真正执行
+3. Execute for real | 真正执行
 
 ```bash
-poetry run main rename -r -ai -dir "~/ROMs/GBA" -p GBA --ai-batch-size 15 -trim -py
+poetry run main rename -r -ai -dir "~/ROMs/GBA" -p GBA --ai-batch-size 15 -t -py
 ```
 
-1. Revert if needed | 如需还原
+4. Revert if needed | 如需还原
 
 ```bash
 poetry run main revert -d -dir "~/ROMs/GBA"
 poetry run main revert -dir "~/ROMs/GBA"
 ```
 
-1. Build onefile binary | 构建单文件可执行
+5. Build onefile binary | 构建单文件可执行
 
 ```bash
 poetry run build --verbose
@@ -218,7 +240,7 @@ poetry run build --verbose
 - Encrypted ZIPs are handled only if password provided; errors will skip gracefully.
   **加密 ZIP 需提供密码才能处理，失败会被跳过而不中断整体流程。**
 
-### � Sample Output | 输出示例
+### 📤 Sample Output | 输出示例
 
 ```text
 铁臂阿童木-阿童木之心的秘密[v1.0][心灵的冬天](简)(66Mb).zip 
@@ -247,11 +269,11 @@ renamer revert [options]
 ```bash
 # Revert all files in directory
 # 还原目录中的所有文件
-renamer revert "D:/Downloads/"
+renamer revert --directory "D:/Downloads/"
 
 # Dry run revert
 # 预览还原结果（不实际执行）
-renamer revert -d "~/ROMs/"
+renamer revert --dry-run --directory "~/ROMs/"
 ```
 
 ### 📤 Sample Output (Revert) | 输出示例（还原）
@@ -260,6 +282,43 @@ renamer revert -d "~/ROMs/"
 T 铁臂阿童木 - 阿童木之心的秘密 (Astro Boy -  The Video Game) (2004) - 简.gba 
 → 铁臂阿童木-阿童木之心的秘密[v1.0][心灵的冬天](简)(66Mb).gba
 ```
+
+## 🧼 Clear Cache Command | 缓存清理命令
+
+### Syntax (Clear Cache) | 语法（清理缓存）
+
+```bash
+renamer clear-cache [options]
+```
+
+### 🛠️ Options (Clear Cache) | 选项参数（清理缓存）
+
+| Option             | Short | Type | Description                                                          |
+| ------------------ | ----- | ---- | -------------------------------------------------------------------- |
+| `--delete-files`   | `-d`  | FLAG | 删除整个缓存目录与缓存文件 (Delete cache directory and cache files)  |
+| `--yes`            | `-y`  | FLAG | 跳过确认提示 (Skip confirmation prompt)                             |
+
+### 💡 Example Usage (Clear Cache) | 使用示例（清理缓存）
+
+```bash
+# Clear cache data only (keep files)
+# 仅清空缓存数据（保留缓存目录）
+renamer clear-cache
+
+# Delete cache directory without prompt
+# 删除缓存目录且不提示确认
+renamer clear-cache -d -y
+```
+
+## ⚙️ Config & Cache Paths | 配置与缓存路径
+
+- AI 配置文件默认保存在用户配置目录：
+  - Windows: `%APPDATA%/ai-rom-batch-renamer/config.json`
+  - Linux/macOS: `$XDG_CONFIG_HOME/ai-rom-batch-renamer/config.json`（未设置时回退到 `~/.config/...`）
+- 兼容旧版：若工作目录存在 `config.json`，会自动迁移到新目录。
+- 缓存目录使用系统临时目录：`<temp>/ai-rom-batch-renamer`
+  - `renamerRomInfoCache.cache`：AI 元数据缓存
+  - `renamerHistory.cache`：重命名历史（revert 依赖）
 
 ## 🛠️ Build from Source | 从源码构建
 
@@ -273,7 +332,8 @@ poetry run build --verbose
 # Options:
 #   --outdir ./dist         指定输出目录
 #   --name my-binary        自定义输出文件名
-#   --icon ./icon.png       指定图标 (Windows/MacOS)
+#   --icon ./assets/icos/icon.ico    Windows 图标
+#   --icon ./assets/icos/icon.icns   MacOS 图标
 #   --extra ...             追加原生 Nuitka 参数
 #   --dry-run               仅打印命令，不实际构建
 ```
@@ -283,7 +343,7 @@ poetry run build --verbose
 ## 🔁 Versioning & Releases | 版本与发布
 
 - CI 使用 Release Drafter 计算版本标签（例如 `v2.1.0`）。
-- 构建任务下载标签并设置 `APP_VERSION`，然后执行 `poetry version "$APP_VERSION"` 以同步元数据。
+- 构建任务下载标签并设置 `APP_VERSION`，然后执行 `APP_VERSION="$APP_VERSION" poetry run bump` 以同步版本文件。
 - 构建调用 `poetry run build --verbose`，自动按平台生成 Nuitka 参数。
 - 产物以版本号命名并上传至同一个草稿发布。
 
@@ -328,8 +388,8 @@ APP_VERSION="$APP_VERSION" poetry run bump
   **第三方OpenAI API集成** - 扩展API兼容性
 - [x] 🔄 **Local cache** - Improve performance and reduce API calls
   **本地缓存** - 提高性能并减少API调用
-- [ ] 🔄 **GUI Support** - Add GUI support for easier use.
-  **图形界面支持** - 增加图形界面。
+- [x] ✅ **GUI Support** - GUI is now available and integrated with CLI behavior.
+  **图形界面支持** - 已上线并与 CLI 行为保持一致。
 
 ## 📝 License | 许可证
 

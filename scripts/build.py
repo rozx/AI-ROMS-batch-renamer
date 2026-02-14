@@ -65,6 +65,17 @@ def default_temp_dir_spec() -> str:
     return r"{TEMP}/ai-rom-batch-renamer"
 
 
+def default_icon_path(project_root: Path) -> str:
+    plat = detect_platform()
+    icon_dir = project_root / "assets" / "icos"
+
+    if plat == "Windows":
+        return str(icon_dir / "icon.ico")
+    if plat == "MacOS":
+        return str(icon_dir / "icon.icns")
+    return str(icon_dir / "icon.png")
+
+
 def build(args: argparse.Namespace) -> int:
     project_root = Path(__file__).resolve().parent.parent
     pyproject = project_root / "pyproject.toml"
@@ -142,7 +153,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--outdir", default=None, help="Output directory (default: ./dist)")
     parser.add_argument("--name", default=None, help="Output filename (auto-computed per OS if omitted)")
     parser.add_argument("--tempdir", default=None, help="Onefile temp dir spec (default per OS)")
-    parser.add_argument("--icon", default=str(Path("icon.png")), help="Icon path for Windows/Mac")
+    parser.add_argument(
+        "--icon",
+        default=None,
+        help="Icon path for Windows(.ico) / MacOS(.icns)",
+    )
     parser.add_argument("--version", default=None, help="Override app version")
     parser.add_argument("--include-package-data", nargs="*", default=None, help="Packages to include data for")
     parser.add_argument("--onefile", action="store_true", default=True, help="Build as onefile (default)")
@@ -157,6 +172,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> None:
     args = parse_args(sys.argv[1:] if argv is None else argv)
+    if args.icon is None:
+        project_root = Path(__file__).resolve().parent.parent
+        args.icon = default_icon_path(project_root)
     code = build(args)
     sys.exit(code)
 
