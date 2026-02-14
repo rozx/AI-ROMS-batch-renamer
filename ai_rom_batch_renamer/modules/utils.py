@@ -111,16 +111,16 @@ def getRegionFromRegionDictList(regionList: list[dict], region: str):
     return region
 
 
-def traversalDirectory(dir: str) -> list[str]:
+def traversalDirectory(directory: str) -> list[str]:
 
     fileList: list[str] = []
 
-    if not os.path.isdir(dir):
+    if not os.path.isdir(directory):
         return fileList
 
-    for file in os.listdir(dir):
+    for file in os.listdir(directory):
 
-        filePath = os.path.join(dir, file)
+        filePath = os.path.join(directory, file)
 
         if os.path.isdir(filePath):
             fileList.extend(traversalDirectory(filePath))

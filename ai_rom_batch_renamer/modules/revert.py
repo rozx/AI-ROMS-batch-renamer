@@ -8,7 +8,7 @@ from rich import print as rprint, console
 from rich.progress import track
 
 
-def revert(dir: str, files: str, recursive: bool, dry: bool):
+def revert(directory: str, files: str, recursive: bool, dry: bool) -> int:
     """
     还原重命名后的文件 (Revert changed file names)
     """
@@ -21,9 +21,9 @@ def revert(dir: str, files: str, recursive: bool, dry: bool):
         fileList.append(files)
 
     # then check if the directory is provided, if it is, add all files in the directory to the list
-    if dir:
-        for file in os.listdir(dir):
-            fileList.append(os.path.join(os.path.abspath(dir), file))
+    if directory:
+        for file in os.listdir(directory):
+            fileList.append(os.path.join(os.path.abspath(directory), file))
 
         # traverse the sub-directories
         for file in fileList.copy():
@@ -55,7 +55,7 @@ def revert(dir: str, files: str, recursive: bool, dry: bool):
         rprint(
             f"[red bold]要还原的文件列表为空 (No files found in the directory or the file does not exist.)[/red bold]"
         )
-        return
+        return 2
 
     for value in track(range(len(fileList)), description="Reverting files..."):
 
@@ -95,4 +95,4 @@ def revert(dir: str, files: str, recursive: bool, dry: bool):
         # delete rename history
         cacheModule.renameHistoryCache.delete(file)
 
-    pass
+    return 0

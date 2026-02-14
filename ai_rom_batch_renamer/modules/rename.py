@@ -18,7 +18,7 @@ from ai_rom_batch_renamer.classes.AIConfig import AIConfig as AIConfig
 # Rename files
 
 
-def rename(options: dict):
+def rename(options: dict) -> int:
 
     # get options
 
@@ -105,7 +105,7 @@ def rename(options: dict):
         rprint(
             f"[red bold]重命名的文件为空 (No files found in the directory or the file does not exist.)[/red bold]"
         )
-        return
+        return 2
 
     # load AI config
 
@@ -139,7 +139,7 @@ def rename(options: dict):
             rprint(
                 "[red bold]无法使用AI功能。APIKey为空。 AI API key is not set. Please set the AI API key in the config file. [/red bold]"
             )
-            return
+            return 2
 
     # Prepare RomFile objects first (needed for batching)
     romFiles: list[RomFile] = [RomFile(path) for path in fileList]
@@ -247,7 +247,7 @@ def rename(options: dict):
 
         pass
 
-    pass
+    return 0
 
 
 def trimFileName(romFile: RomFile):

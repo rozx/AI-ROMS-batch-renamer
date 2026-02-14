@@ -8,6 +8,8 @@ from typing_extensions import Annotated
 from ai_rom_batch_renamer.modules import rename as renameModule
 from ai_rom_batch_renamer.modules import const as constModule
 from ai_rom_batch_renamer.modules import revert as revertModule
+from ai_rom_batch_renamer.modules import cache as cacheModule
+from ai_rom_batch_renamer.modules.ai import AIQueryError
 
 
 app = typer.Typer(
@@ -17,9 +19,13 @@ app = typer.Typer(
 )
 
 
-@app.command("rename", no_args_is_help=True)
+def _raise_exit(code: int) -> None:
+    raise typer.Exit(code=code)
+
+
+@app.command("rename", no_args_is_help=False)
 def rename(
-    dir: Annotated[
+    directory: Annotated[
         str,
         typer.Option(
             "--directory",
@@ -190,16 +196,16 @@ def rename(
     批量重命名Roms文件 (Batch rename files by providing a directory or files)
     """
 
-    # check if both dir and files are provided, if not, prompt the user to provide them
-    if not dir and not files:
+    # check if both directory and files are provided, if not, prompt the user to provide them
+    if not directory and not files:
         rprint(
             "[red bold]请提供要重命名的文件夹路径或文件 (Please provide the directory path or files to rename)[/red bold]"
         )
-        return
+        _raise_exit(2)
 
     # Saving options in a dictionary
     options = {
-        "dir": dir,
+        "dir": directory,
         "files": files,
         "trim": trim,
         "dry": dry,
@@ -220,14 +226,28 @@ def rename(
         "force": force,
     }
 
-    renameModule.rename(options)
+    try:
+        code = renameModule.rename(options)
+    except AIQueryError as e:
+        rprint(f"[red bold]AI请求失败 (AI API error): {e}[/red bold]")
+        _raise_exit(3)
+    except PermissionError as e:
+        rprint(f"[red bold]文件权限错误 (Permission denied): {e}[/red bold]")
+        _raise_exit(1)
+    except OSError as e:
+        rprint(f"[red bold]文件系统错误 (File system error): {e}[/red bold]")
+        _raise_exit(1)
+    except Exception as e:
+        rprint(f"[red bold]未知错误 (Unexpected error): {e}[/red bold]")
+        _raise_exit(1)
 
-    pass
+    if code != 0:
+        _raise_exit(code)
 
 
-@app.command("revert", no_args_is_help=True)
+@app.command("revert", no_args_is_help=False)
 def revert(
-    dir: Annotated[
+    directory: Annotated[
         str,
         typer.Option(
             "--directory",
@@ -272,8 +292,26 @@ def revert(
     还原重命名后的文件 (Revert changed file names)
     """
 
-    revertModule.revert(dir, files, recursive, dryrun)
-    pass
+    if not directory and not files:
+        rprint(
+            "[red bold]请提供要还原的文件夹路径或文件 (Please provide the directory path or files to revert)[/red bold]"
+        )
+        _raise_exit(2)
+
+    try:
+        code = revertModule.revert(directory, files, recursive, dryrun)
+    except PermissionError as e:
+        rprint(f"[red bold]文件权限错误 (Permission denied): {e}[/red bold]")
+        _raise_exit(1)
+    except OSError as e:
+        rprint(f"[red bold]文件系统错误 (File system error): {e}[/red bold]")
+        _raise_exit(1)
+    except Exception as e:
+        rprint(f"[red bold]未知错误 (Unexpected error): {e}[/red bold]")
+        _raise_exit(1)
+
+    if code != 0:
+        _raise_exit(code)
 
 
 @app.command("about", no_args_is_help=False)
@@ -286,6 +324,85 @@ def about():
         f"AI-rom-batch-renamer [bold]v{constModule.VERSION}[/bold] by [bold blue]@rozx[/bold blue]"
     )
     pass
+
+
+@app.command("clear-cache", no_args_is_help=True)
+def clear_cache(
+    delete_files: Annotated[
+        bool,
+        typer.Option(
+            "--delete-files",
+            "-d",
+            help="Delete cache directory and files completely (删除缓存目录和文件)",
+            is_flag=True,
+        ),
+    ] = False,
+    yes: Annotated[
+        bool,
+        typer.Option(
+            "--yes",
+            "-y",
+            help="Skip confirmation prompt (跳过确认提示)",
+            is_flag=True,
+        ),
+    ] = False,
+):
+    """
+    清除所有缓存数据 (Clear all cache data)
+    """
+    if delete_files:
+        # Delete the entire cache directory - require confirmation
+        if not yes:
+            result = prompt(
+                [
+                    {
+                        "type": "confirm",
+                        "message": f"Delete cache directory and all files?\n  Path: {cacheModule.CACHE_DIR}",
+                        "default": False,
+                    }
+                ]
+            )
+            if not result:
+                rprint("[yellow]Operation cancelled.[/yellow]")
+                return
+
+        if cacheModule.delete_cache_files():
+            rprint(f"[green]✓[/green] Cache directory deleted: [dim]{cacheModule.CACHE_DIR}[/dim]")
+        else:
+            rprint(f"[yellow]Cache directory does not exist: [dim]{cacheModule.CACHE_DIR}[/dim]")
+    else:
+        # Clear cache data only - show info and ask for confirmation
+        rom_info_count = len(cacheModule.romInfoCache.get_all_keys())
+        rename_history_count = len(cacheModule.renameHistoryCache.get_all_keys())
+
+        if rom_info_count == 0 and rename_history_count == 0:
+            rprint("[yellow]Cache is already empty.[/yellow]")
+            return
+
+        rprint(
+            f"Cache contents:\n"
+            f"  - ROM info cache: [bold]{rom_info_count}[/bold] items\n"
+            f"  - Rename history cache: [bold]{rename_history_count}[/bold] items\n"
+            f"  - Cache directory: [dim]{cacheModule.CACHE_DIR}[/dim]"
+        )
+
+        if not yes:
+            result = prompt(
+                [
+                    {
+                        "type": "confirm",
+                        "message": "Clear all cache data?",
+                        "default": False,
+                    }
+                ]
+            )
+            if not result:
+                rprint("[yellow]Operation cancelled.[/yellow]")
+                return
+
+        # Clear cache data
+        cacheModule.clear_all_cache()
+        rprint("[green]✓[/green] Cache cleared successfully.")
 
 
 if __name__ == "__main__":

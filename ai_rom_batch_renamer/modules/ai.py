@@ -7,6 +7,10 @@ from ai_rom_batch_renamer.classes.RomFile import RomFile
 from rich import print as rprint, console
 
 
+class AIQueryError(Exception):
+    pass
+
+
 def _cache_key(romFile: RomFile, platform: str) -> str:
     # Use filename + platform for caching AI metadata; avoids heavy file hashing
     return f"{platform.lower()}::{romFile.originalFilename}"
@@ -151,6 +155,32 @@ def _parse_batch_content(content: str) -> list[dict]:
     return out
 
 
+def _parse_single_pipe_content(content: str) -> dict | None:
+    if not content:
+        return None
+
+    line = content.strip()
+    if "\n" in line:
+        line = line.splitlines()[0].strip()
+
+    parts = [p.strip() for p in line.split("|")]
+    if len(parts) < 2:
+        return None
+
+    while len(parts) < 7:
+        parts.append("")
+
+    return {
+        "englishTitle": parts[0],
+        "chineseTitle": parts[1],
+        "region": parts[2],
+        "platform": parts[3],
+        "releaseYear": parts[4],
+        "publisher": parts[5],
+        "developer": parts[6],
+    }
+
+
 def aiScraper(config: AIConfig, romFile: RomFile, platform: str = "unknown", useCache: bool = True):
 
     # rprint(
@@ -182,51 +212,46 @@ def aiScraper(config: AIConfig, romFile: RomFile, platform: str = "unknown", use
 
     # Implement the AI renaming logic here
 
-    content = _chat_completion_content(
-        client,
-        model=config.model,
-        messages=[
-            {
-                "role": "system",
-                "content": "You will help to scrape emulator ROM file information from internet sources. Return the result in the format of [English title]|[Chinese title]|[region]|[platform]|[release year]|[publisher]|[developer]. Do not return any other information.",
-            },
-            {
-                "role": "user",
-                "content": f"Here is a ROM file name: {romFile.originalFilename}. The game platform might be on: {platform} platform.",
-            },
-        ],
-        stream=True,
-        progress_prefix=f"AI 正在流式返回 (Streaming) {romFile.originalFilename}",
-    )
+    try:
+        content = _chat_completion_content(
+            client,
+            model=config.model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You will help to scrape emulator ROM file information from internet sources. Return the result in the format of [English title]|[Chinese title]|[region]|[platform]|[release year]|[publisher]|[developer]. Do not return any other information.",
+                },
+                {
+                    "role": "user",
+                    "content": f"Here is a ROM file name: {romFile.originalFilename}. The game platform might be on: {platform} platform.",
+                },
+            ],
+            stream=True,
+            progress_prefix=f"AI 正在流式返回 (Streaming) {romFile.originalFilename}",
+        )
+    except Exception as e:
+        raise AIQueryError(str(e)) from e
 
     if content is not None:
-        # Process the AI response here
-        if content is not None:
-            split_content = content.split("|")
-            
-            ai_result = {
-                "englishTitle": split_content[0].strip(),
-                "chineseTitle": split_content[1].strip(),
-                "region": split_content[2].strip(),
-                "platform": split_content[3].strip(),
-                "releaseYear": split_content[4].strip(),
-                "publisher": split_content[5].strip(),
-                "developer": split_content[6].strip(),
-            }
-
-            if useCache and ai_result["chineseTitle"] and ai_result["englishTitle"]:
-                cache.add(key, ai_result, timeout=-1)
-            rprint(f"[green]AI 返回结果 (Received):[/green] {romFile.originalFilename}")
+        ai_result = _parse_single_pipe_content(content)
+        if ai_result is None:
             rprint(
-                "  标题 (CN/EN): "
-                f"{ai_result['chineseTitle']} / {ai_result['englishTitle']}\n"
-                f"  平台/Platform: {ai_result['platform']}  地区/Region: {ai_result['region']}  年份/Year: {ai_result['releaseYear']}\n"
-                f"  发行/Publisher: {ai_result['publisher']}  开发/Developer: {ai_result['developer']}"
+                f"[yellow]AI 返回格式无法解析 (Unparseable response), filename: {romFile.originalFilename}[/yellow]"
             )
-            return ai_result
+            return None
 
-        else:
-            rprint("[red]No content returned from AI response.[/red]")
+        if useCache and ai_result["chineseTitle"] and ai_result["englishTitle"]:
+            cache.add(key, ai_result, timeout=-1)
+        rprint(f"[green]AI 返回结果 (Received):[/green] {romFile.originalFilename}")
+        rprint(
+            "  标题 (CN/EN): "
+            f"{ai_result['chineseTitle']} / {ai_result['englishTitle']}\n"
+            f"  平台/Platform: {ai_result['platform']}  地区/Region: {ai_result['region']}  年份/Year: {ai_result['releaseYear']}\n"
+            f"  发行/Publisher: {ai_result['publisher']}  开发/Developer: {ai_result['developer']}"
+        )
+        return ai_result
+
+    rprint("[red]No content returned from AI response.[/red]")
     pass
 
 
@@ -298,19 +323,22 @@ def aiScraperBatch(
             "platformHint": platform,
             "items": listing,
         }
-        content = _chat_completion_content(
-            client,
-            model=config.model,
-            messages=[
-                {"role": "system", "content": system},
-                {
-                    "role": "user",
-                    "content": json.dumps(user, ensure_ascii=False),
-                },
-            ],
-            stream=True,
-            progress_prefix=f"AI 批次流式返回 (Batch streaming) {batch_idx + 1}/{total_batches}",
-        )
+        try:
+            content = _chat_completion_content(
+                client,
+                model=config.model,
+                messages=[
+                    {"role": "system", "content": system},
+                    {
+                        "role": "user",
+                        "content": json.dumps(user, ensure_ascii=False),
+                    },
+                ],
+                stream=True,
+                progress_prefix=f"AI 批次流式返回 (Batch streaming) {batch_idx + 1}/{total_batches}",
+            )
+        except Exception as e:
+            raise AIQueryError(str(e)) from e
         if content is None:
             rprint("[red]AI 错误 (Error): 批次返回为空 (None). 将跳过该批次。[/red]")
             continue
@@ -370,16 +398,19 @@ def aiScraperBatch(
                 "items": listing,
                 "platformHint": platform,
             }
-            content_retry = _chat_completion_content(
-                client,
-                model=config.model,
-                messages=[
-                    {"role": "system", "content": simple_system},
-                    {"role": "user", "content": json.dumps(simple_user, ensure_ascii=False)},
-                ],
-                stream=True,
-                progress_prefix=f"AI 批次重试流式返回 (Batch retry streaming) {batch_idx + 1}/{total_batches}",
-            )
+            try:
+                content_retry = _chat_completion_content(
+                    client,
+                    model=config.model,
+                    messages=[
+                        {"role": "system", "content": simple_system},
+                        {"role": "user", "content": json.dumps(simple_user, ensure_ascii=False)},
+                    ],
+                    stream=True,
+                    progress_prefix=f"AI 批次重试流式返回 (Batch retry streaming) {batch_idx + 1}/{total_batches}",
+                )
+            except Exception as e:
+                raise AIQueryError(str(e)) from e
             if content_retry:
                 try:
                     parsed_retry = json.loads(content_retry)
@@ -474,16 +505,19 @@ def aiScraperBatch(
                     " Return full pipe-delimited row: English Title|Chinese Title|region|platform|release year|publisher|developer."
                     " Missing fields: " + ",".join(missing_list) + ". Present fields (keep identical): " + json.dumps(present_summary, ensure_ascii=False)
                 )
-                single = _chat_completion_content(
-                    client,
-                    model=config.model,
-                    messages=[
-                        {"role": "system", "content": "Return pipe-delimited: English Title|Chinese Title|region|platform|release year|publisher|developer. Use empty string if unknown. Do NOT alter existing non-empty values."},
-                        {"role": "user", "content": user_msg},
-                    ],
-                    stream=True,
-                    progress_prefix=f"AI 字段补全重试 (Field fill retry) {rf.originalFilename}",
-                )
+                try:
+                    single = _chat_completion_content(
+                        client,
+                        model=config.model,
+                        messages=[
+                            {"role": "system", "content": "Return pipe-delimited: English Title|Chinese Title|region|platform|release year|publisher|developer. Use empty string if unknown. Do NOT alter existing non-empty values."},
+                            {"role": "user", "content": user_msg},
+                        ],
+                        stream=True,
+                        progress_prefix=f"AI 字段补全重试 (Field fill retry) {rf.originalFilename}",
+                    )
+                except Exception as e:
+                    raise AIQueryError(str(e)) from e
                 if single:
                     parts = [p.strip() for p in single.split("|")]
                     if len(parts) >= 7:
