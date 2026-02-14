@@ -329,11 +329,19 @@ poetry install
 # 2) Build cross-platform onefile binary (dynamic spec)
 poetry run build --verbose
 
+# 3) Build GUI only
+poetry run build --target gui --verbose
+
+# 4) Build both terminal + GUI in one command
+poetry run build --target both --verbose
+
 # Options:
+#   --target cli|gui|both   构建终端版 / GUI版 / 同时构建（默认 cli）
 #   --outdir ./dist         指定输出目录
 #   --name my-binary        自定义输出文件名
 #   --icon ./assets/icos/icon.ico    Windows 图标
 #   --icon ./assets/icos/icon.icns   MacOS 图标
+#   --no-windows-disable-console      GUI 版在 Windows 保留控制台窗口
 #   --extra ...             追加原生 Nuitka 参数
 #   --dry-run               仅打印命令，不实际构建
 ```
@@ -344,8 +352,8 @@ poetry run build --verbose
 
 - CI 使用 Release Drafter 计算版本标签（例如 `v2.1.0`）。
 - 构建任务下载标签并设置 `APP_VERSION`，然后执行 `APP_VERSION="$APP_VERSION" poetry run bump` 以同步版本文件。
-- 构建调用 `poetry run build --verbose`，自动按平台生成 Nuitka 参数。
-- 产物以版本号命名并上传至同一个草稿发布。
+- 构建调用 `poetry run build --verbose`，并在每个平台生成两类产物：Terminal（`main.py`）与 GUI（`gui.py`）。
+- 产物以版本号命名并上传至同一个草稿发布（每个平台各 2 份压缩包）。
 
 如果你更偏向以本地 `pyproject.toml` 为真源（Option A），也可以直接基于其版本创建发布并跳过标签到版本的转换。
 
