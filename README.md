@@ -228,6 +228,8 @@ poetry run build --verbose
   **使用 `--output` 便于脚本管道处理（例如传递结果给其他工具）。**
 - Avoid `--ai-no-cache` for large runs unless debugging freshness.
   **大量处理时避免使用 `--ai-no-cache`，除非需要调试最新结果。**
+- Refinement retry is triggered only when `englishTitle` is missing; other missing fields are not retried automatically.
+  **细化重试仅在 `englishTitle` 缺失时触发；其他字段缺失不会自动重试。**
 - Revert stores original path keyed by new filename; keep `renamerHistory.cache` safe.
   **还原功能依赖 `renamerHistory.cache`，请妥善保存避免误删。**
 

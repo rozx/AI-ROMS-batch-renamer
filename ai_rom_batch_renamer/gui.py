@@ -58,6 +58,7 @@ _ACCENT_DK = "#1D4ED8"
 _ANSI_RE = re.compile(r"\x1b\[([0-9;]*)m")
 _CONTROL_CHARS_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 _LINE_INDICATOR = "▶ "
+_FILE_LIST_SEPARATOR = ";"
 
 
 def _resolve_icon_path() -> str | None:
@@ -362,9 +363,9 @@ class _DropLineEdit(QLineEdit):
     def dropEvent(self, event: QDropEvent) -> None:  # noqa: N802
         urls = event.mimeData().urls()
         if urls:
-            path = urls[0].toLocalFile()
-            if path:
-                self.setText(path)
+            paths = [url.toLocalFile() for url in urls if url.toLocalFile()]
+            if paths:
+                self.setText(_FILE_LIST_SEPARATOR.join(paths))
 
 
 class MainWindow(QMainWindow):
@@ -437,7 +438,6 @@ class MainWindow(QMainWindow):
         self.pinyin_check.setChecked(self._setting_bool("gui/pinyin"))
         self.recursive_check.setChecked(self._setting_bool("gui/recursive"))
         self.unzip_check.setChecked(self._setting_bool("gui/unzip"))
-        self.output_check.setChecked(self._setting_bool("gui/output"))
         self.force_check.setChecked(self._setting_bool("gui/force"))
         self.ai_check.setChecked(self._setting_bool("gui/ai"))
         self.ai_no_cache_check.setChecked(self._setting_bool("gui/ai_no_cache"))
@@ -464,7 +464,6 @@ class MainWindow(QMainWindow):
         self._settings.setValue("gui/pinyin", self.pinyin_check.isChecked())
         self._settings.setValue("gui/recursive", self.recursive_check.isChecked())
         self._settings.setValue("gui/unzip", self.unzip_check.isChecked())
-        self._settings.setValue("gui/output", self.output_check.isChecked())
         self._settings.setValue("gui/force", self.force_check.isChecked())
         self._settings.setValue("gui/ai", self.ai_check.isChecked())
         self._settings.setValue("gui/ai_no_cache", self.ai_no_cache_check.isChecked())
@@ -499,7 +498,6 @@ class MainWindow(QMainWindow):
         self.pinyin_check = QCheckBox("拼音转换")
         self.recursive_check = QCheckBox("递归子目录")
         self.unzip_check = QCheckBox("自动解压")
-        self.output_check = QCheckBox("仅输出")
         self.force_check = QCheckBox("强制重命名")
 
         self.ai_check = QCheckBox("启用 AI 重命名")
@@ -512,7 +510,6 @@ class MainWindow(QMainWindow):
         self.pinyin_check.setToolTip("将中文文件名转为拼音")
         self.recursive_check.setToolTip("递归处理子目录中的所有文件")
         self.unzip_check.setToolTip("自动解压 ZIP/7z/RAR 压缩包后再重命名")
-        self.output_check.setToolTip("仅输出重命名映射，不执行任何操作")
         self.force_check.setToolTip("强制重命名已处理过的文件（跳过检测）")
         self.ai_check.setToolTip("使用 AI 模型智能识别 ROM 名称")
         self.ai_no_cache_check.setToolTip("跳过 AI 结果缓存，每次重新请求")
@@ -579,7 +576,7 @@ class MainWindow(QMainWindow):
             "拖拽目录到此处，或点击 [浏览] 选择"
         )
         self.file_input.setPlaceholderText(
-            "拖拽文件到此处，或点击 [浏览] 选择"
+            "拖拽多个文件到此处，或点击 [浏览] 多选"
         )
         self.password_input.setPlaceholderText("可选：解压密码")
         self.includes_input.setPlaceholderText("例如：zip,7z,rar（逗号分隔）")
@@ -650,7 +647,6 @@ class MainWindow(QMainWindow):
             self.pinyin_check,
             self.recursive_check,
             self.unzip_check,
-            self.output_check,
             self.force_check,
         ]
         for index, checkbox in enumerate(checks):
@@ -770,16 +766,16 @@ class MainWindow(QMainWindow):
         if not urls:
             return
 
-        path = urls[0].toLocalFile()
-        if not path:
+        paths = [url.toLocalFile() for url in urls if url.toLocalFile()]
+        if not paths:
             return
 
-        if os.path.isdir(path):
+        if len(paths) == 1 and os.path.isdir(paths[0]):
             self.directory_mode_radio.setChecked(True)
-            self.directory_input.setText(path)
+            self.directory_input.setText(paths[0])
         else:
             self.file_mode_radio.setChecked(True)
-            self.file_input.setText(path)
+            self.file_input.setText(_FILE_LIST_SEPARATOR.join(paths))
 
     def choose_directory(self) -> None:
         selected = QFileDialog.getExistingDirectory(self, "选择目录")
@@ -788,10 +784,10 @@ class MainWindow(QMainWindow):
             self.directory_input.setText(selected)
 
     def choose_file(self) -> None:
-        selected, _ = QFileDialog.getOpenFileName(self, "选择文件")
-        if selected:
+        selected_files, _ = QFileDialog.getOpenFileNames(self, "选择文件")
+        if selected_files:
             self.file_mode_radio.setChecked(True)
-            self.file_input.setText(selected)
+            self.file_input.setText(_FILE_LIST_SEPARATOR.join(selected_files))
 
     def _copy_log(self) -> None:
         text = self.log_output.toPlainText()
@@ -866,8 +862,6 @@ class MainWindow(QMainWindow):
             args.append("--recursive")
         if self.unzip_check.isChecked():
             args.append("--unzip")
-        if self.output_check.isChecked():
-            args.append("--output")
         if self.force_check.isChecked():
             args.append("--force")
         if self.ai_check.isChecked():

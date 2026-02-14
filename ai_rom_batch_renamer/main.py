@@ -41,7 +41,7 @@ def rename(
         typer.Option(
             "--files",
             "-files",
-            help="要重命名的文件 (The files to rename)",
+            help="要重命名的文件（支持分号/换行分隔多个文件） (The files to rename; supports multiple files separated by semicolon or newline)",
             resolve_path=True,
             dir_okay=False,
             file_okay=True,
@@ -263,7 +263,7 @@ def revert(
         typer.Option(
             "--files",
             "-files",
-            help="要还原文件名的文件 (The files to rename)",
+            help="要还原文件名的文件（支持分号/换行分隔多个文件） (The files to revert; supports multiple files separated by semicolon or newline)",
             resolve_path=True,
             dir_okay=False,
             file_okay=True,

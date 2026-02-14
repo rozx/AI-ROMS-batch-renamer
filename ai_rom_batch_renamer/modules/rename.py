@@ -49,7 +49,7 @@ def rename(options: dict) -> int:
     # first adds all files into the list
 
     if files:
-        fileList.append(files)
+        fileList.extend(utilsModule.parseFilesInput(files))
 
     # then check if the directory is provided, if it is, add all files in the directory to the list
     if dir:

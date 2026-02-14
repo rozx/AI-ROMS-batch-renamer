@@ -139,6 +139,34 @@ def getBasenameAndExtensions(path: str) -> tuple[str, str]:
     return (baseName, extension)
 
 
+def parseFilesInput(files: str) -> list[str]:
+    """Parse GUI/CLI file input string into file paths.
+
+    Supports semicolon and newline separated values.
+    """
+    if not files:
+        return []
+
+    normalized = files.replace("\r\n", "\n").replace("\r", "\n")
+    values: list[str] = []
+
+    for line in normalized.split("\n"):
+        for part in line.split(";"):
+            item = part.strip().strip('"').strip("'")
+            if item:
+                values.append(item)
+
+    unique_values: list[str] = []
+    seen: set[str] = set()
+    for item in values:
+        if item in seen:
+            continue
+        seen.add(item)
+        unique_values.append(item)
+
+    return unique_values
+
+
 def getMD5HashFromFile(file: str, chunk_size: int = 1024 * 1024) -> str:
     """Compute an MD5 hash for a file using streaming reads.
 

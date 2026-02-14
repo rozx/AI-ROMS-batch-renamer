@@ -583,20 +583,20 @@ def aiScraperBatch(
                     f"    缺失类型 (Missing type): {kind} 标题 (CN/EN): {item.get('chineseTitle','')} / {item.get('englishTitle','')} 平台/Platform: {item.get('platform','')} 地区/Region: {item.get('region','')} 年份/Year: {item.get('releaseYear','')}"
                 )
 
-        # Post-batch targeted retries for items with ANY missing field (region optional)
+        # Post-batch targeted retries only when englishTitle is missing
         refinement_targets: list[RomFile] = []
         required_fields = ["englishTitle", "chineseTitle", "platform", "releaseYear", "publisher", "developer"]
         for rf in chunk:
             data = results.get(rf.originalFilename)
             if not data:
                 continue
-            if any((not str(data.get(f, '')).strip()) for f in required_fields):
+            if not str(data.get("englishTitle", "")).strip():
                 refinement_targets.append(rf)
         if refinement_targets:
-            rprint(f"[cyan]AI 细化重试 (Refinement retry): 针对缺失字段的文件 {len(refinement_targets)}[/cyan]")
+            rprint(f"[cyan]AI 细化重试 (Refinement retry): 仅针对英文标题缺失的文件 {len(refinement_targets)}[/cyan]")
             for rf in refinement_targets:
                 existing = results[rf.originalFilename]
-                missing_list = [f for f in required_fields if not str(existing.get(f, '')).strip()]
+                missing_list = ["englishTitle"]
                 present_summary = {f: existing.get(f, '') for f in required_fields if f not in missing_list and existing.get(f)}
                 user_msg = (
                     "Filename: " + rf.originalFilename + "; Platform hint: " + platform +

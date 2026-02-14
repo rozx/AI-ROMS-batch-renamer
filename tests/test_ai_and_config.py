@@ -3,6 +3,7 @@ from pathlib import Path
 
 from ai_rom_batch_renamer.modules import ai as aiModule
 from ai_rom_batch_renamer.classes.AIConfig import AIConfig
+from ai_rom_batch_renamer.classes.RomFile import RomFile
 
 
 def test_parse_single_pipe_content_with_missing_fields():
@@ -81,3 +82,52 @@ def test_ai_config_migrate_legacy_config_json(tmp_path, monkeypatch):
     assert cfg.model == "m"
     assert cfg.endpoint == "e"
     assert cfg.configPath.exists()
+
+
+def test_ai_scraper_batch_no_refinement_retry_when_english_exists(monkeypatch):
+    cfg = AIConfig()
+    rf = RomFile("sample-a.nes")
+
+    class DummyOpenAI:
+        def __init__(self, *args, **kwargs):
+            pass
+
+    calls = {"count": 0}
+
+    def fake_chat_completion_content(*args, **kwargs):
+        calls["count"] += 1
+        return '[{"index":0,"filename":"sample-a.nes","englishTitle":"Contra","chineseTitle":"魂斗罗","region":"US","platform":"NES","releaseYear":"1988","publisher":"","developer":"Konami"}]'
+
+    monkeypatch.setattr(aiModule, "OpenAI", DummyOpenAI)
+    monkeypatch.setattr(aiModule, "_chat_completion_content", fake_chat_completion_content)
+
+    results = aiModule.aiScraperBatch(cfg, [rf], platform="NES", useCache=False)
+
+    assert calls["count"] == 1
+    assert results[rf.originalFilename]["englishTitle"] == "Contra"
+    assert results[rf.originalFilename]["publisher"] == ""
+
+
+def test_ai_scraper_batch_refinement_retry_when_english_missing(monkeypatch):
+    cfg = AIConfig()
+    rf = RomFile("sample-b.nes")
+
+    class DummyOpenAI:
+        def __init__(self, *args, **kwargs):
+            pass
+
+    calls = {"count": 0}
+
+    def fake_chat_completion_content(*args, **kwargs):
+        calls["count"] += 1
+        if calls["count"] == 1:
+            return '[{"index":0,"filename":"sample-b.nes","englishTitle":"","chineseTitle":"超级马力欧","region":"JP","platform":"NES","releaseYear":"1985","publisher":"Nintendo","developer":"Nintendo"}]'
+        return '{"englishTitle":"Super Mario Bros.","chineseTitle":"","region":"","platform":"","releaseYear":"","publisher":"","developer":""}'
+
+    monkeypatch.setattr(aiModule, "OpenAI", DummyOpenAI)
+    monkeypatch.setattr(aiModule, "_chat_completion_content", fake_chat_completion_content)
+
+    results = aiModule.aiScraperBatch(cfg, [rf], platform="NES", useCache=False)
+
+    assert calls["count"] == 2
+    assert results[rf.originalFilename]["englishTitle"] == "Super Mario Bros."
