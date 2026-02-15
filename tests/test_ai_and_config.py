@@ -11,8 +11,8 @@ def test_parse_single_pipe_content_with_missing_fields():
     assert parsed is not None
     assert parsed["englishTitle"] == "Kirby"
     assert parsed["chineseTitle"] == "星之卡比"
-    assert parsed["region"] == "JP"
-    assert parsed["developer"] == ""
+    # Only englishTitle and chineseTitle are extracted now
+    assert "region" not in parsed
 
 
 def test_parse_single_pipe_content_invalid_text():
@@ -37,7 +37,8 @@ def test_parse_single_content_prefers_json_object():
     assert parsed is not None
     assert parsed["englishTitle"] == "Contra"
     assert parsed["chineseTitle"] == "魂斗罗"
-    assert parsed["releaseYear"] == "1988"
+    # Only englishTitle and chineseTitle are extracted now
+    assert "releaseYear" not in parsed
 
 
 def test_ai_config_save_load_in_user_config_dir(tmp_path, monkeypatch):
@@ -96,7 +97,7 @@ def test_ai_scraper_batch_no_refinement_retry_when_english_exists(monkeypatch):
 
     def fake_chat_completion_content(*args, **kwargs):
         calls["count"] += 1
-        return '[{"index":0,"filename":"sample-a.nes","englishTitle":"Contra","chineseTitle":"魂斗罗","region":"US","platform":"NES","releaseYear":"1988","publisher":"","developer":"Konami"}]'
+        return '[{"index":0,"filename":"sample-a.nes","englishTitle":"Contra","chineseTitle":"魂斗罗"}]'
 
     monkeypatch.setattr(aiModule, "OpenAI", DummyOpenAI)
     monkeypatch.setattr(aiModule, "_chat_completion_content", fake_chat_completion_content)
@@ -105,7 +106,7 @@ def test_ai_scraper_batch_no_refinement_retry_when_english_exists(monkeypatch):
 
     assert calls["count"] == 1
     assert results[rf.originalFilename]["englishTitle"] == "Contra"
-    assert results[rf.originalFilename]["publisher"] == ""
+    assert results[rf.originalFilename]["chineseTitle"] == "魂斗罗"
 
 
 def test_ai_scraper_batch_refinement_retry_when_english_missing(monkeypatch):
@@ -121,8 +122,8 @@ def test_ai_scraper_batch_refinement_retry_when_english_missing(monkeypatch):
     def fake_chat_completion_content(*args, **kwargs):
         calls["count"] += 1
         if calls["count"] == 1:
-            return '[{"index":0,"filename":"sample-b.nes","englishTitle":"","chineseTitle":"超级马力欧","region":"JP","platform":"NES","releaseYear":"1985","publisher":"Nintendo","developer":"Nintendo"}]'
-        return '{"englishTitle":"Super Mario Bros.","chineseTitle":"","region":"","platform":"","releaseYear":"","publisher":"","developer":""}'
+            return '[{"index":0,"filename":"sample-b.nes","englishTitle":"","chineseTitle":"超级马力欧"}]'
+        return '{"englishTitle":"Super Mario Bros.","chineseTitle":"超级马力欧"}'
 
     monkeypatch.setattr(aiModule, "OpenAI", DummyOpenAI)
     monkeypatch.setattr(aiModule, "_chat_completion_content", fake_chat_completion_content)

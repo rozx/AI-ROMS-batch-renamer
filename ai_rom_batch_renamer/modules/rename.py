@@ -192,9 +192,7 @@ def rename(options: dict) -> int:
             result = ai_results[romFile.originalFilename]
             cn = (result.get('chineseTitle') or '').strip()
             en = (result.get('englishTitle') or '').strip()
-            year = (result.get('releaseYear') or '').strip()
 
-            
             # Use original base name as source of truth
             new_base = None
             if cn and en:
@@ -208,8 +206,6 @@ def rename(options: dict) -> int:
                 new_base = en
 
             if new_base:
-                if year and year.isdigit() and len(year) == 4:
-                    new_base = f"{new_base}({year})"
                 romFile.updateFileName(f"{new_base}{romFile.extName}")
 
         # adds region to the filename

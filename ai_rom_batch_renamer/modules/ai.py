@@ -215,21 +215,16 @@ def _parse_batch_content(content: str) -> list[dict]:
                 return parsed
         except Exception:
             pass
-    # 4) Pipe-delimited fallback (line based)
+    # 4) Pipe-delimited fallback (line based) - only englishTitle|chineseTitle
     out: list[dict] = []
     for line in content.splitlines():
         parts = [p.strip() for p in line.split("|")]
-        if len(parts) >= 7:
+        if len(parts) >= 2:
             out.append(
                 {
                     "index": len(out),
                     "englishTitle": parts[0],
                     "chineseTitle": parts[1],
-                    "region": parts[2],
-                    "platform": parts[3],
-                    "releaseYear": parts[4],
-                    "publisher": parts[5],
-                    "developer": parts[6],
                 }
             )
     return out
@@ -247,17 +242,9 @@ def _parse_single_pipe_content(content: str) -> dict | None:
     if len(parts) < 2:
         return None
 
-    while len(parts) < 7:
-        parts.append("")
-
     return {
         "englishTitle": parts[0],
         "chineseTitle": parts[1],
-        "region": parts[2],
-        "platform": parts[3],
-        "releaseYear": parts[4],
-        "publisher": parts[5],
-        "developer": parts[6],
     }
 
 
@@ -268,11 +255,6 @@ def _parse_single_content(content: str) -> dict | None:
         return {
             "englishTitle": str(parsed.get("englishTitle", "")).strip(),
             "chineseTitle": str(parsed.get("chineseTitle", "")).strip(),
-            "region": str(parsed.get("region", "")).strip(),
-            "platform": str(parsed.get("platform", "")).strip(),
-            "releaseYear": str(parsed.get("releaseYear", "")).strip(),
-            "publisher": str(parsed.get("publisher", "")).strip(),
-            "developer": str(parsed.get("developer", "")).strip(),
         }
     return _parse_single_pipe_content(content)
 
@@ -315,11 +297,11 @@ def aiScraper(config: AIConfig, romFile: RomFile, platform: str = "unknown", use
             messages=[
                 {
                     "role": "system",
-                    "content": "You will help to scrape emulator ROM file information from internet sources. Return ONLY one JSON object with fields: englishTitle, chineseTitle, region, platform, releaseYear, publisher, developer. Use empty string when unknown. Do not return any other information.",
+                    "content": "You will help to identify emulator ROM file names. Return ONLY one JSON object with fields: englishTitle, chineseTitle. Use empty string when unknown. Do not return any other information.",
                 },
                 {
                     "role": "user",
-                    "content": f"Here is a ROM file name: {romFile.originalFilename}. The game platform might be on: {platform} platform.",
+                    "content": f"Here is a ROM file name: {romFile.originalFilename}. The game platform might be on: {platform} platform. Return the English title and Chinese title of this game.",
                 },
             ],
             temperature=0.1,
@@ -341,10 +323,7 @@ def aiScraper(config: AIConfig, romFile: RomFile, platform: str = "unknown", use
             cache.add(key, ai_result, timeout=-1)
         rprint(f"[green]AI 返回结果 (Received):[/green] {romFile.originalFilename}")
         rprint(
-            "  标题 (CN/EN): "
-            f"{ai_result['chineseTitle']} / {ai_result['englishTitle']}\n"
-            f"  平台/Platform: {ai_result['platform']}  地区/Region: {ai_result['region']}  年份/Year: {ai_result['releaseYear']}\n"
-            f"  发行/Publisher: {ai_result['publisher']}  开发/Developer: {ai_result['developer']}"
+            f"  标题 (CN/EN): {ai_result['chineseTitle']} / {ai_result['englishTitle']}"
         )
         return ai_result
 
@@ -407,9 +386,9 @@ def aiScraperBatch(
             for i, rf in enumerate(chunk)
         ]
         system = (
-            "You enrich emulator ROM file names. Return ONLY a JSON array."
+            "You identify emulator ROM file names. Return ONLY a JSON array."
             " Each array element MUST correspond to the input items IN THE SAME ORDER."
-            " For every input item include these fields exactly: index, filename, englishTitle, chineseTitle, region, platform, releaseYear, publisher, developer."
+            " For every input item include these fields exactly: index, filename, englishTitle, chineseTitle."
             " Rules: Do not skip items. Do not reorder. 'index' must match the provided index."
             " If chineseTitle clearly indicates a specific game, do NOT substitute a different game title."
             " Prefer leaving englishTitle empty over guessing if uncertain."
@@ -472,11 +451,6 @@ def aiScraperBatch(
             ai_result = {
                 "englishTitle": str(item.get("englishTitle", "")).strip(),
                 "chineseTitle": str(item.get("chineseTitle", "")).strip(),
-                "region": str(item.get("region", "")).strip(),
-                "platform": str(item.get("platform", platform)).strip(),
-                "releaseYear": str(item.get("releaseYear", "")).strip(),
-                "publisher": str(item.get("publisher", "")).strip(),
-                "developer": str(item.get("developer", "")).strip(),
             }
             results[rf.originalFilename] = ai_result
             if useCache and ai_result["chineseTitle"] and ai_result["englishTitle"]:
@@ -490,7 +464,7 @@ def aiScraperBatch(
             # We had syntactic items but none mapped (likely index mismatch). Retry once.
             rprint("[yellow]AI 重试 (Retry): 解析后无映射，使用简化提示重试该批次。[/yellow]")
             simple_system = (
-                "Return ONLY JSON array, same order, fields: index, filename, englishTitle, chineseTitle, region, platform, releaseYear, publisher, developer."
+                "Return ONLY JSON array, same order, fields: index, filename, englishTitle, chineseTitle."
             )
             simple_user = {
                 "items": listing,
@@ -531,11 +505,6 @@ def aiScraperBatch(
                     ai_result = {
                         "englishTitle": str(item.get("englishTitle", "")).strip(),
                         "chineseTitle": str(item.get("chineseTitle", "")).strip(),
-                        "region": str(item.get("region", "")).strip(),
-                        "platform": str(item.get("platform", platform)).strip(),
-                        "releaseYear": str(item.get("releaseYear", "")).strip(),
-                        "publisher": str(item.get("publisher", "")).strip(),
-                        "developer": str(item.get("developer", "")).strip(),
                     }
                     results[rf.originalFilename] = ai_result
                     if useCache and ai_result["chineseTitle"] and ai_result["englishTitle"]:
@@ -580,12 +549,12 @@ def aiScraperBatch(
                     continue
                 rprint(
                     f"  [white]{filename}[/white]\n"
-                    f"    缺失类型 (Missing type): {kind} 标题 (CN/EN): {item.get('chineseTitle','')} / {item.get('englishTitle','')} 平台/Platform: {item.get('platform','')} 地区/Region: {item.get('region','')} 年份/Year: {item.get('releaseYear','')}"
+                    f"    缺失类型 (Missing type): {kind} 标题 (CN/EN): {item.get('chineseTitle','')} / {item.get('englishTitle','')}"
                 )
 
         # Post-batch targeted retries only when englishTitle is missing
         refinement_targets: list[RomFile] = []
-        required_fields = ["englishTitle", "chineseTitle", "platform", "releaseYear", "publisher", "developer"]
+        required_fields = ["englishTitle", "chineseTitle"]
         for rf in chunk:
             data = results.get(rf.originalFilename)
             if not data:
@@ -601,7 +570,7 @@ def aiScraperBatch(
                 user_msg = (
                     "Filename: " + rf.originalFilename + "; Platform hint: " + platform +
                     ". Provide missing fields only if you are certain."
-                    " Return ONLY one JSON object with fields: englishTitle, chineseTitle, region, platform, releaseYear, publisher, developer."
+                    " Return ONLY one JSON object with fields: englishTitle, chineseTitle."
                     " Missing fields: " + ",".join(missing_list) + ". Present fields (keep identical): " + json.dumps(present_summary, ensure_ascii=False)
                 )
                 try:
@@ -609,7 +578,7 @@ def aiScraperBatch(
                         client,
                         model=config.model,
                         messages=[
-                            {"role": "system", "content": "Return ONLY one JSON object with fields: englishTitle, chineseTitle, region, platform, releaseYear, publisher, developer. Use empty string if unknown. Do NOT alter existing non-empty values."},
+                            {"role": "system", "content": "Return ONLY one JSON object with fields: englishTitle, chineseTitle. Use empty string if unknown. Do NOT alter existing non-empty values."},
                             {"role": "user", "content": user_msg},
                         ],
                         temperature=0.1,
@@ -621,7 +590,7 @@ def aiScraperBatch(
                 if single:
                     single_data = _parse_json_object(single)
                     if single_data:
-                        update_fields = ["englishTitle", "chineseTitle", "region", "platform", "releaseYear", "publisher", "developer"]
+                        update_fields = ["englishTitle", "chineseTitle"]
                         for field in update_fields:
                             if field in missing_list:
                                 value = str(single_data.get(field, "")).strip()
