@@ -45,6 +45,7 @@ bump-minor = "scripts.version:bump_minor"
 bump-major = "scripts.version:bump_major"
 build = "scripts.build:main"
 build-gui = "scripts.build:build_gui"
+build-both = "scripts.build:build_both"
 test = "pytest:main"
 dev = "scripts.hotreload:main"
 

@@ -158,6 +158,13 @@ def build(args: argparse.Namespace, target: str = "cli") -> int:
         # statically — force-include the entire package so CLI and all its
         # dependencies (rename, revert, cache, etc.) are bundled.
         nuitka_cmd.append("--include-package=ai_rom_batch_renamer")
+        # InquirerPy/prompt_toolkit use terminal raw-mode APIs that are
+        # incompatible with --windows-console-mode=disable (no console window).
+        # The GUI binary always passes --yes so the interactive prompt in
+        # clear-cache is never reached; exclude these packages from compilation
+        # to avoid Nuitka/Scons C backend failures and silent runtime crashes.
+        nuitka_cmd.append("--nofollow-import-to=InquirerPy")
+        nuitka_cmd.append("--nofollow-import-to=prompt_toolkit")
 
     # GUI build on Windows: disable console by default unless user overrides via --extra
     if (
@@ -308,6 +315,12 @@ def main(argv: list[str] | None = None) -> None:
 def build_gui(argv: list[str] | None = None) -> None:
     """Convenience entry point: build GUI target only."""
     injected = ["--target", "gui"] + (sys.argv[1:] if argv is None else argv)
+    main(injected)
+
+
+def build_both(argv: list[str] | None = None) -> None:
+    """Convenience entry point: build both CLI and GUI targets."""
+    injected = ["--target", "both"] + (sys.argv[1:] if argv is None else argv)
     main(injected)
 
 

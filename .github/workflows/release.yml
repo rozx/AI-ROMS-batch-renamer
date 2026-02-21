@@ -76,6 +76,20 @@ jobs:
         # uses: Gr1N/setup-poetry@48b0f77c8c1b1b19cb962f0f00dff7b4be8f81ec
         uses: Gr1N/setup-poetry@v9
 
+      - name: Cache Poetry virtualenv (Linux)
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pypoetry/virtualenvs
+          key: linux-poetry-${{ hashFiles('poetry.lock') }}
+          restore-keys: linux-poetry-
+
+      - name: Cache Nuitka compilation (Linux)
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/Nuitka
+          key: linux-nuitka-${{ hashFiles('pyproject.toml', 'ai_rom_batch_renamer/**/*.py') }}
+          restore-keys: linux-nuitka-
+
       - name: Install dependencies
         run: |
           poetry install --no-interaction --no-ansi
@@ -173,6 +187,22 @@ jobs:
 
       - name: Setup Poetry
         uses: Gr1N/setup-poetry@v9
+
+      - name: Cache Poetry virtualenv (Windows)
+        uses: actions/cache@v4
+        with:
+          path: ~\AppData\Roaming\pypoetry\virtualenvs
+          key: windows-poetry-${{ hashFiles('poetry.lock') }}
+          restore-keys: windows-poetry-
+
+      - name: Cache Nuitka compilation and MinGW64 (Windows)
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~\AppData\Local\Nuitka\Nuitka\Cache
+            ~\AppData\Local\Nuitka\Nuitka\MinGW64
+          key: windows-nuitka-${{ hashFiles('pyproject.toml', 'ai_rom_batch_renamer/**/*.py') }}
+          restore-keys: windows-nuitka-
 
       - name: Install dependencies
         run: |
@@ -274,6 +304,20 @@ jobs:
 
       - name: Setup Poetry
         uses: Gr1N/setup-poetry@v9
+
+      - name: Cache Poetry virtualenv (macOS)
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/pypoetry/virtualenvs
+          key: macos-poetry-${{ hashFiles('poetry.lock') }}
+          restore-keys: macos-poetry-
+
+      - name: Cache Nuitka compilation (macOS)
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/Nuitka
+          key: macos-nuitka-${{ hashFiles('pyproject.toml', 'ai_rom_batch_renamer/**/*.py') }}
+          restore-keys: macos-nuitka-
 
       - name: Install dependencies
         run: |
