@@ -407,6 +407,10 @@ This project is open source and available under the [MIT License](LICENSE).
 
 该项目为开源项目，遵循 [MIT 许可证](LICENSE)。
 
+## 🙏 致谢
+
+[rom-name-cn](https://github.com/yingw/rom-name-cn) - ROM 名称的中英文对照
+
 ## 🤝 Contributing | 贡献
 
 Contributions are welcome! Please feel free to submit a Pull Request or open an Issue.
@@ -418,3 +422,5 @@ Contributions are welcome! Please feel free to submit a Pull Request or open an 
 Made with ❤️ for retro gaming enthusiasts
 
 为复古游戏爱好者用心制作 ❤️
+
+

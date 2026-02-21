@@ -193,11 +193,11 @@ def rename(options: dict) -> int:
             cn = (result.get('chineseTitle') or '').strip()
             en = (result.get('englishTitle') or '').strip()
 
-            # Use original base name as source of truth
+            # Use English title as primary, Chinese title as secondary
             new_base = None
             if cn and en:
-                # CN + EN
-                new_base = f"{romFile.baseName} ({en})"
+                # EN + CN
+                new_base = f"{en} ({cn})"
             elif cn:
                 # CN only
                 new_base = f"{romFile.baseName}"
