@@ -30,6 +30,10 @@ Super Robot Taisen - Original Generation 2 (Japan),超级机器人大战 OG2
 "Final Fantasy I, II Advance (Japan) (Rev 1)",最终幻想 1 + 2
 Super Puzzle Fighter II Turbo (Europe),超级方块战士2加速版
 bit Generations - Dotstream (Japan) (En),几何世代 - 点点潮流
+Mega Man X6 (USA),洛克人 X6
+Mega Man X6 (Europe),洛克人 X6
+Rockman 6 - Shijou Saidai no Tatakai!! (Japan),洛克人 6 - 史上最大之战
+Mega Man 8 (USA),洛克人 8
 """
 
 _SAMPLE_ALIAS = {
@@ -230,6 +234,25 @@ class TestLookupCsvExact:
         result = module._lookup_csv("超级机器人大战 OG2", _PLATFORM)
         assert result is not None
         assert result["chineseTitle"] == "超级机器人大战 OG2"
+
+    def test_cross_version_digit_mismatch_returns_none(self, tmp_assets_dir):
+        # "超级马里奥乐园3 (Some Subtitle)(1999)" must NOT fuzzy-match
+        # "超级马里奥乐园2" (digit 2) or "超级马里奥乐园" (no digit).
+        # Before the digit-compatibility guard this would have returned a false positive.
+        result = module._lookup_csv("超级马里奥乐园3 (Some Subtitle)(1999)", _PLATFORM)
+        assert result is None
+
+    def test_standalone_digit_does_not_match_alphanumeric_tag(self, tmp_assets_dir):
+        # "洛克人6 (Mega Man 6)(1998)" has standalone digit 6.
+        # "洛克人 X6" has 6 glued to letter X → alphanumeric tag, not a version number.
+        # The query must NOT match "洛克人 X6" and SHOULD match "洛克人 6 - 史上最大之战".
+        result = module._lookup_csv("洛克人6 (Mega Man 6)(1998)", _PLATFORM)
+        assert result is not None
+        assert (
+            "X6" not in result["chineseTitle"]
+        ), f"Matched X6 entry instead of numbered entry: {result}"
+        assert "6" in result["chineseTitle"]  # should be 洛克人 6 - 史上最大之战
+        assert "Rockman 6" in result["englishTitle"]
 
 
 # ---------------------------------------------------------------------------
