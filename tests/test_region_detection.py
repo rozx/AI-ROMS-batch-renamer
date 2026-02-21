@@ -206,6 +206,26 @@ class TestRenameRegionFromOriginalFilename:
     region to [简].  The region must come exclusively from the original filename.
     """
 
+    @pytest.fixture(autouse=True)
+    def _patch_ai_config(self):
+        """Prevent AIConfig.load/save from touching the real user config directory.
+
+        rename() always calls AIConfig().load(), which reads/writes config.json
+        under APPDATA (Windows) or XDG_CONFIG_HOME (Linux/macOS).  Patching
+        both methods as no-ops isolates tests from user state.
+        """
+        with (
+            patch(
+                "ai_rom_batch_renamer.classes.AIConfig.AIConfig.load",
+                return_value=None,
+            ),
+            patch(
+                "ai_rom_batch_renamer.classes.AIConfig.AIConfig.save",
+                return_value=None,
+            ),
+        ):
+            yield
+
     def _run_dry(
         self,
         file_path: str,

@@ -214,6 +214,12 @@ def _cn_key(name: str) -> str:
     return keyed
 
 
+# Compiled once at module level – matches digit sequences that are NOT
+# immediately preceded or followed by an ASCII letter (i.e. "standalone"
+# version numbers such as '3' in '生化危机3', but NOT the '6' in 'X6').
+_STANDALONE_DIGIT_RE = re.compile(r"(?<![A-Za-z])\d+(?![A-Za-z])")
+
+
 def _digits_compatible(query: str, key: str) -> bool:
     """Return True if the *standalone* digit token sets of *query* and *key* are identical.
 
@@ -231,8 +237,9 @@ def _digits_compatible(query: str, key: str) -> bool:
       query '洛克人6'  vs key '洛克人6'    → {'6'} == {'6'} → True  (correct)
       query '洛克人'   vs key '洛克人'     → {}   == {}   → True  (correct)
     """
-    _standalone = re.compile(r"(?<![A-Za-z])\d+(?![A-Za-z])")
-    return set(_standalone.findall(query)) == set(_standalone.findall(key))
+    return set(_STANDALONE_DIGIT_RE.findall(query)) == set(
+        _STANDALONE_DIGIT_RE.findall(key)
+    )
 
 
 # ---------------------------------------------------------------------------
