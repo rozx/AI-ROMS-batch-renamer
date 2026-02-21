@@ -42,6 +42,9 @@ def rename(options: dict) -> int:
     ai_no_cache: bool = options.get("ai_no_cache", False)
     force: bool = options.get("force", False)
 
+    # Resolve short aliases (e.g. "gb" -> "Nintendo - Game Boy")
+    platform = utilsModule.sanitizePlatform(platform)
+
     # initialize the file list
 
     fileList: list[str] = []

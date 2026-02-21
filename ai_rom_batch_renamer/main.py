@@ -231,6 +231,9 @@ def rename(
     except AIQueryError as e:
         rprint(f"[red bold]AI请求失败 (AI API error): {e}[/red bold]")
         _raise_exit(3)
+    except ValueError as e:
+        rprint(f"[red bold]{e}[/red bold]")
+        _raise_exit(2)
     except PermissionError as e:
         rprint(f"[red bold]文件权限错误 (Permission denied): {e}[/red bold]")
         _raise_exit(1)
@@ -391,9 +394,13 @@ def clear_cache(
                 return
 
         if cacheModule.delete_cache_files():
-            rprint(f"[green]✓[/green] Cache directory deleted: [dim]{cacheModule.CACHE_DIR}[/dim]")
+            rprint(
+                f"[green]✓[/green] Cache directory deleted: [dim]{cacheModule.CACHE_DIR}[/dim]"
+            )
         else:
-            rprint(f"[yellow]Cache directory does not exist: [dim]{cacheModule.CACHE_DIR}[/dim]")
+            rprint(
+                f"[yellow]Cache directory does not exist: [dim]{cacheModule.CACHE_DIR}[/dim]"
+            )
     else:
         # Clear cache data only - show info and ask for confirmation
         rom_info_count = len(cacheModule.romInfoCache.get_all_keys())

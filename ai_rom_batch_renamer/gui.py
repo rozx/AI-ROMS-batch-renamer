@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 from PySide6.QtCore import QProcess, QProcessEnvironment, QSettings, QTimer, Qt
+from PySide6.QtCore import QSortFilterProxyModel, QStringListModel
 from PySide6.QtGui import (
     QColor,
     QDragEnterEvent,
@@ -21,6 +22,7 @@ from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
     QApplication,
     QButtonGroup,
     QCheckBox,
+    QCompleter,
     QFileDialog,
     QFormLayout,
     QGridLayout,
@@ -42,6 +44,8 @@ from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
 )
 
 from ai_rom_batch_renamer.classes.AIConfig import AIConfig
+from ai_rom_batch_renamer.modules import const as constModule
+from ai_rom_batch_renamer.modules import utils as utilsModule
 
 # ── Colour palette (Tailwind Slate) ──
 _BG = "#0F172A"
@@ -70,6 +74,7 @@ def _resolve_icon_path() -> str | None:
         if path.is_file():
             return str(path)
     return None
+
 
 _STYLESHEET = f"""
 /* ═══ Window ═══ */
@@ -386,12 +391,8 @@ class MainWindow(QMainWindow):
         self.process.started.connect(self._on_started)
         self.process.finished.connect(self._on_finished)
 
-        self._stdout_decoder = codecs.getincrementaldecoder("utf-8")(
-            errors="replace"
-        )
-        self._stderr_decoder = codecs.getincrementaldecoder("utf-8")(
-            errors="replace"
-        )
+        self._stdout_decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
+        self._stderr_decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
         self._ansi_state = QTextCharFormat()
         self._reset_ansi_state()
         self._settings = QSettings("rozx", "AI-ROM-Batch-Renamer")
@@ -525,6 +526,13 @@ class MainWindow(QMainWindow):
         self.api_key_input.setEchoMode(QLineEdit.Password)
         self.endpoint_input = QLineEdit()
         self.platform_input = QLineEdit()
+        _platform_names = sorted(constModule.PLATFORM_ALIASES.keys())
+        _platform_model = QStringListModel(_platform_names, self.platform_input)
+        self._platform_completer = QCompleter(_platform_model, self.platform_input)
+        self._platform_completer.setCaseSensitivity(Qt.CaseInsensitive)
+        self._platform_completer.setFilterMode(Qt.MatchContains)
+        self._platform_completer.setCompletionMode(QCompleter.PopupCompletion)
+        self.platform_input.setCompleter(self._platform_completer)
 
         self.ai_batch_size_input = QSpinBox()
         self.ai_batch_size_input.setRange(1, 100)
@@ -570,21 +578,36 @@ class MainWindow(QMainWindow):
         self.ai_check.toggled.connect(self._on_ai_toggled)
         self.clear_log_button.clicked.connect(self.log_output.clear)
         self.copy_log_button.clicked.connect(self._copy_log)
+        self.platform_input.editingFinished.connect(self._normalize_platform_input)
+        # QCompleter updates the field *after* activated fires, so defer by one
+        # event-loop tick with singleShot so the field already has the chosen text.
+        self._platform_completer.activated.connect(
+            lambda _: QTimer.singleShot(0, self._normalize_platform_input)
+        )
+
+    def _normalize_platform_input(self) -> None:
+        """Silently resolve alias -> canonical name whenever the field settles."""
+        raw = self.platform_input.text().strip()
+        if not raw:
+            return
+        canonical = constModule.PLATFORM_ALIASES.get(raw.lower())
+        if canonical and canonical != raw:
+            self.platform_input.blockSignals(True)
+            self.platform_input.setText(canonical)
+            self.platform_input.blockSignals(False)
 
     def _apply_placeholders(self) -> None:
-        self.directory_input.setPlaceholderText(
-            "拖拽目录到此处，或点击 [浏览] 选择"
-        )
-        self.file_input.setPlaceholderText(
-            "拖拽多个文件到此处，或点击 [浏览] 多选"
-        )
+        self.directory_input.setPlaceholderText("拖拽目录到此处，或点击 [浏览] 选择")
+        self.file_input.setPlaceholderText("拖拽多个文件到此处，或点击 [浏览] 多选")
         self.password_input.setPlaceholderText("可选：解压密码")
         self.includes_input.setPlaceholderText("例如：zip,7z,rar（逗号分隔）")
         self.excludes_input.setPlaceholderText("例如：txt,nfo（逗号分隔）")
         self.model_input.setPlaceholderText("例如：gpt-4o-mini")
         self.api_key_input.setPlaceholderText("可选：在此覆盖 apiKey.txt")
         self.endpoint_input.setPlaceholderText("可选：自定义 API Endpoint")
-        self.platform_input.setPlaceholderText("例如：PS2 / Switch")
+        self.platform_input.setPlaceholderText(
+            "输入关键字搜索平台，例如：gb / game boy"
+        )
 
     @staticmethod
     def _dim(text: str) -> QLabel:
@@ -660,6 +683,7 @@ class MainWindow(QMainWindow):
         form.addRow(self._dim("解压密码"), self.password_input)
         form.addRow(self._dim("包含扩展名"), self.includes_input)
         form.addRow(self._dim("排除扩展名"), self.excludes_input)
+        form.addRow(self._dim("平台"), self.platform_input)
         option_layout.addLayout(form)
         option_group.setLayout(option_layout)
 
@@ -682,7 +706,6 @@ class MainWindow(QMainWindow):
         ai_form.addRow(self._dim("模型"), self.model_input)
         ai_form.addRow(self._dim("API Key"), self.api_key_input)
         ai_form.addRow(self._dim("Endpoint"), self.endpoint_input)
-        ai_form.addRow(self._dim("平台"), self.platform_input)
         ai_form.addRow(self._dim("批量大小"), self.ai_batch_size_input)
         ai_layout.addWidget(self.ai_detail_widget)
         ai_group.setLayout(ai_layout)
@@ -812,7 +835,9 @@ class MainWindow(QMainWindow):
         min_left_width = 460
         left_hint = self.left_panel.sizeHint().width() + 24
         max_left_by_ratio = int(total_width * 0.56)
-        max_left_width = max(min_left_width, min(max_left_by_ratio, total_width - min_log_width))
+        max_left_width = max(
+            min_left_width, min(max_left_by_ratio, total_width - min_log_width)
+        )
         left_width = min(max(left_hint, min_left_width), max_left_width)
         log_width = max(min_log_width, total_width - left_width)
         self.splitter.setSizes([left_width, log_width])
@@ -902,7 +927,10 @@ class MainWindow(QMainWindow):
         return args
 
     def _validate_source(self) -> bool:
-        if self.directory_mode_radio.isChecked() and self.directory_input.text().strip():
+        if (
+            self.directory_mode_radio.isChecked()
+            and self.directory_input.text().strip()
+        ):
             return True
 
         if self.file_mode_radio.isChecked() and self.file_input.text().strip():
@@ -914,6 +942,20 @@ class MainWindow(QMainWindow):
 
         QMessageBox.warning(self, "缺少输入", "当前为文件模式，请选择文件。")
         return False
+
+    def _validate_platform(self) -> bool:
+        """Return True when platform is valid or empty; show a warning and
+        return False when the user typed an unrecognised value."""
+        raw = self.platform_input.text().strip()
+        if not raw:
+            return True
+        try:
+            utilsModule.sanitizePlatform(raw)
+            return True
+        except ValueError as exc:
+            QMessageBox.warning(self, "平台名称无效 (Invalid platform)", str(exc))
+            self.platform_input.setFocus()
+            return False
 
     def _set_running_state(self, running: bool) -> None:
         self.rename_button.setEnabled(not running)
@@ -936,12 +978,8 @@ class MainWindow(QMainWindow):
         env.insert("COLUMNS", "240")
         self.process.setProcessEnvironment(env)
 
-        self._stdout_decoder = codecs.getincrementaldecoder("utf-8")(
-            errors="replace"
-        )
-        self._stderr_decoder = codecs.getincrementaldecoder("utf-8")(
-            errors="replace"
-        )
+        self._stdout_decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
+        self._stderr_decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
         self._reset_ansi_state()
 
         self._append_log_text(f"$ {shlex.join(command)}\n")
@@ -954,6 +992,8 @@ class MainWindow(QMainWindow):
 
     def run_rename(self) -> None:
         if not self._validate_source():
+            return
+        if not self._validate_platform():
             return
         self._run(self._build_rename_args())
 
@@ -1047,11 +1087,15 @@ class MainWindow(QMainWindow):
 
             if line.startswith("$ "):
                 fmt.setForeground(QColor("#93C5FD"))
-            elif any(token in lowered for token in ("error", "failed", "traceback", "❌")):
+            elif any(
+                token in lowered for token in ("error", "failed", "traceback", "❌")
+            ):
                 fmt.setForeground(QColor("#FCA5A5"))
             elif any(token in lowered for token in ("warning", "warn", "⚠")):
                 fmt.setForeground(QColor("#FCD34D"))
-            elif any(token in lowered for token in ("success", "done", "completed", "✅")):
+            elif any(
+                token in lowered for token in ("success", "done", "completed", "✅")
+            ):
                 fmt.setForeground(QColor("#86EFAC"))
             elif "[gui]" in lowered:
                 fmt.setForeground(QColor("#A5B4FC"))
@@ -1161,7 +1205,9 @@ class MainWindow(QMainWindow):
         self._append_process_text(self.process.readAllStandardOutput().data())
 
     def _on_stderr(self) -> None:
-        self._append_process_text(self.process.readAllStandardError().data(), stderr=True)
+        self._append_process_text(
+            self.process.readAllStandardError().data(), stderr=True
+        )
 
 
 def launch_gui() -> int:
