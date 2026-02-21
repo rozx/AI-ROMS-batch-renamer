@@ -7,17 +7,31 @@ import shlex
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QProcess, QProcessEnvironment, QSettings, QTimer, Qt
+from PySide6.QtCore import (
+    QAbstractAnimation,
+    QEasingCurve,
+    QProcess,
+    QProcessEnvironment,
+    QPropertyAnimation,
+    QSettings,
+    QTimer,
+    Qt,
+    QUrl,
+)
 from PySide6.QtCore import QSortFilterProxyModel, QStringListModel
 from PySide6.QtGui import (
     QColor,
+    QDesktopServices,
     QDragEnterEvent,
     QDropEvent,
     QIcon,
     QCloseEvent,
+    QPainter,
+    QPixmap,
     QTextCharFormat,
     QTextCursor,
 )
+from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
     QApplication,
     QButtonGroup,
@@ -26,6 +40,7 @@ from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
     QFileDialog,
     QFormLayout,
     QGridLayout,
+    QGraphicsOpacityEffect,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -46,6 +61,32 @@ from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
 from ai_rom_batch_renamer.classes.AIConfig import AIConfig
 from ai_rom_batch_renamer.modules import const as constModule
 from ai_rom_batch_renamer.modules import utils as utilsModule
+
+# ── GitHub logo (Invertocat, primer/octicons) ──
+_GITHUB_SVG = (
+    b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">'
+    b'<path fill="%FILL%" d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38'
+    b" 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.6-.82-2.15"
+    b".08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27"
+    b"-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95"
+    b"-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53"
+    b".34.19.73.9.82 1.13.16.45.67 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38"
+    b'A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/>'
+    b"</svg>"
+)
+
+
+def _make_github_pixmap(size: int = 14, color: str = "#64748B") -> QPixmap:
+    """Render the GitHub Invertocat SVG to a QPixmap at the given size/color."""
+    svg = _GITHUB_SVG.replace(b"%FILL%", color.encode())
+    renderer = QSvgRenderer(svg)
+    pixmap = QPixmap(size, size)
+    pixmap.fill(Qt.transparent)
+    painter = QPainter(pixmap)
+    renderer.render(painter)
+    painter.end()
+    return pixmap
+
 
 # ── Colour palette (Tailwind Slate) ──
 _BG = "#0F172A"
@@ -268,36 +309,49 @@ QLabel#Head {{
     font-weight: 700;
     font-size: 13px;
 }}
+QPushButton#GithubBtn {{
+    background: transparent;
+    border: none;
+    color: #475569;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 3px 6px;
+    spacing: 5px;
+}}
+QPushButton#GithubBtn:hover {{
+    color: #94A3B8;
+}}
+
+QWidget#StatusBar {{
+    background: {_CARD};
+    border-bottom: 1px solid {_BORDER};
+}}
 
 QLabel#StatusOK {{
-    background: {_CARD};
-    border: 1px solid {_BORDER};
-    border-radius: 10px;
-    padding: 8px 14px;
+    background: transparent;
+    border: none;
+    padding: 0px 4px;
     color: #93C5FD;
     font-weight: 500;
 }}
 QLabel#StatusRun {{
-    background: #172554;
-    border: 1px solid #1E40AF;
-    border-radius: 10px;
-    padding: 8px 14px;
+    background: transparent;
+    border: none;
+    padding: 0px 4px;
     color: {_BORDER_FOCUS};
     font-weight: 600;
 }}
 QLabel#StatusGood {{
-    background: #052E16;
-    border: 1px solid #166534;
-    border-radius: 10px;
-    padding: 8px 14px;
+    background: transparent;
+    border: none;
+    padding: 0px 4px;
     color: #4ADE80;
     font-weight: 600;
 }}
 QLabel#StatusBad {{
-    background: #450A0A;
-    border: 1px solid #991B1B;
-    border-radius: 10px;
-    padding: 8px 14px;
+    background: transparent;
+    border: none;
+    padding: 0px 4px;
     color: #FCA5A5;
     font-weight: 600;
 }}
@@ -376,7 +430,7 @@ class _DropLineEdit(QLineEdit):
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
-        self.setWindowTitle("ROM Batch Renamer")
+        self.setWindowTitle(f"AI ROM Batch Renamer v{constModule.VERSION} (GUI)")
         icon_path = _resolve_icon_path()
         if icon_path:
             self.setWindowIcon(QIcon(icon_path))
@@ -556,8 +610,27 @@ class MainWindow(QMainWindow):
 
         self.status_label = QLabel("  🟢 就绪")
         self.status_label.setObjectName("StatusOK")
-        self.status_label.setMinimumHeight(40)
+        self.status_label.setMinimumHeight(36)
         self.status_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
+        # ── Status animation setup ──
+        self._status_effect = QGraphicsOpacityEffect(self.status_label)
+        self._status_effect.setOpacity(1.0)
+        self.status_label.setGraphicsEffect(self._status_effect)
+        self._status_pulse: QPropertyAnimation | None = None
+        self._status_fade_out = QPropertyAnimation(self._status_effect, b"opacity")
+        self._status_fade_in = QPropertyAnimation(self._status_effect, b"opacity")
+
+        self.github_button = QPushButton(f" By Rozx  ·  v{constModule.VERSION}")
+        self.github_button.setObjectName("GithubBtn")
+        self.github_button.setIcon(QIcon(_make_github_pixmap(13)))
+        self.github_button.setCursor(Qt.PointingHandCursor)
+        self.github_button.setToolTip("Open GitHub repository")
+        self.github_button.clicked.connect(
+            lambda: QDesktopServices.openUrl(
+                QUrl("https://github.com/rozx/AI-ROMS-batch-renamer")
+            )
+        )
 
         self.rename_button = QPushButton("  🚀 开始重命名")
         self.rename_button.setObjectName("Primary")
@@ -634,8 +707,8 @@ class MainWindow(QMainWindow):
         root.setStyleSheet(f"QWidget#root {{ background: {_BG}; }}")
 
         outer = QVBoxLayout(root)
-        outer.setContentsMargins(14, 14, 14, 14)
-        outer.setSpacing(8)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
 
         left_content = QWidget()
         left_content.setObjectName("root")
@@ -750,7 +823,7 @@ class MainWindow(QMainWindow):
         right_layout.addLayout(log_header)
 
         self.log_output.setPlaceholderText(
-            "📝 运行日志会显示在这里...  💡 提示：可拖拽文件或目录到窗口快速添加"
+            "📝 运行日志会显示在这里...  💡 提示：支持拖拽与多文件输入，GUI 与 CLI 行为保持一致"
         )
         self.log_output.setMinimumWidth(500)
         right_layout.addWidget(self.log_output, stretch=1)
@@ -771,7 +844,6 @@ class MainWindow(QMainWindow):
         left_layout.addStretch(1)
         left_layout.addLayout(action_row)
         left_layout.addLayout(maintenance_row)
-        left_layout.addWidget(self.status_label)
 
         left_scroll = QScrollArea()
         left_scroll.setWidgetResizable(True)
@@ -790,7 +862,25 @@ class MainWindow(QMainWindow):
         splitter.setCollapsible(1, False)
         self.splitter = splitter
 
-        outer.addWidget(splitter, stretch=1)
+        status_row = QHBoxLayout()
+        status_row.setSpacing(0)
+        status_row.setContentsMargins(14, 6, 14, 6)
+        status_row.addWidget(self.status_label)
+        status_row.addStretch()
+        status_row.addWidget(self.github_button)
+
+        status_bar_widget = QWidget()
+        status_bar_widget.setObjectName("StatusBar")
+        status_bar_widget.setLayout(status_row)
+        status_bar_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
+        inner_layout = QVBoxLayout()
+        inner_layout.setContentsMargins(14, 14, 14, 8)
+        inner_layout.setSpacing(8)
+        inner_layout.addWidget(splitter, stretch=1)
+
+        outer.addWidget(status_bar_widget)
+        outer.addLayout(inner_layout, stretch=1)
         self.setCentralWidget(root)
 
         QTimer.singleShot(0, self._rebalance_splitter)
@@ -831,7 +921,7 @@ class MainWindow(QMainWindow):
         text = self.log_output.toPlainText()
         if text:
             QApplication.clipboard().setText(text)
-            self.status_label.setText("  📋 日志已复制到剪贴板")
+            self._set_status("  📋 日志已复制到剪贴板", "StatusOK")
 
     def _on_ai_toggled(self, enabled: bool) -> None:
         self.ai_detail_widget.setVisible(enabled)
@@ -1009,6 +1099,8 @@ class MainWindow(QMainWindow):
         super().closeEvent(event)
 
     def run_rename(self) -> None:
+        self._save_ai_config()
+        self._save_ui_settings()
         if not self._validate_source():
             return
         if not self._validate_platform():
@@ -1016,6 +1108,7 @@ class MainWindow(QMainWindow):
         self._run(self._build_rename_args())
 
     def run_revert(self) -> None:
+        self._save_ai_config()
         if not self._validate_source():
             return
         self._run(self._build_revert_args())
@@ -1049,10 +1142,53 @@ class MainWindow(QMainWindow):
             self._set_status(f"  ❌ 任务失败  (exit code {exit_code})", "StatusBad")
 
     def _set_status(self, text: str, object_name: str) -> None:
-        self.status_label.setText(text)
-        self.status_label.setObjectName(object_name)
-        self.status_label.style().unpolish(self.status_label)
-        self.status_label.style().polish(self.status_label)
+        # Stop any running pulse
+        if (
+            self._status_pulse
+            and self._status_pulse.state() == QAbstractAnimation.Running
+        ):
+            self._status_pulse.stop()
+            self._status_pulse = None
+
+        # Stop in-progress fades
+        self._status_fade_out.stop()
+        self._status_fade_in.stop()
+
+        def _apply_and_fade_in() -> None:
+            self.status_label.setText(text)
+            self.status_label.setObjectName(object_name)
+            self.status_label.style().unpolish(self.status_label)
+            self.status_label.style().polish(self.status_label)
+
+            if object_name == "StatusRun":
+                # Pulsing opacity while running
+                pulse = QPropertyAnimation(self._status_effect, b"opacity")
+                pulse.setDuration(1000)
+                pulse.setStartValue(1.0)
+                pulse.setKeyValueAt(0.5, 0.3)
+                pulse.setEndValue(1.0)
+                pulse.setLoopCount(-1)
+                pulse.setEasingCurve(QEasingCurve.InOutSine)
+                pulse.start()
+                self._status_pulse = pulse
+            else:
+                self._status_fade_in.setDuration(200)
+                self._status_fade_in.setStartValue(0.0)
+                self._status_fade_in.setEndValue(1.0)
+                self._status_fade_in.setEasingCurve(QEasingCurve.OutCubic)
+                self._status_fade_in.start()
+
+        # Fade out first, then swap
+        try:
+            self._status_fade_out.finished.disconnect()
+        except RuntimeError:
+            pass
+        self._status_fade_out.setDuration(100)
+        self._status_fade_out.setStartValue(float(self._status_effect.opacity()))
+        self._status_fade_out.setEndValue(0.0)
+        self._status_fade_out.setEasingCurve(QEasingCurve.InCubic)
+        self._status_fade_out.finished.connect(_apply_and_fade_in)
+        self._status_fade_out.start()
 
     def _append_log_text(self, text: str) -> None:
         if not text:

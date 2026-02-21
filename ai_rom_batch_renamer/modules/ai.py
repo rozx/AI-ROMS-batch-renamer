@@ -296,7 +296,7 @@ async def _async_mcp_tool_loop(
     messages: list[dict],
     temperature: float = 0.1,
     tavily_api_key: str,
-    max_turns: int = 5,
+    max_turns: int = 20,
     progress_prefix: str | None = None,
 ) -> str | None:
     """Agentic tool-calling loop backed by the Tavily remote MCP server.
@@ -367,6 +367,21 @@ async def _async_mcp_tool_loop(
                             "content": tool_content,
                         }
                     )
+
+            # max_turns exhausted — force a final synthesis without tools
+            rprint(
+                "[dim]  MCP 强制汇总 (Forcing final synthesis after max turns)[/dim]"
+            )
+            final_response = client.chat.completions.create(
+                model=model,
+                messages=current_messages,
+                temperature=temperature,
+            )
+            return (
+                final_response.choices[0].message.content
+                if final_response.choices
+                else None
+            )
     return None
 
 
@@ -377,6 +392,7 @@ def _chat_with_mcp_tools(
     messages: list[dict],
     temperature: float = 0.1,
     tavily_api_key: str,
+    max_turns: int = 20,
     progress_prefix: str | None = None,
 ) -> str | None:
     """Synchronous wrapper around the async Tavily MCP tool-calling loop."""
@@ -388,6 +404,7 @@ def _chat_with_mcp_tools(
                 messages=messages,
                 temperature=temperature,
                 tavily_api_key=tavily_api_key,
+                max_turns=max_turns,
                 progress_prefix=progress_prefix,
             )
         )
@@ -403,16 +420,18 @@ def _get_content(
     messages: list[dict],
     temperature: float = 0.1,
     stream: bool = True,
+    max_turns: int = 20,
     progress_prefix: str | None = None,
 ) -> str | None:
     """Route content generation to MCP or plain completion depending on config."""
-    if config.tavilyApiKey:
+    if config.tavilyApiKey.strip():
         return _chat_with_mcp_tools(
             client,
             model=config.model,
             messages=messages,
             temperature=temperature,
             tavily_api_key=config.tavilyApiKey,
+            max_turns=max_turns,
             progress_prefix=progress_prefix,
         )
     return _chat_completion_content(
@@ -588,6 +607,7 @@ def aiScraperBatch(
                 ],
                 temperature=0.1,
                 stream=True,
+                max_turns=len(chunk),
                 progress_prefix=f"AI 批次查询 (Batch querying) {batch_idx + 1}/{total_batches}",
             )
         except Exception as e:
@@ -663,6 +683,7 @@ def aiScraperBatch(
                     ],
                     temperature=0.1,
                     stream=True,
+                    max_turns=len(chunk),
                     progress_prefix=f"AI 批次重试 (Batch retry) {batch_idx + 1}/{total_batches}",
                 )
             except Exception as e:
@@ -798,6 +819,7 @@ def aiScraperBatch(
                         ],
                         temperature=0.1,
                         stream=True,
+                        max_turns=1,
                         progress_prefix=f"AI 字段补全重试 (Field fill retry) {rf.originalFilename}",
                     )
                 except Exception as e:

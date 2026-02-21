@@ -37,7 +37,7 @@ class AIConfig:
         self.apiKey = data.get("apiKey", "")
         self.model = data.get("model", "deepseek-chat")
         self.endpoint = data.get("endpoint", "https://api.deepseek.com")
-        self.tavilyApiKey = data.get("tavilyApiKey", "")
+        self.tavilyApiKey = data.get("tavilyApiKey", "").strip()
 
     def _read_json_file(self, path: Path):
         with path.open("r", encoding="utf-8") as f:

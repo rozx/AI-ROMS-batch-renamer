@@ -1,8 +1,8 @@
 # 🎮 ROM AI Batch Renamer | ROM AI批量重命名工具
 
-A powerful command-line tool for batch renaming ROM files using AI technology.
+A powerful CLI/GUI tool for batch renaming ROM files using local alias lookup + AI technology.
 
-一个使用AI技术批量重命名ROM文件的强大命令行工具。
+一个支持终端/GUI、结合本地别名查找与 AI 技术的 ROM 批量重命名工具。
 
 [![GitHub Release](https://img.shields.io/github/v/release/rozx/AI-ROMS-batch-renamer)](https://github.com/rozx/AI-ROMS-batch-renamer/releases)
 [![Github All Releases](https://img.shields.io/github/downloads/rozx/AI-ROMS-batch-renamer/total.svg)](https://github.com/rozx/AI-ROMS-batch-renamer/releases)
@@ -16,10 +16,12 @@ A powerful command-line tool for batch renaming ROM files using AI technology.
 
 - 🤖 **AI-Powered Renaming**: Intelligent file renaming using advanced AI models  
   **AI智能重命名**: 使用先进AI模型进行智能文件重命名
-- 🈶 **Chinese Alias Lookup**: Look up English/Chinese game titles from a local alias database (CSV + JSON) without any API calls  
-  **中文别名查找**: 无需API调用，直接使用本地别名数据库（CSV + JSON）查找游戏的中英文标题，可与 AI 搭配使用
+- 🈶 **Chinese Alias Lookup**: Look up English/Chinese game titles from a local alias database (CSV) without any API calls  
+  **中文别名查找**: 无需API调用，直接使用本地别名数据库（CSV）查找游戏的中英文标题，可与 AI 搭配使用
 - 🧠 **Batch AI Enrichment**: Query multiple filenames in one request (`--ai-batch-size`) to reduce latency & cost  
   **批量AI增强**: 使用批量查询降低延迟与成本
+- 🧩 **Platform Alias Normalization**: Accept common platform aliases and normalize to canonical names (`--platform`)  
+  **平台别名归一化**: 支持常见平台别名输入并自动归一化为标准平台名（`--platform`）
 - 🔤 **Pinyin Support**: Add pinyin initials for better sorting and searching  
   **拼音支持**: 添加拼音首字母以便更好地排序和搜索
 - 📁 **Batch Processing**: Process multiple files and directories (with recursion)  
@@ -100,7 +102,7 @@ renamer rename [options]
 | Option            | Short    | Type | Description                                                    |
 | ----------------- | -------- | ---- | -------------------------------------------------------------- |
 | `--directory`     | `-dir`   | TEXT | 要重命名的文件夹路径 (Directory path to rename files in)       |
-| `--files`         | `-files` | TEXT | 要重命名的文件 (Specific file to rename; single path)          |
+| `--files`         | `-files` | TEXT | 要重命名的文件（支持分号/换行分隔多个文件） (Files to rename; supports multiple paths separated by semicolon or newline) |
 | `--trim`          | `-t`     | FLAG | 去除无用的信息 (Trim noisy segments from filename)             |
 | `--dry-run`       | `-d`     | FLAG | 只输出结果，不实际重命名 (Preview only; no changes)            |
 | `--pinyin`        | `-py`    | FLAG | 在开头加上拼音首字符 (Add pinyin initial for sorting)          |
@@ -307,9 +309,17 @@ renamer revert [options]
 | Option        | Short    | Type | Description                                                  |
 | ------------- | -------- | ---- | ------------------------------------------------------------ |
 | `--directory` | `-dir`   | TEXT | 要还原文件名的文件夹路径 (Directory path to revert files in) |
-| `--files`     | `-files` | TEXT | 要还原的特定文件 (Specific file to revert; single path)      |
+| `--files`     | `-files` | TEXT | 要还原的文件（支持分号/换行分隔多个文件） (Files to revert; supports multiple paths separated by semicolon or newline) |
 | `--recursive` | `-r`     | FLAG | 处理子目录 (Process subdirectories)                          |
 | `--dry-run`   | `-d`     | FLAG | 预览还原结果 (Preview revert results)                        |
+
+## 🚦 Exit Codes | 退出码
+
+- `0`: Success / 成功
+- `1`: Generic failure (I/O, permission) / 通用失败（I/O、权限等）
+- `2`: Invalid arguments or missing input / 参数非法或缺少输入
+- `3`: AI API error / AI 请求错误
+- `4`: ZIP extraction failure / ZIP 解压失败
 
 ### 💡 Example Usage (Revert) | 使用示例（还原）
 

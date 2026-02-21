@@ -14,7 +14,7 @@ from ai_rom_batch_renamer.modules.ai import AIQueryError
 
 app = typer.Typer(
     name="renamer",
-    help="一个使用AI来批量重命名ROM文件的命令行工具。(A command line tool for batch renaming ROM files using AI.)",
+    help="一个支持终端/GUI的 ROM 批量重命名工具，支持本地别名查找与 AI 增强。(A terminal/GUI ROM batch renamer with local alias lookup and AI enrichment.)",
     no_args_is_help=True,
 )
 
@@ -343,7 +343,10 @@ def about():
     """
 
     rprint(
-        f"AI-rom-batch-renamer [bold]v{constModule.VERSION}[/bold] by [bold blue]@rozx[/bold blue]"
+        f"AI ROM Batch Renamer [bold]v{constModule.VERSION}[/bold] by [bold blue]@rozx[/bold blue]"
+    )
+    rprint(
+        "Terminal + GUI | Local alias lookup + AI enrichment | Revert + Cache management"
     )
     pass
 
