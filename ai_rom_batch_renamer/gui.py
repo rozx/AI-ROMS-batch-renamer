@@ -500,6 +500,9 @@ class MainWindow(QMainWindow):
         self.ai_check.setChecked(self._setting_bool("gui/ai"))
         self.ai_no_cache_check.setChecked(self._setting_bool("gui/ai_no_cache"))
         self.delete_files_check.setChecked(self._setting_bool("gui/delete_files"))
+        self.auto_clear_log_check.setChecked(
+            self._setting_bool("gui/auto_clear_log", True)
+        )
 
         self.password_input.setText(str(self._settings.value("gui/password", "")))
         self.includes_input.setText(str(self._settings.value("gui/includes", "")))
@@ -527,6 +530,9 @@ class MainWindow(QMainWindow):
         self._settings.setValue("gui/ai", self.ai_check.isChecked())
         self._settings.setValue("gui/ai_no_cache", self.ai_no_cache_check.isChecked())
         self._settings.setValue("gui/delete_files", self.delete_files_check.isChecked())
+        self._settings.setValue(
+            "gui/auto_clear_log", self.auto_clear_log_check.isChecked()
+        )
 
         self._settings.setValue("gui/password", self.password_input.text())
         self._settings.setValue("gui/includes", self.includes_input.text())
@@ -644,6 +650,9 @@ class MainWindow(QMainWindow):
         self.clear_log_button.setObjectName("Tool")
         self.copy_log_button = QPushButton("📋 复制日志")
         self.copy_log_button.setObjectName("Tool")
+
+        self.auto_clear_log_check = QCheckBox("每次运行清空日志")
+        self.auto_clear_log_check.setToolTip("每次开始新任务前自动清空日志区域")
 
         self.rename_button.setMinimumWidth(180)
         self.revert_button.setMinimumWidth(120)
@@ -818,6 +827,7 @@ class MainWindow(QMainWindow):
         log_label.setObjectName("Head")
         log_header.addWidget(log_label)
         log_header.addStretch()
+        log_header.addWidget(self.auto_clear_log_check)
         log_header.addWidget(self.clear_log_button)
         log_header.addWidget(self.copy_log_button)
         right_layout.addLayout(log_header)
@@ -1104,6 +1114,9 @@ class MainWindow(QMainWindow):
         self._stdout_decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
         self._stderr_decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
         self._reset_ansi_state()
+
+        if self.auto_clear_log_check.isChecked():
+            self.log_output.clear()
 
         self._append_log_text(f"$ {shlex.join(command)}\n")
         self.process.start(command[0], command[1:])

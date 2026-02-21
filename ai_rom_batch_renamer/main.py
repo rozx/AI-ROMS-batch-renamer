@@ -1,7 +1,6 @@
 from typing import Optional
 import typer
 from rich import print as rprint, console
-from InquirerPy.resolver import prompt
 from typing_extensions import Annotated
 
 # Use absolute package imports so it works for both package entry and compiled onefile
@@ -417,6 +416,8 @@ def clear_cache(
     if delete_files:
         # Delete the entire cache directory - require confirmation
         if not yes:
+            from InquirerPy.resolver import prompt  # noqa: PLC0415
+
             result = prompt(
                 [
                     {
@@ -456,6 +457,8 @@ def clear_cache(
         )
 
         if not yes:
+            from InquirerPy.resolver import prompt  # noqa: PLC0415
+
             result = prompt(
                 [
                     {

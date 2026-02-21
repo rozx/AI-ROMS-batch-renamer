@@ -214,6 +214,34 @@ def _cn_key(name: str) -> str:
     return keyed
 
 
+# Compiled once at module level – matches digit sequences that are NOT
+# immediately preceded or followed by an ASCII letter (i.e. "standalone"
+# version numbers such as '3' in '生化危机3', but NOT the '6' in 'X6').
+_STANDALONE_DIGIT_RE = re.compile(r"(?<![A-Za-z])\d+(?![A-Za-z])")
+
+
+def _digits_compatible(query: str, key: str) -> bool:
+    """Return True if the *standalone* digit token sets of *query* and *key* are identical.
+
+    Only digits that are NOT immediately preceded or followed by an ASCII letter
+    are considered "standalone" version numbers.  This prevents two categories of
+    false positives:
+
+    1. Cross-version mismatch:  '生化危机3' must not match '生化危机' (no digits).
+    2. Alphanumeric-tag mismatch: '洛克人6' must not match '洛克人X6' because the
+       '6' in 'X6' is an alphanumeric suffix, not a standalone version number.
+
+    Examples:
+      query '生化危机3' vs key '生化危机'   → {'3'} != {}  → False (correct)
+      query '洛克人6'  vs key '洛克人x6'   → {'6'} != {}  → False (correct)
+      query '洛克人6'  vs key '洛克人6'    → {'6'} == {'6'} → True  (correct)
+      query '洛克人'   vs key '洛克人'     → {}   == {}   → True  (correct)
+    """
+    return set(_STANDALONE_DIGIT_RE.findall(query)) == set(
+        _STANDALONE_DIGIT_RE.findall(key)
+    )
+
+
 # ---------------------------------------------------------------------------
 # CSV loading
 # ---------------------------------------------------------------------------
@@ -452,23 +480,38 @@ def _lookup_csv(base_name: str, platform: str) -> dict | None:
         stripped_cn_query = _strip_tags(cn_key_norm)
         if stripped_cn_query and cn_fuzzy:
             all_cn_stripped_keys = list(cn_fuzzy.keys())
-            cn_match = fuzz_process.extractOne(
-                stripped_cn_query,
-                all_cn_stripped_keys,
-                scorer=fuzz.ratio,
-                score_cutoff=85,
+            # Restrict candidates to digit-compatible keys so that version
+            # numbers are respected — e.g. '生化危机3' must not match '生化危机'.
+            digit_compat_keys = [
+                k
+                for k in all_cn_stripped_keys
+                if _digits_compatible(stripped_cn_query, k)
+            ]
+            cn_match = (
+                fuzz_process.extractOne(
+                    stripped_cn_query,
+                    digit_compat_keys,
+                    scorer=fuzz.ratio,
+                    score_cutoff=85,
+                )
+                if digit_compat_keys
+                else None
             )
             # Step 4b: partial_ratio fallback — handles filenames with non-CJK
             # prefix/suffix (e.g. "Q 棋魂 [简]" → query "q棋魂", key "棋魂").
             # Only consider keys that are at least 2 characters to avoid
             # false positives from very short titles.
             if not cn_match:
-                long_keys = [k for k in all_cn_stripped_keys if len(k) >= 2]
-                cn_match = fuzz_process.extractOne(
-                    stripped_cn_query,
-                    long_keys,
-                    scorer=fuzz.partial_ratio,
-                    score_cutoff=90,
+                long_keys = [k for k in digit_compat_keys if len(k) >= 2]
+                cn_match = (
+                    fuzz_process.extractOne(
+                        stripped_cn_query,
+                        long_keys,
+                        scorer=fuzz.partial_ratio,
+                        score_cutoff=90,
+                    )
+                    if long_keys
+                    else None
                 )
             if cn_match:
                 best_cn = cn_match[0]

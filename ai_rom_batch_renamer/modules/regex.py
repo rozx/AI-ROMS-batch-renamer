@@ -1,6 +1,6 @@
 hackMatchRegex = r"((\(|\[)([Hh]ack|H)(\)|\]))|(盗版|非官方)"
 
-regionMatchRegex = r"((?<=[\(\[])(繁|繁体|繁體|繁中|简|简体|简體|简中|中文|简&繁|简繁|繁简|(SC&TC|sc&tc)|(SC|sc)|(TC|tc)|(USA|usa)|(US|us)|(EU|eu)|Europe|(JP|jp)|Japan|World|(WW|ww)|(UE|ue))(?=[\)\]]))"
+regionMatchRegex = r"((?<=[\(\[])(繁|繁体|繁體|繁中|简|简体|简體|简中|中文|简&繁|简繁|繁简|(SC&TC|sc&tc)|(SC|sc)|(TC|tc)|(USA|usa)|(US|us)|(EU|eu)|Europe|(JP|jp)|Japan|World|(WW|ww)|(UE|ue)|(Unk|unk)|E|U|J|C)(?=[\)\]]))"
 
 chineseMatchRegex = r"汉化|润色"
 
