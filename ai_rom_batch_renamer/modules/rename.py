@@ -12,13 +12,14 @@ from ai_rom_batch_renamer.modules import regex as regexModule
 from ai_rom_batch_renamer.modules import const as constModule
 from ai_rom_batch_renamer.modules import cache as cacheModule
 from ai_rom_batch_renamer.modules import ai as aiScraperModule
+from ai_rom_batch_renamer.modules import cn_lookup as cnLookupModule
 from ai_rom_batch_renamer.classes.RomFile import RomFile as RomFile
 from ai_rom_batch_renamer.classes.AIConfig import AIConfig as AIConfig
 
 # Rename files
 
 
-def rename(options: dict):
+def rename(options: dict) -> int:
 
     # get options
 
@@ -37,10 +38,23 @@ def rename(options: dict):
     model: str = options.get("model", "")
     apiKey: str = options.get("apiKey", "")
     endpoint: str = options.get("endpoint", "")
+    tavilyApiKey: str = options.get("tavilyApiKey", "")
     platform: str = options.get("platform", "unknown")
     ai_batch_size: int = options.get("ai_batch_size", 10)
     ai_no_cache: bool = options.get("ai_no_cache", False)
     force: bool = options.get("force", False)
+    cn_lookup: bool = options.get("cn_lookup", False)
+
+    # Resolve short aliases (e.g. "gb" -> "Nintendo - Game Boy")
+    platform = utilsModule.sanitizePlatform(platform)
+
+    # Validate cn_lookup requires platform
+    if cn_lookup and (not platform or platform.lower() == "unknown"):
+        rprint(
+            "[red bold]使用 --cn-lookup 时必须提供 --platform。 "
+            "(--platform is required when using --cn-lookup)[/red bold]"
+        )
+        return 2
 
     # initialize the file list
 
@@ -49,7 +63,7 @@ def rename(options: dict):
     # first adds all files into the list
 
     if files:
-        fileList.append(files)
+        fileList.extend(utilsModule.parseFilesInput(files))
 
     # then check if the directory is provided, if it is, add all files in the directory to the list
     if dir:
@@ -92,7 +106,7 @@ def rename(options: dict):
         if utilsModule.isSystemOrHiddenFile(file):
             fileList.remove(file)
             continue
-        
+
         if utilsModule.isFileRenamed(file) and not force:
             rprint(
                 f"[yellow]跳过文件 {baseName} 因为已经被重命名过了。Skipping file as it appears to be already renamed.[/yellow]"
@@ -105,7 +119,7 @@ def rename(options: dict):
         rprint(
             f"[red bold]重命名的文件为空 (No files found in the directory or the file does not exist.)[/red bold]"
         )
-        return
+        return 2
 
     # load AI config
 
@@ -115,9 +129,7 @@ def rename(options: dict):
     # if AI config is provided, update the config
     if apiKey:
         aiConfig.apiKey = apiKey
-        rprint(
-            f"[green]API key 更新成功。 AI API key is set to {aiConfig.apiKey}[/green]"
-        )
+        rprint(f"[green]API key 更新成功。 AI API key is set[/green]")
     if endpoint:
         aiConfig.endpoint = endpoint
         rprint(
@@ -128,9 +140,12 @@ def rename(options: dict):
         rprint(
             f"[green]API model 更新成功。 AI model is set to {aiConfig.model}[/green]"
         )
+    if tavilyApiKey:
+        aiConfig.tavilyApiKey = tavilyApiKey
+        rprint("[green]Tavily API key 更新成功。 Tavily API key is set[/green]")
 
     # update the AI config
-    if apiKey or endpoint or model:
+    if apiKey or endpoint or model or tavilyApiKey:
         rprint("[green]AI配置已更新。 AI config updated successfully[/green]")
         aiConfig.save()
 
@@ -139,67 +154,111 @@ def rename(options: dict):
             rprint(
                 "[red bold]无法使用AI功能。APIKey为空。 AI API key is not set. Please set the AI API key in the config file. [/red bold]"
             )
-            return
+            return 2
 
     # Prepare RomFile objects first (needed for batching)
     romFiles: list[RomFile] = [RomFile(path) for path in fileList]
 
-    # Batch AI enrichment to reduce per-file calls
+    # Pre-process: apply trim before any lookup so that lookup uses cleaned names.
+    # This ensures tags like "[简]" and prefixes like "C " are stripped before
+    # CN/AI lookup, avoiding key mismatches caused by CJK chars inside brackets.
+    if trim:
+        for rf in romFiles:
+            trimFileName(rf)
+
+    # Step 1: Local CN alias lookup (CSV + name_alias JSON)
+    cn_results: dict[str, dict] = {}
+    if cn_lookup:
+        cn_results = cnLookupModule.lookupBatch(romFiles, platform)
+
+    # Step 2: Build CSV candidate hints for AI context.
+    # - When cn_lookup + ai: only query AI for files not fully covered by CSV.
+    # - When ai only (with platform): still fetch candidates as AI context hints.
+    csv_candidates: dict[str, list[str]] = {}
     ai_results: dict[str, dict] = {}
     if ai:
-        ai_results = aiScraperModule.aiScraperBatch(
-            aiConfig,
-            romFiles,
-            platform=platform,
-            useCache=(not ai_no_cache),
-            batch_size=ai_batch_size,
-        )
+        # Determine which files still need AI (csv result missing or incomplete)
+        if cn_lookup:
+            ai_needed = [
+                rf
+                for rf in romFiles
+                if rf.originalFilename not in cn_results
+                or not cn_results[rf.originalFilename].get("englishTitle")
+            ]
+        else:
+            ai_needed = romFiles
+
+        # Collect CSV candidates to pass as AI context hints (when platform is known)
+        if platform and platform.lower() != "unknown":
+            for rf in ai_needed:
+                candidates = cnLookupModule.get_candidates(
+                    rf.originalFilename, platform
+                )
+                if candidates:
+                    csv_candidates[rf.originalFilename] = candidates
+            if csv_candidates:
+                rprint(
+                    f"[cyan]CSV 候选提示 (Candidate hints for AI):[/cyan] "
+                    f"为 {len(csv_candidates)} 个文件提供候选 (files with hints)"
+                )
+
+        if ai_needed:
+            ai_results = aiScraperModule.aiScraperBatch(
+                aiConfig,
+                ai_needed,
+                platform=platform,
+                useCache=(not ai_no_cache),
+                batch_size=ai_batch_size,
+                csv_candidates=csv_candidates if csv_candidates else None,
+            )
+
+    # Merge results: CSV takes priority; AI fills gaps
+    merged_results: dict[str, dict] = {**cn_results}
+    for filename, ai_data in ai_results.items():
+        if filename not in merged_results:
+            merged_results[filename] = ai_data
+        else:
+            # Fill missing fields from AI
+            existing = merged_results[filename]
+            if not existing.get("englishTitle") and ai_data.get("englishTitle"):
+                existing["englishTitle"] = ai_data["englishTitle"]
+            if not existing.get("chineseTitle") and ai_data.get("chineseTitle"):
+                existing["chineseTitle"] = ai_data["chineseTitle"]
 
     # renamed files list
     renamedFiles: list[str] = []
 
     # for each file in the list, processing the file
-    for value in track(range(len(romFiles)), description="Renaming files..."):
+    for value in track(
+        range(len(romFiles)), description="正在重命名文件... (Renaming files...)"
+    ):
 
         romFile = romFiles[value]
 
-        # Match hack naming conventions
+        # Match hack naming conventions.
+        # Check originalFilename FIRST so that [Hack]/(Hack) tags stripped by
+        # --trim are still detected.  Fall back to the current baseName.
         hackMatch = regex.search(
+            regexModule.hackMatchRegex, romFile.originalFilename, flags=regex.IGNORECASE
+        ) or regex.search(
             regexModule.hackMatchRegex, romFile.baseName, flags=regex.IGNORECASE
         )  # type: ignore
 
-        # Match region naming conventions
-        chineseMatch = regex.search(regexModule.chineseMatchRegex, romFile.baseName)
-        regionMatch = regex.search(regexModule.regionMatchRegex, romFile.baseName)
+        # Step 1: Apply enrichment first (cn_lookup / AI results).
+        # Track the Chinese title so it can be reused for pinyin initial and
+        # region inference below.
+        cn_title_from_lookup: str | None = None
+        if romFile.originalFilename in merged_results:
+            result = merged_results[romFile.originalFilename]
+            cn = (result.get("chineseTitle") or "").strip()
+            en = (result.get("englishTitle") or "").strip()
+            cn_title_from_lookup = cn or None
 
-        if chineseMatch:
-            region = "简"
-        elif regionMatch:
-            region = utilsModule.getRegion(regionMatch.group(0))
-        else:
-            region = "Unknown"
-
-        # trim the filename
-        if trim:
-            trimFileName(romFile)
-
-        # add pinyin initials
-        if pinyin:
-            addsPinyinInitials(romFile)
-
-        # apply AI enrichment if present (supports partial info)
-        if ai and romFile.originalFilename in ai_results:
-            result = ai_results[romFile.originalFilename]
-            cn = (result.get('chineseTitle') or '').strip()
-            en = (result.get('englishTitle') or '').strip()
-            year = (result.get('releaseYear') or '').strip()
-
-            
-            # Use original base name as source of truth
+            # Use English title as primary, Chinese title as secondary
             new_base = None
             if cn and en:
-                # CN + EN
-                new_base = f"{romFile.baseName} ({en})"
+                # EN + CN
+                new_base = f"{en} ({cn})"
             elif cn:
                 # CN only
                 new_base = f"{romFile.baseName}"
@@ -208,9 +267,34 @@ def rename(options: dict):
                 new_base = en
 
             if new_base:
-                if year and year.isdigit() and len(year) == 4:
-                    new_base = f"{new_base}({year})"
                 romFile.updateFileName(f"{new_base}{romFile.extName}")
+
+        # Step 2: Detect region.
+        # Check originalFilename FIRST so that tags like "[简]" removed by --trim
+        # are still visible.  Fall back to the current (enriched) baseName, and
+        # finally infer "简" from the presence of a Chinese title from lookup.
+        chineseMatch = regex.search(
+            regexModule.chineseMatchRegex, romFile.originalFilename
+        ) or regex.search(regexModule.chineseMatchRegex, romFile.baseName)
+        regionMatch = regex.search(
+            regexModule.regionMatchRegex, romFile.originalFilename
+        ) or regex.search(regexModule.regionMatchRegex, romFile.baseName)
+
+        if chineseMatch:
+            region = "简"
+        elif regionMatch:
+            region = utilsModule.getRegion(regionMatch.group(0))
+        elif cn_title_from_lookup:
+            # A Chinese title from cn_lookup/AI implies simplified-Chinese content.
+            region = "简"
+        else:
+            region = "Unknown"
+
+        # Step 3: Add pinyin initials AFTER enrichment.
+        # Pass the Chinese title so the initial is derived from its first character
+        # (e.g. 超级机器人大战 → "C") rather than the English portion of the name.
+        if pinyin:
+            addsPinyinInitials(romFile, cn_title=cn_title_from_lookup)
 
         # adds region to the filename
         if region != "Unknown":
@@ -230,9 +314,7 @@ def rename(options: dict):
         # ----------- Rename the file -------------
         # Pass None to allow autodetect of current OS; if needed, a future CLI flag
         # could override this behaviour for cross-platform normalization.
-        result = renameFiles(
-            pendingRenameFiles, romFile, dry, renamedFiles, None
-        )
+        result = renameFiles(pendingRenameFiles, romFile, dry, renamedFiles, None)
 
         # add the file to the renamed files tracking
         renamedFiles.extend(result)
@@ -242,12 +324,12 @@ def rename(options: dict):
             print(romFile.fileName)
         else:
             rprint(
-                f"[bold]Renamed{' preview' if dry else ''}({value + 1}/{len(fileList)}):[/bold] [blue1 underline]{romFile.path}[/blue1 underline] -> [green3]{result}[/green3]",
+                f"[bold]Renamed重命名{' preview 预览' if dry else ''}({value + 1}/{len(fileList)}):[/bold] [blue1 underline]{romFile.path}[/blue1 underline] -> [green3]{result}[/green3]",
             )
 
         pass
 
-    pass
+    return 0
 
 
 def trimFileName(romFile: RomFile):
@@ -285,13 +367,17 @@ def trimFileName(romFile: RomFile):
     return
 
 
-def addsPinyinInitials(romFile: RomFile) -> None:
+def addsPinyinInitials(romFile: RomFile, cn_title: str | None = None) -> None:
 
     # get the base name and extension name
     baseName, extName = romFile.baseName, romFile.extName
 
+    # Prefer the Chinese title as the source for the pinyin initial so that
+    # e.g. "超级机器人大战" yields "C" rather than the English title "S(uper)".
+    source = cn_title.strip() if cn_title else baseName
+
     # get the pinyin initials
-    pinyinInitials = pinyin.get_initial(baseName)[0].upper()
+    pinyinInitials = pinyin.get_initial(source)[0].upper()
 
     # add the pinyin initials to the base name
     romFile.updateFileName(f"{pinyinInitials} {baseName}{extName}")
@@ -312,6 +398,7 @@ def sanitize_for_os(base_name: str, os_platform: str | None = None) -> str:
     # Detect OS platform if not provided
     try:
         import platform as _platform
+
         detected = _platform.system().lower()
     except Exception:
         detected = "unknown"
@@ -352,7 +439,7 @@ def sanitize_for_os(base_name: str, os_platform: str | None = None) -> str:
 
     # Keep unicode letters/numbers, spaces and common safe separators
     allowed = r"\p{L}\p{N} _\-\[\]\(\)&',\.+\+"
-    base_name = regex.sub(fr"[^ {allowed}]", "", base_name)
+    base_name = regex.sub(rf"[^ {allowed}]", "", base_name)
 
     # Collapse spaces
     base_name = regex.sub(r"\s{2,}", " ", base_name).strip()
@@ -396,7 +483,7 @@ def renameFiles(
         extName = utilsModule.getBasenameAndExtensions(file)[1].lower()
 
         targetBaseName = f"{romFile.baseName}{extName}"
-        
+
         # check if target filename is same as current filename, if so, skip renaming
         if os.path.basename(file) == targetBaseName:
             _renamedFiles.append(os.path.basename(file))

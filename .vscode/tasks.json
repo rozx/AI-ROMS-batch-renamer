@@ -1,17 +1,27 @@
 {
-  "version": "2.0.0",
-  "tasks": [
-    {
-      "label": "Run tests",
-      "type": "shell",
-      "command": "poetry",
-      "args": [
-        "run",
-        "pytest",
-        "-q"
-      ],
-      "group": "test",
-      "problemMatcher": []
-    }
-  ]
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Run tests",
+			"type": "shell",
+			"command": "poetry",
+			"args": ["run", "pytest", "-q"],
+			"group": "test",
+			"problemMatcher": []
+		},
+		{
+			"label": "GUI Hot Reload",
+			"type": "shell",
+			"command": "poetry",
+			"args": ["run", "hotreload"],
+			"group": "build",
+			"isBackground": true,
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated",
+				"clear": true
+			},
+			"problemMatcher": []
+		}
+	]
 }

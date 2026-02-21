@@ -51,7 +51,7 @@ jobs:
           path: releaseTagName.txt
 
   # Builds on Linux and creates a release
-  builds-on-linux-and-release:
+  build-release-linux:
     runs-on: ubuntu-latest
     needs: create-draft-release
     permissions:
@@ -116,27 +116,43 @@ jobs:
           APP_VERSION="$APP_VERSION" poetry run bump
           echo "Const version now: $(grep VERSION ai_rom_batch_renamer/modules/const.py)"
 
-      - name: Run build script
+      - name: Build terminal + GUI apps (Linux)
         run: |
-          poetry run build --verbose
+          poetry run build --target both --verbose
 
       # Upload the build
-      - name: Archive the build
+      - name: Archive Linux terminal build
         uses: TheDoctor0/zip-release@0.7.6
         with:
-          filename: release.zip
+          filename: release-cli.zip
           type: zip
-          path: ./dist/ai-rom-batch-renamer-Linux-X64
-      - name: Upload Linux build
+          path: ./dist/ai-rom-batch-renamer-Linux-X64-cli
+
+      - name: Upload Linux terminal build
         uses: shogo82148/actions-upload-release-asset@v1
         with:
           overwrite: true
           upload_url: ${{ steps.set_release_metadata.outputs.release_upload_url }}
-          asset_path: release.zip
-          asset_name: RomBatchRenamer-Linux-X64-Modern-v${{ steps.set_release_metadata.outputs.app_version }}.zip
+          asset_path: release-cli.zip
+          asset_name: RomBatchRenamer-Linux-X64-Terminal-v${{ steps.set_release_metadata.outputs.app_version }}.zip
+
+      - name: Archive Linux GUI build
+        uses: TheDoctor0/zip-release@0.7.6
+        with:
+          filename: release-gui.zip
+          type: zip
+          path: ./dist/ai-rom-batch-renamer-Linux-X64-gui
+
+      - name: Upload Linux GUI build
+        uses: shogo82148/actions-upload-release-asset@v1
+        with:
+          overwrite: true
+          upload_url: ${{ steps.set_release_metadata.outputs.release_upload_url }}
+          asset_path: release-gui.zip
+          asset_name: RomBatchRenamer-Linux-X64-GUI-v${{ steps.set_release_metadata.outputs.app_version }}.zip
 
   # Builds on Windows and upload the build to the release
-  builds-on-windows-and-release:
+  build-release-windows:
     runs-on: windows-latest
     needs: create-draft-release
     permissions:
@@ -201,28 +217,43 @@ jobs:
         run: |
           $env:APP_VERSION=$env:APP_VERSION; poetry run bump
           Get-Content ai_rom_batch_renamer/modules/const.py | Select-String VERSION
-      - name: Run build script
+      - name: Build terminal + GUI apps (Windows)
         run: |
-          poetry run build --verbose
+          poetry run build --target both --verbose
 
       # Archive the build and upload it to the release
-      - name: Archive the build
+      - name: Archive Windows terminal build
         uses: TheDoctor0/zip-release@0.7.6
         with:
-          filename: release.zip
+          filename: release-cli.zip
           type: zip
-          path: ./dist/ai-rom-batch-renamer-Windows-X64.exe
+          path: ./dist/ai-rom-batch-renamer-Windows-X64-cli.exe
 
-      - name: Upload Win build
+      - name: Upload Windows terminal build
         uses: shogo82148/actions-upload-release-asset@v1
         with:
           overwrite: true
           upload_url: ${{ steps.set_release_metadata.outputs.release_upload_url }}
-          asset_path: release.zip
-          asset_name: RomBatchRenamer-Win-X64-Modern-v${{ steps.set_release_metadata.outputs.app_version }}.zip
+          asset_path: release-cli.zip
+          asset_name: RomBatchRenamer-Win-X64-Terminal-v${{ steps.set_release_metadata.outputs.app_version }}.zip
+
+      - name: Archive Windows GUI build
+        uses: TheDoctor0/zip-release@0.7.6
+        with:
+          filename: release-gui.zip
+          type: zip
+          path: ./dist/ai-rom-batch-renamer-Windows-X64-gui.exe
+
+      - name: Upload Windows GUI build
+        uses: shogo82148/actions-upload-release-asset@v1
+        with:
+          overwrite: true
+          upload_url: ${{ steps.set_release_metadata.outputs.release_upload_url }}
+          asset_path: release-gui.zip
+          asset_name: RomBatchRenamer-Win-X64-GUI-v${{ steps.set_release_metadata.outputs.app_version }}.zip
 
   # Builds on Mac and upload the build to the release
-  builds-on-mac-and-release:
+  build-release-macos:
     runs-on: macOS-latest
     needs: create-draft-release
     permissions:
@@ -285,22 +316,37 @@ jobs:
           APP_VERSION="$APP_VERSION" poetry run bump
           echo "Const version now: $(grep VERSION ai_rom_batch_renamer/modules/const.py)"
 
-      - name: Run build script
+      - name: Build terminal + GUI apps (macOS)
         run: |
-          poetry run build --verbose
+          poetry run build --target both --verbose
 
       # Archive the build and upload it to the release
-      - name: Archive the build
+      - name: Archive macOS terminal build
         uses: TheDoctor0/zip-release@0.7.6
         with:
-          filename: release.zip
+          filename: release-cli.zip
           type: zip
-          path: ./dist/ai-rom-batch-renamer-MacOS-X64
+          path: ./dist/ai-rom-batch-renamer-MacOS-X64-cli
 
-      - name: Upload Mac build
+      - name: Upload macOS terminal build
         uses: shogo82148/actions-upload-release-asset@v1
         with:
           overwrite: true
           upload_url: ${{ steps.set_release_metadata.outputs.release_upload_url }}
-          asset_path: release.zip
-          asset_name: RomBatchRenamer-Mac-X64-Modern-v${{ steps.set_release_metadata.outputs.app_version }}.zip
+          asset_path: release-cli.zip
+          asset_name: RomBatchRenamer-Mac-X64-Terminal-v${{ steps.set_release_metadata.outputs.app_version }}.zip
+
+      - name: Archive macOS GUI build
+        uses: TheDoctor0/zip-release@0.7.6
+        with:
+          filename: release-gui.zip
+          type: zip
+          path: ./dist/ai-rom-batch-renamer-MacOS-X64-gui
+
+      - name: Upload macOS GUI build
+        uses: shogo82148/actions-upload-release-asset@v1
+        with:
+          overwrite: true
+          upload_url: ${{ steps.set_release_metadata.outputs.release_upload_url }}
+          asset_path: release-gui.zip
+          asset_name: RomBatchRenamer-Mac-X64-GUI-v${{ steps.set_release_metadata.outputs.app_version }}.zip

@@ -8,18 +8,24 @@ from typing_extensions import Annotated
 from ai_rom_batch_renamer.modules import rename as renameModule
 from ai_rom_batch_renamer.modules import const as constModule
 from ai_rom_batch_renamer.modules import revert as revertModule
+from ai_rom_batch_renamer.modules import cache as cacheModule
+from ai_rom_batch_renamer.modules.ai import AIQueryError
 
 
 app = typer.Typer(
     name="renamer",
-    help="一个使用AI来批量重命名ROM文件的命令行工具。(A command line tool for batch renaming ROM files using AI.)",
+    help="一个支持终端/GUI的 ROM 批量重命名工具，支持本地别名查找与 AI 增强。(A terminal/GUI ROM batch renamer with local alias lookup and AI enrichment.)",
     no_args_is_help=True,
 )
 
 
-@app.command("rename", no_args_is_help=True)
+def _raise_exit(code: int) -> None:
+    raise typer.Exit(code=code)
+
+
+@app.command("rename", no_args_is_help=False)
 def rename(
-    dir: Annotated[
+    directory: Annotated[
         str,
         typer.Option(
             "--directory",
@@ -35,7 +41,7 @@ def rename(
         typer.Option(
             "--files",
             "-files",
-            help="要重命名的文件 (The files to rename)",
+            help="要重命名的文件（支持分号/换行分隔多个文件） (The files to rename; supports multiple files separated by semicolon or newline)",
             resolve_path=True,
             dir_okay=False,
             file_okay=True,
@@ -152,6 +158,14 @@ def rename(
             help="保存AI模型的API端点 (Update the API endpoint for the AI model)",
         ),
     ] = "",
+    tavilyApiKey: Annotated[
+        str,
+        typer.Option(
+            "--tavily-api-key",
+            "-tav",
+            help="Tavily 远程 MCP Key，连接 mcp.tavily.com 进行联网搜索增强（无需 Node.js）(Tavily API key; connects to the remote MCP server at mcp.tavily.com — no Node.js required)",
+        ),
+    ] = "",
     platform: Annotated[
         str,
         typer.Option(
@@ -185,21 +199,30 @@ def rename(
             is_flag=True,
         ),
     ] = False,
+    cn_lookup: Annotated[
+        bool,
+        typer.Option(
+            "--cn-lookup",
+            "--cn",
+            help="使用本地中文别名数据库查找游戏名称，需要提供 --platform (Use local Chinese alias database to look up game titles, requires --platform)",
+            is_flag=True,
+        ),
+    ] = False,
 ):
     """
     批量重命名Roms文件 (Batch rename files by providing a directory or files)
     """
 
-    # check if both dir and files are provided, if not, prompt the user to provide them
-    if not dir and not files:
+    # check if both directory and files are provided, if not, prompt the user to provide them
+    if not directory and not files:
         rprint(
             "[red bold]请提供要重命名的文件夹路径或文件 (Please provide the directory path or files to rename)[/red bold]"
         )
-        return
+        _raise_exit(2)
 
     # Saving options in a dictionary
     options = {
-        "dir": dir,
+        "dir": directory,
         "files": files,
         "trim": trim,
         "dry": dry,
@@ -214,20 +237,39 @@ def rename(
         "model": model,
         "apiKey": apiKey,
         "endpoint": endpoint,
+        "tavilyApiKey": tavilyApiKey,
         "platform": platform,
         "ai_batch_size": ai_batch_size,
         "ai_no_cache": ai_no_cache,
         "force": force,
+        "cn_lookup": cn_lookup,
     }
 
-    renameModule.rename(options)
+    try:
+        code = renameModule.rename(options)
+    except AIQueryError as e:
+        rprint(f"[red bold]AI请求失败 (AI API error): {e}[/red bold]")
+        _raise_exit(3)
+    except ValueError as e:
+        rprint(f"[red bold]{e}[/red bold]")
+        _raise_exit(2)
+    except PermissionError as e:
+        rprint(f"[red bold]文件权限错误 (Permission denied): {e}[/red bold]")
+        _raise_exit(1)
+    except OSError as e:
+        rprint(f"[red bold]文件系统错误 (File system error): {e}[/red bold]")
+        _raise_exit(1)
+    except Exception as e:
+        rprint(f"[red bold]未知错误 (Unexpected error): {e}[/red bold]")
+        _raise_exit(1)
 
-    pass
+    if code != 0:
+        _raise_exit(code)
 
 
-@app.command("revert", no_args_is_help=True)
+@app.command("revert", no_args_is_help=False)
 def revert(
-    dir: Annotated[
+    directory: Annotated[
         str,
         typer.Option(
             "--directory",
@@ -243,7 +285,7 @@ def revert(
         typer.Option(
             "--files",
             "-files",
-            help="要还原文件名的文件 (The files to rename)",
+            help="要还原文件名的文件（支持分号/换行分隔多个文件） (The files to revert; supports multiple files separated by semicolon or newline)",
             resolve_path=True,
             dir_okay=False,
             file_okay=True,
@@ -272,8 +314,26 @@ def revert(
     还原重命名后的文件 (Revert changed file names)
     """
 
-    revertModule.revert(dir, files, recursive, dryrun)
-    pass
+    if not directory and not files:
+        rprint(
+            "[red bold]请提供要还原的文件夹路径或文件 (Please provide the directory path or files to revert)[/red bold]"
+        )
+        _raise_exit(2)
+
+    try:
+        code = revertModule.revert(directory, files, recursive, dryrun)
+    except PermissionError as e:
+        rprint(f"[red bold]文件权限错误 (Permission denied): {e}[/red bold]")
+        _raise_exit(1)
+    except OSError as e:
+        rprint(f"[red bold]文件系统错误 (File system error): {e}[/red bold]")
+        _raise_exit(1)
+    except Exception as e:
+        rprint(f"[red bold]未知错误 (Unexpected error): {e}[/red bold]")
+        _raise_exit(1)
+
+    if code != 0:
+        _raise_exit(code)
 
 
 @app.command("about", no_args_is_help=False)
@@ -283,9 +343,134 @@ def about():
     """
 
     rprint(
-        f"AI-rom-batch-renamer [bold]v{constModule.VERSION}[/bold] by [bold blue]@rozx[/bold blue]"
+        f"AI ROM Batch Renamer [bold]v{constModule.VERSION}[/bold] by [bold blue]@rozx[/bold blue]"
+    )
+    rprint(
+        "Terminal + GUI | Local alias lookup + AI enrichment | Revert + Cache management"
     )
     pass
+
+
+@app.command("gui", no_args_is_help=False)
+def gui():
+    """
+    启动图形界面 (Launch GUI)
+    """
+
+    # When running as a compiled standalone binary, Qt platform plugins are not
+    # bundled with the CLI build — direct the user to the GUI binary instead.
+    _is_compiled = False
+    try:
+        _is_compiled = bool(__compiled__)  # type: ignore[name-defined]  # noqa: F821
+    except NameError:
+        pass
+
+    if _is_compiled:
+        rprint(
+            "[yellow]此命令在独立构建的 CLI 版本中不可用。请使用 GUI 版本启动图形界面。"
+            " (The gui command is not available in the standalone CLI build. Use the GUI binary instead.)[/yellow]"
+        )
+        _raise_exit(1)
+
+    try:
+        from ai_rom_batch_renamer.gui import launch_gui
+    except Exception as e:
+        rprint(
+            f"[red bold]无法启动GUI，请确认已安装 PySide6。 (Failed to launch GUI, ensure PySide6 is installed): {e}[/red bold]"
+        )
+        _raise_exit(1)
+
+    try:
+        code = launch_gui()
+    except Exception as e:
+        rprint(f"[red bold]GUI运行失败 (GUI runtime error): {e}[/red bold]")
+        _raise_exit(1)
+
+    if code != 0:
+        _raise_exit(code)
+
+
+@app.command("clear-cache", no_args_is_help=True)
+def clear_cache(
+    delete_files: Annotated[
+        bool,
+        typer.Option(
+            "--delete-files",
+            "-d",
+            help="Delete cache directory and files completely (删除缓存目录和文件)",
+            is_flag=True,
+        ),
+    ] = False,
+    yes: Annotated[
+        bool,
+        typer.Option(
+            "--yes",
+            "-y",
+            help="Skip confirmation prompt (跳过确认提示)",
+            is_flag=True,
+        ),
+    ] = False,
+):
+    """
+    清除所有缓存数据 (Clear all cache data)
+    """
+    if delete_files:
+        # Delete the entire cache directory - require confirmation
+        if not yes:
+            result = prompt(
+                [
+                    {
+                        "type": "confirm",
+                        "message": f"删除缓存目录及所有文件？(Delete cache directory and all files?)\n  路径 (Path): {cacheModule.CACHE_DIR}",
+                        "default": False,
+                    }
+                ]
+            )
+            if not result:
+                rprint("[yellow]操作已取消 (Operation cancelled.)[/yellow]")
+                return
+
+        if cacheModule.delete_cache_files():
+            rprint(
+                f"[green]✓[/green] 缓存目录已删除 (Cache directory deleted): [dim]{cacheModule.CACHE_DIR}[/dim]"
+            )
+        else:
+            rprint(
+                f"[yellow]缓存目录不存在 (Cache directory does not exist): [dim]{cacheModule.CACHE_DIR}[/dim]"
+            )
+    else:
+        # Clear cache data only - show info and ask for confirmation
+        rom_info_count = len(cacheModule.romInfoCache.get_all_keys())
+        rename_history_count = len(cacheModule.renameHistoryCache.get_all_keys())
+
+        if rom_info_count == 0 and rename_history_count == 0:
+            rprint("[yellow]缓存已为空 (Cache is already empty.)[/yellow]")
+            return
+
+        rprint(
+            f"缓存内容 (Cache contents):\n"
+            f"  - ROM 信息缓存 (ROM info cache): [bold]{rom_info_count}[/bold] 条 (items)\n"
+            f"  - 重命名历史缓存 (Rename history cache): [bold]{rename_history_count}[/bold] 条 (items)\n"
+            f"  - 缓存目录 (Cache directory): [dim]{cacheModule.CACHE_DIR}[/dim]"
+        )
+
+        if not yes:
+            result = prompt(
+                [
+                    {
+                        "type": "confirm",
+                        "message": "清除所有缓存数据？(Clear all cache data?)",
+                        "default": False,
+                    }
+                ]
+            )
+            if not result:
+                rprint("[yellow]操作已取消 (Operation cancelled.)[/yellow]")
+                return
+
+        # Clear cache data
+        cacheModule.clear_all_cache()
+        rprint("[green]✓[/green] 缓存已清除 (Cache cleared successfully).")
 
 
 if __name__ == "__main__":

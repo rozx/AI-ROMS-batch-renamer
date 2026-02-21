@@ -5,7 +5,7 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry]
 maintainers = ["Rozx <lisida900710@gmail.com>"]
 name = "AI-rom-batch-renamer"
-version = "2.1.0"
+version = "3.0.0"
 authors = ["Rozx <lisida900710@gmail.com>"]
 description = "A command line tool for batch renaming ROM files using AI."
 license = "LICENSE"
@@ -32,15 +32,21 @@ urllib3 = "2.2.3"
 wcwidth = "0.2.13"
 sqlite3-cache = "0.2.2"
 openai = "^1.82.0"
+rapidfuzz = ">=3.0"
+mcp = ">=1.0.0"
+PySide6 = { version = ">=6.10.2,<7.0.0", python = ">=3.11,<3.15" }
 
 [tool.poetry.scripts]
 main = "ai_rom_batch_renamer.main:app"
+gui = "ai_rom_batch_renamer.gui:main"
 bump = "scripts.version:bump_version"
 bump-patch = "scripts.version:bump_patch"
 bump-minor = "scripts.version:bump_minor"
 bump-major = "scripts.version:bump_major"
 build = "scripts.build:main"
+build-gui = "scripts.build:build_gui"
 test = "pytest:main"
+dev = "scripts.hotreload:main"
 
 [tool.poetry.group.dev.dependencies]
 nuitka = "^2.7.3"

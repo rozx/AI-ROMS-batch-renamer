@@ -111,16 +111,16 @@ def getRegionFromRegionDictList(regionList: list[dict], region: str):
     return region
 
 
-def traversalDirectory(dir: str) -> list[str]:
+def traversalDirectory(directory: str) -> list[str]:
 
     fileList: list[str] = []
 
-    if not os.path.isdir(dir):
+    if not os.path.isdir(directory):
         return fileList
 
-    for file in os.listdir(dir):
+    for file in os.listdir(directory):
 
-        filePath = os.path.join(dir, file)
+        filePath = os.path.join(directory, file)
 
         if os.path.isdir(filePath):
             fileList.extend(traversalDirectory(filePath))
@@ -137,6 +137,34 @@ def getBasenameAndExtensions(path: str) -> tuple[str, str]:
     baseName, extension = os.path.splitext(fileName)
 
     return (baseName, extension)
+
+
+def parseFilesInput(files: str) -> list[str]:
+    """Parse GUI/CLI file input string into file paths.
+
+    Supports semicolon and newline separated values.
+    """
+    if not files:
+        return []
+
+    normalized = files.replace("\r\n", "\n").replace("\r", "\n")
+    values: list[str] = []
+
+    for line in normalized.split("\n"):
+        for part in line.split(";"):
+            item = part.strip().strip('"').strip("'")
+            if item:
+                values.append(item)
+
+    unique_values: list[str] = []
+    seen: set[str] = set()
+    for item in values:
+        if item in seen:
+            continue
+        seen.add(item)
+        unique_values.append(item)
+
+    return unique_values
 
 
 def getMD5HashFromFile(file: str, chunk_size: int = 1024 * 1024) -> str:
@@ -193,6 +221,7 @@ def unzipFiles(file, dryrun, passwd) -> list[str]:
         os.remove(file)
 
     return extractedFiles
+
 
 def isFileRenamed(filePath: str) -> bool:
     baseName, _ = getBasenameAndExtensions(filePath)
@@ -276,3 +305,58 @@ def isFileRenamed(filePath: str) -> bool:
         return False
 
     return True
+
+
+def sanitizePlatform(platform: str) -> str:
+    """Map a user-supplied platform alias to the canonical platform name.
+
+    Lookup is case-insensitive.  Empty strings and the sentinel value
+    ``"unknown"`` are passed through unchanged.
+    Unrecognised values raise ``ValueError`` with a list of close matches.
+
+    Examples
+    --------
+    >>> sanitizePlatform("gb")
+    'Nintendo - Game Boy'
+    >>> sanitizePlatform("Game Boy")
+    'Nintendo - Game Boy'
+    >>> sanitizePlatform("")
+    ''
+    """
+    import difflib
+
+    stripped = platform.strip()
+    # Empty / default sentinel – skip validation
+    if not stripped or stripped.lower() == "unknown":
+        return stripped
+
+    key = stripped.lower()
+    canonical = constModule.PLATFORM_ALIASES.get(key)
+    if canonical:
+        return canonical
+
+    # Build suggestions from all known aliases
+    all_keys = list(constModule.PLATFORM_ALIASES.keys())
+    close = difflib.get_close_matches(key, all_keys, n=5, cutoff=0.4)
+    # Deduplicate while preserving order, show canonical names
+    seen: set[str] = set()
+    suggestions: list[str] = []
+    for k in close:
+        c = constModule.PLATFORM_ALIASES[k]
+        if c not in seen:
+            seen.add(c)
+            suggestions.append(c)
+
+    if suggestions:
+        hint = "\n  ".join(suggestions)
+        raise ValueError(
+            f"未知平台 '{stripped}' (Unknown platform).\n"
+            f"你是否想输入 (Did you mean):\n  {hint}"
+        )
+    # No close matches at all – list all canonical names
+    all_canonicals = sorted({v for v in constModule.PLATFORM_ALIASES.values()})
+    hint = "\n  ".join(all_canonicals)
+    raise ValueError(
+        f"未知平台 '{stripped}' (Unknown platform).\n"
+        f"支持的平台列表 (Supported platforms):\n  {hint}"
+    )

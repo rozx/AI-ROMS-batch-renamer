@@ -8,7 +8,7 @@ from rich import print as rprint, console
 from rich.progress import track
 
 
-def revert(dir: str, files: str, recursive: bool, dry: bool):
+def revert(directory: str, files: str, recursive: bool, dry: bool) -> int:
     """
     还原重命名后的文件 (Revert changed file names)
     """
@@ -18,12 +18,12 @@ def revert(dir: str, files: str, recursive: bool, dry: bool):
     # first adds all files into the list
 
     if files:
-        fileList.append(files)
+        fileList.extend(utilsModule.parseFilesInput(files))
 
     # then check if the directory is provided, if it is, add all files in the directory to the list
-    if dir:
-        for file in os.listdir(dir):
-            fileList.append(os.path.join(os.path.abspath(dir), file))
+    if directory:
+        for file in os.listdir(directory):
+            fileList.append(os.path.join(os.path.abspath(directory), file))
 
         # traverse the sub-directories
         for file in fileList.copy():
@@ -41,7 +41,7 @@ def revert(dir: str, files: str, recursive: bool, dry: bool):
 
         if not os.path.exists(file):
             rprint(
-                f"[red bold]Skipping file {baseName} due to it does not exist.[/red bold]"
+                f"[red bold]跳过文件 {baseName} 因为文件不存在。(Skipping file due to it does not exist.)[/red bold]"
             )
             fileList.remove(file)
             continue
@@ -55,9 +55,11 @@ def revert(dir: str, files: str, recursive: bool, dry: bool):
         rprint(
             f"[red bold]要还原的文件列表为空 (No files found in the directory or the file does not exist.)[/red bold]"
         )
-        return
+        return 2
 
-    for value in track(range(len(fileList)), description="Reverting files..."):
+    for value in track(
+        range(len(fileList)), description="正在还原文件... (Reverting files...)"
+    ):
 
         # full path of the file
         file = fileList[value]
@@ -68,7 +70,7 @@ def revert(dir: str, files: str, recursive: bool, dry: bool):
         if not renameHistory:
 
             rprint(
-                f"Skipping [yellow underline]{file}[/yellow underline]: [red bold]No renaming history found.[/red bold]"
+                f"跳过 (Skipping) [yellow underline]{file}[/yellow underline]: [red bold]未找到重命名历史记录 (No renaming history found.)[/red bold]"
             )
 
             continue
@@ -89,10 +91,10 @@ def revert(dir: str, files: str, recursive: bool, dry: bool):
             os.rename(file, targetFileName)
 
         rprint(
-            f"[bold]Reverted{' preview' if dry else ''}({value + 1}/{len(fileList)}):[/bold] [blue1 underline]{file}[/blue1 underline] -> [yellow]{baseName}{extName}[/yellow]",
+            f"[bold]还原重命名 (Reverted){' preview 预览' if dry else ''}({value + 1}/{len(fileList)}):[/bold] [blue1 underline]{file}[/blue1 underline] -> [yellow]{baseName}{extName}[/yellow]",
         )
 
         # delete rename history
         cacheModule.renameHistoryCache.delete(file)
 
-    pass
+    return 0

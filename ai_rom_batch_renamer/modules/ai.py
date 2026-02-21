@@ -1,10 +1,16 @@
 from openai import OpenAI
+import asyncio
 import json
+import time
 from ai_rom_batch_renamer.modules import cache as cacheModule
 
 from ai_rom_batch_renamer.classes.AIConfig import AIConfig
 from ai_rom_batch_renamer.classes.RomFile import RomFile
 from rich import print as rprint, console
+
+
+class AIQueryError(Exception):
+    pass
 
 
 def _cache_key(romFile: RomFile, platform: str) -> str:
@@ -20,25 +26,50 @@ def _chat_completion_content(
     temperature: float = 1,
     stream: bool = True,
     progress_prefix: str | None = None,
+    max_retries: int = 2,
+    retry_backoff_seconds: float = 1.0,
 ) -> str | None:
     """Fetch chat completion content, optionally via streaming.
 
     When streaming, prints a lightweight progress indicator (dots) while
     accumulating the full content to return.
     """
+
+    def _request_with_retry(use_stream: bool):
+        attempts = max(0, max_retries) + 1
+        last_error: Exception | None = None
+        for attempt in range(attempts):
+            try:
+                return client.chat.completions.create(
+                    model=model,
+                    messages=messages,
+                    temperature=temperature,
+                    stream=use_stream,
+                )
+            except Exception as e:
+                last_error = e
+                if attempt >= attempts - 1:
+                    raise
+                sleep_seconds = retry_backoff_seconds * (2**attempt)
+                rprint(
+                    f"[yellow]AI 请求重试 (Retry) {attempt + 1}/{max_retries}，"
+                    f"等待 {sleep_seconds:.1f}s：{e}[/yellow]"
+                )
+                time.sleep(sleep_seconds)
+        if last_error:
+            raise last_error
+
     if stream:
         # Minimal progress indicator without leaking content
         if progress_prefix:
             rprint(f"[cyan]{progress_prefix}[/cyan] [dim](streaming)[/dim]")
         content = ""
-        dot_count = 0
+        bytes_received = 0
+        last_reported_kb = -1
         try:
-            resp = client.chat.completions.create(
-                model=model,
-                messages=messages,
-                temperature=temperature,
-                stream=True,
-            )
+            # Print an initial placeholder that will be overwritten in-place
+            rprint("[dim](receiving...)[/dim]", end="", flush=True)
+            resp = _request_with_retry(True)
             for event in resp:  # type: ignore[assignment]
                 try:
                     delta = event.choices[0].delta.content or ""
@@ -46,27 +77,86 @@ def _chat_completion_content(
                     delta = ""
                 if delta:
                     content += delta
-                    dot_count += len(delta)
-                    if dot_count >= 48:
-                        print(".", end="", flush=True)
-                        dot_count = 0
+                    bytes_received += len(delta.encode("utf-8"))
+                    current_kb = bytes_received // 1024
+                    if current_kb > last_reported_kb:
+                        # \r overwrites the progress line in-place
+                        rprint(f"\r[dim]({current_kb} kb...)[/dim]", end="", flush=True)
+                        last_reported_kb = current_kb
         finally:
-            if dot_count > 0:
-                print(".", end="", flush=True)
-            print("")
+            total_kb = bytes_received / 1024
+            # Final overwrite shows total size and ends the line
+            rprint(f"\r[dim](✓ {total_kb:.1f} kb received)[/dim]")
         return content
     else:
         try:
-            response = client.chat.completions.create(
-                model=model,
-                messages=messages,
-                temperature=temperature,
-                stream=False,
-            )
+            response = _request_with_retry(False)
         except Exception as e:
-            rprint(f"[red]Error during AI processing: {e}[/red]")
+            rprint(f"[red]AI 处理出错 (Error during AI processing): {e}[/red]")
             return None
         return response.choices[0].message.content if response.choices else None
+
+
+def _extract_json_object(text: str) -> str | None:
+    """Extract the first top-level JSON object substring from text."""
+    in_string = False
+    escape = False
+    depth = 0
+    start = -1
+    for i, ch in enumerate(text):
+        if in_string:
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_string = False
+            continue
+        else:
+            if ch == '"':
+                in_string = True
+                continue
+            if ch == "{":
+                if depth == 0:
+                    start = i
+                depth += 1
+            elif ch == "}":
+                if depth > 0:
+                    depth -= 1
+                    if depth == 0 and start != -1:
+                        return text[start : i + 1]
+    return None
+
+
+def _parse_json_object(content: str) -> dict | None:
+    if not content:
+        return None
+    try:
+        parsed = json.loads(content)
+        if isinstance(parsed, dict):
+            return parsed
+    except Exception:
+        pass
+
+    obj = _extract_json_object(content)
+    if obj:
+        try:
+            parsed = json.loads(obj)
+            if isinstance(parsed, dict):
+                return parsed
+        except Exception:
+            pass
+
+    if "```" in content:
+        try:
+            inner = content.split("```", 2)[1]
+            maybe = _extract_json_object(inner) or inner
+            parsed = json.loads(maybe)
+            if isinstance(parsed, dict):
+                return parsed
+        except Exception:
+            pass
+    return None
 
 
 def _extract_json_array(text: str) -> str | None:
@@ -92,11 +182,11 @@ def _extract_json_array(text: str) -> str | None:
             if ch == '"':
                 in_string = True
                 continue
-            if ch == '[':
+            if ch == "[":
                 if depth == 0:
                     start = i
                 depth += 1
-            elif ch == ']':
+            elif ch == "]":
                 if depth > 0:
                     depth -= 1
                     if depth == 0 and start != -1:
@@ -131,27 +221,232 @@ def _parse_batch_content(content: str) -> list[dict]:
                 return parsed
         except Exception:
             pass
-    # 4) Pipe-delimited fallback (line based)
+    # 4) Pipe-delimited fallback (line based) - only englishTitle|chineseTitle
     out: list[dict] = []
     for line in content.splitlines():
         parts = [p.strip() for p in line.split("|")]
-        if len(parts) >= 7:
+        if len(parts) >= 2:
             out.append(
                 {
                     "index": len(out),
                     "englishTitle": parts[0],
                     "chineseTitle": parts[1],
-                    "region": parts[2],
-                    "platform": parts[3],
-                    "releaseYear": parts[4],
-                    "publisher": parts[5],
-                    "developer": parts[6],
                 }
             )
     return out
 
 
-def aiScraper(config: AIConfig, romFile: RomFile, platform: str = "unknown", useCache: bool = True):
+def _parse_single_pipe_content(content: str) -> dict | None:
+    if not content:
+        return None
+
+    line = content.strip()
+    if "\n" in line:
+        line = line.splitlines()[0].strip()
+
+    parts = [p.strip() for p in line.split("|")]
+    if len(parts) < 2:
+        return None
+
+    return {
+        "englishTitle": parts[0],
+        "chineseTitle": parts[1],
+    }
+
+
+def _parse_single_content(content: str) -> dict | None:
+    """Parse single-item AI content. Prefer JSON object, fallback to pipe format."""
+    parsed = _parse_json_object(content)
+    if isinstance(parsed, dict):
+        return {
+            "englishTitle": str(parsed.get("englishTitle", "")).strip(),
+            "chineseTitle": str(parsed.get("chineseTitle", "")).strip(),
+        }
+    return _parse_single_pipe_content(content)
+
+
+# ── Tavily MCP helpers ──────────────────────────────────────────────────────
+
+
+def _mcp_tools_to_openai(tools) -> list[dict]:
+    """Convert MCP tool definitions to the OpenAI function-calling format."""
+    openai_tools = []
+    for t in tools:
+        openai_tools.append(
+            {
+                "type": "function",
+                "function": {
+                    "name": t.name,
+                    "description": t.description or "",
+                    "parameters": (
+                        t.inputSchema
+                        if t.inputSchema
+                        else {"type": "object", "properties": {}}
+                    ),
+                },
+            }
+        )
+    return openai_tools
+
+
+async def _async_mcp_tool_loop(
+    client: OpenAI,
+    *,
+    model: str,
+    messages: list[dict],
+    temperature: float = 0.1,
+    tavily_api_key: str,
+    max_turns: int = 20,
+    progress_prefix: str | None = None,
+) -> str | None:
+    """Agentic tool-calling loop backed by the Tavily remote MCP server.
+
+    Connects to ``https://mcp.tavily.com/mcp/?tavilyApiKey=<key>`` via the
+    MCP Streamable-HTTP transport — no Node.js / npx required.
+    """
+    try:
+        from mcp import ClientSession  # type: ignore
+        from mcp.client.streamable_http import streamablehttp_client  # type: ignore
+    except ImportError:
+        rprint(
+            "[red]Tavily MCP 错误 (Error): 缺少 'mcp' 包 (package not installed)."
+            " 请运行 'poetry add mcp' 或 'pip install mcp'.[/red]"
+        )
+        return None
+
+    url = f"https://mcp.tavily.com/mcp/?tavilyApiKey={tavily_api_key}"
+
+    async with streamablehttp_client(url) as (read, write, _):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            mcp_tools_response = await session.list_tools()
+            openai_tools = _mcp_tools_to_openai(mcp_tools_response.tools)
+
+            if progress_prefix:
+                rprint(
+                    f"[cyan]{progress_prefix}[/cyan] "
+                    f"[dim](Tavily MCP, {len(openai_tools)} tools)[/dim]"
+                )
+
+            current_messages = list(messages)
+            for _turn in range(max_turns):
+                response = client.chat.completions.create(
+                    model=model,
+                    messages=current_messages,
+                    temperature=temperature,
+                    tools=openai_tools,
+                    tool_choice="auto",
+                )
+                msg = response.choices[0].message
+
+                # No tool calls — we have the final answer
+                if not msg.tool_calls:
+                    return msg.content
+
+                # Append the assistant turn (may include tool_calls)
+                current_messages.append(msg.model_dump(exclude_none=True))
+
+                # Execute each tool call through the MCP session
+                for tc in msg.tool_calls:
+                    try:
+                        args = json.loads(tc.function.arguments)
+                    except Exception:
+                        args = {}
+                    rprint(
+                        f"[dim]  MCP 工具调用 (Tool call): " f"{tc.function.name}[/dim]"
+                    )
+                    try:
+                        result = await session.call_tool(tc.function.name, args)
+                        tool_content = result.content[0].text if result.content else ""
+                    except Exception as e:
+                        tool_content = f"Tool call error: {e}"
+                    current_messages.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": tc.id,
+                            "content": tool_content,
+                        }
+                    )
+
+            # max_turns exhausted — force a final synthesis without tools
+            rprint(
+                "[dim]  MCP 强制汇总 (Forcing final synthesis after max turns)[/dim]"
+            )
+            final_response = client.chat.completions.create(
+                model=model,
+                messages=current_messages,
+                temperature=temperature,
+            )
+            return (
+                final_response.choices[0].message.content
+                if final_response.choices
+                else None
+            )
+    return None
+
+
+def _chat_with_mcp_tools(
+    client: OpenAI,
+    *,
+    model: str,
+    messages: list[dict],
+    temperature: float = 0.1,
+    tavily_api_key: str,
+    max_turns: int = 20,
+    progress_prefix: str | None = None,
+) -> str | None:
+    """Synchronous wrapper around the async Tavily MCP tool-calling loop."""
+    try:
+        return asyncio.run(
+            _async_mcp_tool_loop(
+                client,
+                model=model,
+                messages=messages,
+                temperature=temperature,
+                tavily_api_key=tavily_api_key,
+                max_turns=max_turns,
+                progress_prefix=progress_prefix,
+            )
+        )
+    except Exception as e:
+        rprint(f"[red]Tavily MCP 错误 (Error): {e}[/red]")
+        return None
+
+
+def _get_content(
+    client: OpenAI,
+    config: "AIConfig",
+    *,
+    messages: list[dict],
+    temperature: float = 0.1,
+    stream: bool = True,
+    max_turns: int = 20,
+    progress_prefix: str | None = None,
+) -> str | None:
+    """Route content generation to MCP or plain completion depending on config."""
+    if config.tavilyApiKey.strip():
+        return _chat_with_mcp_tools(
+            client,
+            model=config.model,
+            messages=messages,
+            temperature=temperature,
+            tavily_api_key=config.tavilyApiKey,
+            max_turns=max_turns,
+            progress_prefix=progress_prefix,
+        )
+    return _chat_completion_content(
+        client,
+        model=config.model,
+        messages=messages,
+        temperature=temperature,
+        stream=stream,
+        progress_prefix=progress_prefix,
+    )
+
+
+def aiScraper(
+    config: AIConfig, romFile: RomFile, platform: str = "unknown", useCache: bool = True
+):
 
     # rprint(
     #     f"[blue]Using AI to scrape information for ROM file: {romFile.originalFilename}[/blue]"
@@ -160,10 +455,10 @@ def aiScraper(config: AIConfig, romFile: RomFile, platform: str = "unknown", use
     # rprint(f"[blue]Model: {config.model}[/blue]")
     # rprint(f"[blue]API Key: {config.apiKey}[/blue]")
     # rprint(f"[blue]Endpoint: {config.endpoint}[/blue]")
-    
+
     # cacheModule.romInfoCache is a Cache instance
     cache = cacheModule.romInfoCache
-    
+
     key = _cache_key(romFile, platform)
     rprint(
         f"[cyan]AI 正在查询 (Querying)[/cyan] [white]{romFile.originalFilename}[/white] "
@@ -172,7 +467,9 @@ def aiScraper(config: AIConfig, romFile: RomFile, platform: str = "unknown", use
     if useCache:
         cachedResult = cache.get(key)
         if cachedResult is not None:
-            rprint(f"[green]AI 缓存命中 (Cache hit):[/green] {romFile.originalFilename}")
+            rprint(
+                f"[green]AI 缓存命中 (Cache hit):[/green] {romFile.originalFilename}"
+            )
             return cachedResult
 
     client = OpenAI(
@@ -182,51 +479,42 @@ def aiScraper(config: AIConfig, romFile: RomFile, platform: str = "unknown", use
 
     # Implement the AI renaming logic here
 
-    content = _chat_completion_content(
-        client,
-        model=config.model,
-        messages=[
-            {
-                "role": "system",
-                "content": "You will help to scrape emulator ROM file information from internet sources. Return the result in the format of [English title]|[Chinese title]|[region]|[platform]|[release year]|[publisher]|[developer]. Do not return any other information.",
-            },
-            {
-                "role": "user",
-                "content": f"Here is a ROM file name: {romFile.originalFilename}. The game platform might be on: {platform} platform.",
-            },
-        ],
-        stream=True,
-        progress_prefix=f"AI 正在流式返回 (Streaming) {romFile.originalFilename}",
-    )
+    system_msg = "You will help to identify emulator ROM file names. Return ONLY one JSON object with fields: englishTitle, chineseTitle. Use empty string when unknown. Do not return any other information."
+    user_msg = f"Here is a ROM file name: {romFile.originalFilename}. The game platform might be on: {platform} platform. Return the English title and Chinese title of this game."
+    messages = [
+        {"role": "system", "content": system_msg},
+        {"role": "user", "content": user_msg},
+    ]
+
+    try:
+        content = _get_content(
+            client,
+            config,
+            messages=messages,
+            temperature=0.1,
+            stream=True,
+            progress_prefix=f"AI 正在查询 (Querying) {romFile.originalFilename}",
+        )
+    except Exception as e:
+        raise AIQueryError(str(e)) from e
 
     if content is not None:
-        # Process the AI response here
-        if content is not None:
-            split_content = content.split("|")
-            
-            ai_result = {
-                "englishTitle": split_content[0].strip(),
-                "chineseTitle": split_content[1].strip(),
-                "region": split_content[2].strip(),
-                "platform": split_content[3].strip(),
-                "releaseYear": split_content[4].strip(),
-                "publisher": split_content[5].strip(),
-                "developer": split_content[6].strip(),
-            }
-
-            if useCache and ai_result["chineseTitle"] and ai_result["englishTitle"]:
-                cache.add(key, ai_result, timeout=-1)
-            rprint(f"[green]AI 返回结果 (Received):[/green] {romFile.originalFilename}")
+        ai_result = _parse_single_content(content)
+        if ai_result is None:
             rprint(
-                "  标题 (CN/EN): "
-                f"{ai_result['chineseTitle']} / {ai_result['englishTitle']}\n"
-                f"  平台/Platform: {ai_result['platform']}  地区/Region: {ai_result['region']}  年份/Year: {ai_result['releaseYear']}\n"
-                f"  发行/Publisher: {ai_result['publisher']}  开发/Developer: {ai_result['developer']}"
+                f"[yellow]AI 返回格式无法解析 (Unparseable response), filename: {romFile.originalFilename}[/yellow]"
             )
-            return ai_result
+            return None
 
-        else:
-            rprint("[red]No content returned from AI response.[/red]")
+        if useCache and ai_result["chineseTitle"] and ai_result["englishTitle"]:
+            cache.add(key, ai_result, timeout=-1)
+        rprint(f"[green]AI 返回结果 (Received):[/green] {romFile.originalFilename}")
+        rprint(
+            f"  标题 (CN/EN): {ai_result['chineseTitle']} / {ai_result['englishTitle']}"
+        )
+        return ai_result
+
+    rprint("[red]AI 未返回任何内容 (No content returned from AI response.)[/red]")
     pass
 
 
@@ -236,6 +524,7 @@ def aiScraperBatch(
     platform: str = "unknown",
     useCache: bool = True,
     batch_size: int = 10,
+    csv_candidates: dict[str, list[str]] | None = None,
 ):
     """Batch AI enrichment for multiple ROM filenames.
 
@@ -280,37 +569,49 @@ def aiScraperBatch(
             f"[cyan]AI 批次 (Batch) {batch_idx + 1}/{total_batches}:[/cyan] 正在查询 (Querying) {len(chunk)} 文件 (files)..."
         )
         # Build a compact prompt expecting strict JSON
-        listing = [
-            {"index": i, "filename": rf.originalFilename}
-            for i, rf in enumerate(chunk)
-        ]
+        listing = []
+        for i, rf in enumerate(chunk):
+            item: dict = {"index": i, "filename": rf.originalFilename}
+            if csv_candidates:
+                hints = csv_candidates.get(rf.originalFilename)
+                if hints:
+                    item["hints"] = hints
+            listing.append(item)
         system = (
-            "You enrich emulator ROM file names. Return ONLY a JSON array."
+            "You identify emulator ROM file names. Return ONLY a JSON array."
             " Each array element MUST correspond to the input items IN THE SAME ORDER."
-            " For every input item include these fields exactly: index, filename, englishTitle, chineseTitle, region, platform, releaseYear, publisher, developer."
+            " For every input item include these fields exactly: index, filename, englishTitle, chineseTitle."
             " Rules: Do not skip items. Do not reorder. 'index' must match the provided index."
             " If chineseTitle clearly indicates a specific game, do NOT substitute a different game title."
             " Prefer leaving englishTitle empty over guessing if uncertain."
-            " If data unknown, use an empty string (""). No markdown, no explanations, no trailing text."
+            " If 'hints' are provided for an item, they are possible game titles (English, or"
+            " 'English (Chinese)' format) from a local database — use them as strong reference"
+            " to improve your answer. Prefer a hint title over guessing from the raw filename."
+            ' If data unknown, use an empty string (""). No markdown, no explanations, no trailing text.'
         )
         user = {
             "task": "enrich",
             "platformHint": platform,
             "items": listing,
         }
-        content = _chat_completion_content(
-            client,
-            model=config.model,
-            messages=[
-                {"role": "system", "content": system},
-                {
-                    "role": "user",
-                    "content": json.dumps(user, ensure_ascii=False),
-                },
-            ],
-            stream=True,
-            progress_prefix=f"AI 批次流式返回 (Batch streaming) {batch_idx + 1}/{total_batches}",
-        )
+        try:
+            content = _get_content(
+                client,
+                config,
+                messages=[
+                    {"role": "system", "content": system},
+                    {
+                        "role": "user",
+                        "content": json.dumps(user, ensure_ascii=False),
+                    },
+                ],
+                temperature=0.1,
+                stream=True,
+                max_turns=len(chunk),
+                progress_prefix=f"AI 批次查询 (Batch querying) {batch_idx + 1}/{total_batches}",
+            )
+        except Exception as e:
+            raise AIQueryError(str(e)) from e
         if content is None:
             rprint("[red]AI 错误 (Error): 批次返回为空 (None). 将跳过该批次。[/red]")
             continue
@@ -339,47 +640,54 @@ def aiScraperBatch(
             returned_filename = str(item.get("filename", "")).strip()
             if returned_filename and returned_filename != rf.originalFilename:
                 # Try to locate the correct RomFile by filename inside chunk
-                alt = next((c for c in chunk if c.originalFilename == returned_filename), None)
+                alt = next(
+                    (c for c in chunk if c.originalFilename == returned_filename), None
+                )
                 if alt is not None:
                     rf = alt
                 mismatches += 1
             ai_result = {
                 "englishTitle": str(item.get("englishTitle", "")).strip(),
                 "chineseTitle": str(item.get("chineseTitle", "")).strip(),
-                "region": str(item.get("region", "")).strip(),
-                "platform": str(item.get("platform", platform)).strip(),
-                "releaseYear": str(item.get("releaseYear", "")).strip(),
-                "publisher": str(item.get("publisher", "")).strip(),
-                "developer": str(item.get("developer", "")).strip(),
             }
             results[rf.originalFilename] = ai_result
             if useCache and ai_result["chineseTitle"] and ai_result["englishTitle"]:
                 cache.add(_cache_key(rf, platform), ai_result, timeout=-1)
             mapped += 1
         if mismatches:
-            rprint(f"[yellow]AI 警告 (Warning): 文件名不匹配次数 (filename mismatches): {mismatches}[/yellow]")
+            rprint(
+                f"[yellow]AI 警告 (Warning): 文件名不匹配次数 (filename mismatches): {mismatches}[/yellow]"
+            )
 
         # If nothing could be mapped, retry once with a stricter minimal prompt
         if mapped == 0 and parsed:
             # We had syntactic items but none mapped (likely index mismatch). Retry once.
-            rprint("[yellow]AI 重试 (Retry): 解析后无映射，使用简化提示重试该批次。[/yellow]")
-            simple_system = (
-                "Return ONLY JSON array, same order, fields: index, filename, englishTitle, chineseTitle, region, platform, releaseYear, publisher, developer."
+            rprint(
+                "[yellow]AI 重试 (Retry): 解析后无映射，使用简化提示重试该批次。[/yellow]"
             )
+            simple_system = "Return ONLY JSON array, same order, fields: index, filename, englishTitle, chineseTitle."
             simple_user = {
                 "items": listing,
                 "platformHint": platform,
             }
-            content_retry = _chat_completion_content(
-                client,
-                model=config.model,
-                messages=[
-                    {"role": "system", "content": simple_system},
-                    {"role": "user", "content": json.dumps(simple_user, ensure_ascii=False)},
-                ],
-                stream=True,
-                progress_prefix=f"AI 批次重试流式返回 (Batch retry streaming) {batch_idx + 1}/{total_batches}",
-            )
+            try:
+                content_retry = _get_content(
+                    client,
+                    config,
+                    messages=[
+                        {"role": "system", "content": simple_system},
+                        {
+                            "role": "user",
+                            "content": json.dumps(simple_user, ensure_ascii=False),
+                        },
+                    ],
+                    temperature=0.1,
+                    stream=True,
+                    max_turns=len(chunk),
+                    progress_prefix=f"AI 批次重试 (Batch retry) {batch_idx + 1}/{total_batches}",
+                )
+            except Exception as e:
+                raise AIQueryError(str(e)) from e
             if content_retry:
                 try:
                     parsed_retry = json.loads(content_retry)
@@ -395,20 +703,26 @@ def aiScraperBatch(
                     rf = chunk[idx]
                     returned_filename = str(item.get("filename", "")).strip()
                     if returned_filename and returned_filename != rf.originalFilename:
-                        alt = next((c for c in chunk if c.originalFilename == returned_filename), None)
+                        alt = next(
+                            (
+                                c
+                                for c in chunk
+                                if c.originalFilename == returned_filename
+                            ),
+                            None,
+                        )
                         if alt is not None:
                             rf = alt
                     ai_result = {
                         "englishTitle": str(item.get("englishTitle", "")).strip(),
                         "chineseTitle": str(item.get("chineseTitle", "")).strip(),
-                        "region": str(item.get("region", "")).strip(),
-                        "platform": str(item.get("platform", platform)).strip(),
-                        "releaseYear": str(item.get("releaseYear", "")).strip(),
-                        "publisher": str(item.get("publisher", "")).strip(),
-                        "developer": str(item.get("developer", "")).strip(),
                     }
                     results[rf.originalFilename] = ai_result
-                    if useCache and ai_result["chineseTitle"] and ai_result["englishTitle"]:
+                    if (
+                        useCache
+                        and ai_result["chineseTitle"]
+                        and ai_result["englishTitle"]
+                    ):
                         cache.add(_cache_key(rf, platform), ai_result, timeout=-1)
                     mapped += 1
 
@@ -428,74 +742,108 @@ def aiScraperBatch(
                 continue
             if idx < 0 or idx >= len(chunk):
                 continue
-            cn = str(item.get('chineseTitle','')).strip()
-            en = str(item.get('englishTitle','')).strip()
+            cn = str(item.get("chineseTitle", "")).strip()
+            en = str(item.get("englishTitle", "")).strip()
             if not cn and not en:
                 rf = chunk[idx]
                 missing_or_partial.append((rf.originalFilename, item, "both"))
             elif not cn or not en:
                 rf = chunk[idx]
-                which = 'chinese' if not cn else 'english'
+                which = "chinese" if not cn else "english"
                 missing_or_partial.append((rf.originalFilename, item, which))
         # Detect completely unmapped files in this chunk
-        mapped_names = {name for name in results if name in [c.originalFilename for c in chunk]}
+        mapped_names = {
+            name for name in results if name in [c.originalFilename for c in chunk]
+        }
         for rf in chunk:
             if rf.originalFilename not in mapped_names:
                 missing_or_partial.append((rf.originalFilename, {}, "unmapped"))
         if missing_or_partial:
-            rprint(f"[yellow]AI 提示 (Notice): 以下文件存在缺失或未匹配信息 (missing/partial/unmapped): {len(missing_or_partial)}[/yellow]")
+            rprint(
+                f"[yellow]AI 提示 (Notice): 以下文件存在缺失或未匹配信息 (missing/partial/unmapped): {len(missing_or_partial)}[/yellow]"
+            )
             for filename, item, kind in missing_or_partial:
-                if kind == 'unmapped':
-                    rprint(f"  [white]{filename}[/white]\n    未匹配 (Unmapped in batch response)")
+                if kind == "unmapped":
+                    rprint(
+                        f"  [white]{filename}[/white]\n    未匹配 (Unmapped in batch response)"
+                    )
                     continue
                 rprint(
                     f"  [white]{filename}[/white]\n"
-                    f"    缺失类型 (Missing type): {kind} 标题 (CN/EN): {item.get('chineseTitle','')} / {item.get('englishTitle','')} 平台/Platform: {item.get('platform','')} 地区/Region: {item.get('region','')} 年份/Year: {item.get('releaseYear','')}"
+                    f"    缺失类型 (Missing type): {kind} 标题 (CN/EN): {item.get('chineseTitle','')} / {item.get('englishTitle','')}"
                 )
 
-        # Post-batch targeted retries for items with ANY missing field (region optional)
+        # Post-batch targeted retries only when englishTitle is missing
         refinement_targets: list[RomFile] = []
-        required_fields = ["englishTitle", "chineseTitle", "platform", "releaseYear", "publisher", "developer"]
+        required_fields = ["englishTitle", "chineseTitle"]
         for rf in chunk:
             data = results.get(rf.originalFilename)
             if not data:
                 continue
-            if any((not str(data.get(f, '')).strip()) for f in required_fields):
+            if not str(data.get("englishTitle", "")).strip():
                 refinement_targets.append(rf)
         if refinement_targets:
-            rprint(f"[cyan]AI 细化重试 (Refinement retry): 针对缺失字段的文件 {len(refinement_targets)}[/cyan]")
+            rprint(
+                f"[cyan]AI 细化重试 (Refinement retry): 仅针对英文标题缺失的文件 {len(refinement_targets)}[/cyan]"
+            )
             for rf in refinement_targets:
                 existing = results[rf.originalFilename]
-                missing_list = [f for f in required_fields if not str(existing.get(f, '')).strip()]
-                present_summary = {f: existing.get(f, '') for f in required_fields if f not in missing_list and existing.get(f)}
+                missing_list = ["englishTitle"]
+                present_summary = {
+                    f: existing.get(f, "")
+                    for f in required_fields
+                    if f not in missing_list and existing.get(f)
+                }
                 user_msg = (
-                    "Filename: " + rf.originalFilename + "; Platform hint: " + platform +
-                    ". Provide missing fields only if you are certain."
-                    " Return full pipe-delimited row: English Title|Chinese Title|region|platform|release year|publisher|developer."
-                    " Missing fields: " + ",".join(missing_list) + ". Present fields (keep identical): " + json.dumps(present_summary, ensure_ascii=False)
+                    "Filename: "
+                    + rf.originalFilename
+                    + "; Platform hint: "
+                    + platform
+                    + ". Provide missing fields only if you are certain."
+                    " Return ONLY one JSON object with fields: englishTitle, chineseTitle."
+                    " Missing fields: "
+                    + ",".join(missing_list)
+                    + ". Present fields (keep identical): "
+                    + json.dumps(present_summary, ensure_ascii=False)
                 )
-                single = _chat_completion_content(
-                    client,
-                    model=config.model,
-                    messages=[
-                        {"role": "system", "content": "Return pipe-delimited: English Title|Chinese Title|region|platform|release year|publisher|developer. Use empty string if unknown. Do NOT alter existing non-empty values."},
-                        {"role": "user", "content": user_msg},
-                    ],
-                    stream=True,
-                    progress_prefix=f"AI 字段补全重试 (Field fill retry) {rf.originalFilename}",
-                )
+                try:
+                    single = _get_content(
+                        client,
+                        config,
+                        messages=[
+                            {
+                                "role": "system",
+                                "content": "Return ONLY one JSON object with fields: englishTitle, chineseTitle. Use empty string if unknown. Do NOT alter existing non-empty values.",
+                            },
+                            {"role": "user", "content": user_msg},
+                        ],
+                        temperature=0.1,
+                        stream=True,
+                        max_turns=1,
+                        progress_prefix=f"AI 字段补全重试 (Field fill retry) {rf.originalFilename}",
+                    )
+                except Exception as e:
+                    raise AIQueryError(str(e)) from e
                 if single:
-                    parts = [p.strip() for p in single.split("|")]
-                    if len(parts) >= 7:
-                        update_fields = ["englishTitle", "chineseTitle", "region", "platform", "releaseYear", "publisher", "developer"]
-                        for idx, field in enumerate(update_fields):
-                            if field in missing_list and parts[idx]:
-                                results[rf.originalFilename][field] = parts[idx]
+                    single_data = _parse_json_object(single)
+                    if single_data:
+                        update_fields = ["englishTitle", "chineseTitle"]
+                        for field in update_fields:
+                            if field in missing_list:
+                                value = str(single_data.get(field, "")).strip()
+                                if value:
+                                    results[rf.originalFilename][field] = value
                         # If after fill both titles present, store to cache
                         filled = results[rf.originalFilename]
-                        if useCache and filled.get("chineseTitle") and filled.get("englishTitle"):
+                        if (
+                            useCache
+                            and filled.get("chineseTitle")
+                            and filled.get("englishTitle")
+                        ):
                             cache.add(_cache_key(rf, platform), filled, timeout=-1)
-                        rprint(f"[green]AI 字段补全完成 (Fields filled): {rf.originalFilename} 缺失 -> {missing_list}" )
+                        rprint(
+                            f"[green]AI 字段补全完成 (Fields filled): {rf.originalFilename} 缺失 -> {missing_list}"
+                        )
 
     rprint(
         f"[green]AI 处理完成 (Enrichment complete).[/green] 查询 (Queried) {len(to_query)}, 缓存命中 (Cache hits) {cache_hits}, 总计 (Total) {len(romFiles)}"

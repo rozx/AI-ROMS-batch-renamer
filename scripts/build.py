@@ -6,9 +6,9 @@ It computes platform-specific options (icon, temp dir, output filename),
 reads the version from APP_VERSION env or pyproject.toml, and runs Nuitka.
 
 Usage examples:
-  poetry run build-app
-  poetry run build-app --outdir ./dist --verbose
-  poetry run build-app --name custom-name --dry-run
+    poetry run build
+    poetry run build --target both --outdir ./dist --verbose
+    poetry run build --target gui --name custom-name --dry-run
 """
 from __future__ import annotations
 
@@ -17,6 +17,12 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+
+
+TARGET_ENTRY = {
+    "cli": "main.py",
+    "gui": "gui.py",
+}
 
 
 def read_version(pyproject_path: Path) -> str | None:
@@ -47,7 +53,7 @@ def detect_platform() -> str:
     return "Linux"
 
 
-def default_output_name(base: str = "ai-rom-batch-renamer") -> str:
+def default_output_name(base: str = "ai-rom-batch-renamer", target: str = "cli") -> str:
     plat = detect_platform()
     suffix = {
         "Windows": "Windows-X64",
@@ -55,7 +61,8 @@ def default_output_name(base: str = "ai-rom-batch-renamer") -> str:
         "Linux": "Linux-X64",
     }[plat]
     ext = ".exe" if plat == "Windows" else ""
-    return f"{base}-{suffix}{ext}"
+    target_suffix = "gui" if target == "gui" else "cli"
+    return f"{base}-{suffix}-{target_suffix}{ext}"
 
 
 def default_temp_dir_spec() -> str:
@@ -65,12 +72,29 @@ def default_temp_dir_spec() -> str:
     return r"{TEMP}/ai-rom-batch-renamer"
 
 
-def build(args: argparse.Namespace) -> int:
+def default_icon_path(project_root: Path) -> str:
+    plat = detect_platform()
+    icon_dir = project_root / "assets" / "icos"
+
+    if plat == "Windows":
+        return str(icon_dir / "icon.ico")
+    if plat == "MacOS":
+        return str(icon_dir / "icon.icns")
+    return str(icon_dir / "icon.png")
+
+
+def _compute_entry(project_root: Path, args: argparse.Namespace, target: str) -> str:
+    if args.entry:
+        return args.entry
+    return str(project_root / "ai_rom_batch_renamer" / TARGET_ENTRY[target])
+
+
+def build(args: argparse.Namespace, target: str = "cli") -> int:
     project_root = Path(__file__).resolve().parent.parent
     pyproject = project_root / "pyproject.toml"
-    entry = args.entry or str(project_root / "ai_rom_batch_renamer" / "main.py")
+    entry = _compute_entry(project_root, args, target)
     outdir = args.outdir or str(project_root / "dist")
-    name = args.name or default_output_name()
+    name = args.name or default_output_name(target=target)
     tempdir_spec = args.tempdir or default_temp_dir_spec()
     app_version = args.version or read_version(pyproject)
     include_pkg_data = args.include_package_data or ["pinyin"]
@@ -97,12 +121,45 @@ def build(args: argparse.Namespace) -> int:
     for pkg in include_pkg_data:
         nuitka_cmd.append(f"--include-package-data={pkg}")
 
+    # Include rom name alias CSV/JSON data files so they are accessible at runtime
+    alias_data_dir = project_root / "assets" / "rom-name-alias-cn"
+    if alias_data_dir.is_dir():
+        nuitka_cmd.append(
+            f"--include-data-dir={alias_data_dir}=assets/rom-name-alias-cn"
+        )
+
+    # On Windows, use MinGW64 — Nuitka downloads it automatically if not present,
+    # requires no Visual Studio installation, and avoids msvcp140.dll warnings.
+    if plat == "Windows":
+        nuitka_cmd.append("--mingw64")
+
     # Icons per platform
     icon_path = args.icon
     if plat == "Windows" and icon_path:
         nuitka_cmd.append(f"--windows-icon-from-ico={icon_path}")
     if plat == "MacOS" and icon_path:
         nuitka_cmd.append(f"--macos-app-icon={icon_path}")
+
+    # Enable PySide6 plugin for GUI builds (required for standalone mode and Qt plugins)
+    if target == "gui":
+        nuitka_cmd.append("--enable-plugin=pyside6")
+        # The GUI binary re-invokes itself as CLI via a hidden --__cli-mode__ flag.
+        # Because this import is inside an `if` branch, Nuitka won't detect it
+        # statically — force-include the entire package so CLI and all its
+        # dependencies (rename, revert, cache, etc.) are bundled.
+        nuitka_cmd.append("--include-package=ai_rom_batch_renamer")
+
+    # GUI build on Windows: disable console by default unless user overrides via --extra
+    if (
+        plat == "Windows"
+        and target == "gui"
+        and not args.no_windows_disable_console
+        and not (
+            args.extra
+            and any(opt.startswith("--windows-console-mode") for opt in args.extra)
+        )
+    ):
+        nuitka_cmd.append("--windows-console-mode=disable")
 
     # Append extra raw options if provided
     if args.extra:
@@ -113,6 +170,7 @@ def build(args: argparse.Namespace) -> int:
 
     if args.verbose or args.dry_run:
         print("Detected platform:", plat)
+        print("Build target:", target)
         print("App version:", app_version or "unknown")
         print("Running:")
         print(" ".join(nuitka_cmd))
@@ -138,18 +196,72 @@ def build(args: argparse.Namespace) -> int:
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Build with Nuitka (dynamic spec)")
-    parser.add_argument("--entry", default=None, help="Entry script (default: ai_rom_batch_renamer/main.py)")
-    parser.add_argument("--outdir", default=None, help="Output directory (default: ./dist)")
-    parser.add_argument("--name", default=None, help="Output filename (auto-computed per OS if omitted)")
-    parser.add_argument("--tempdir", default=None, help="Onefile temp dir spec (default per OS)")
-    parser.add_argument("--icon", default=str(Path("icon.png")), help="Icon path for Windows/Mac")
+    parser.add_argument(
+        "--target",
+        choices=["cli", "gui", "both"],
+        default="cli",
+        help="Build target: cli(main.py), gui(gui.py), or both (default: cli)",
+    )
+    parser.add_argument(
+        "--entry",
+        default=None,
+        help="Entry script override (by default derives from --target)",
+    )
+    parser.add_argument(
+        "--outdir", default=None, help="Output directory (default: ./dist)"
+    )
+    parser.add_argument(
+        "--name", default=None, help="Output filename (auto-computed per OS if omitted)"
+    )
+    parser.add_argument(
+        "--tempdir", default=None, help="Onefile temp dir spec (default per OS)"
+    )
+    parser.add_argument(
+        "--icon",
+        default=None,
+        help="Icon path for Windows(.ico) / MacOS(.icns)",
+    )
     parser.add_argument("--version", default=None, help="Override app version")
-    parser.add_argument("--include-package-data", nargs="*", default=None, help="Packages to include data for")
-    parser.add_argument("--onefile", action="store_true", default=True, help="Build as onefile (default)")
-    parser.add_argument("--no-onefile", dest="onefile", action="store_false", help="Disable onefile mode")
-    parser.add_argument("--assume-yes", action="store_true", default=True, help="Assume yes for downloads (default)")
-    parser.add_argument("--no-assume-yes", dest="assume_yes", action="store_false", help="Disable assume yes")
-    parser.add_argument("--extra", nargs=argparse.REMAINDER, help="Extra raw Nuitka options (placed at end)")
+    parser.add_argument(
+        "--include-package-data",
+        nargs="*",
+        default=None,
+        help="Packages to include data for",
+    )
+    parser.add_argument(
+        "--onefile",
+        action="store_true",
+        default=True,
+        help="Build as onefile (default)",
+    )
+    parser.add_argument(
+        "--no-onefile",
+        dest="onefile",
+        action="store_false",
+        help="Disable onefile mode",
+    )
+    parser.add_argument(
+        "--assume-yes",
+        action="store_true",
+        default=True,
+        help="Assume yes for downloads (default)",
+    )
+    parser.add_argument(
+        "--no-assume-yes",
+        dest="assume_yes",
+        action="store_false",
+        help="Disable assume yes",
+    )
+    parser.add_argument(
+        "--extra",
+        nargs=argparse.REMAINDER,
+        help="Extra raw Nuitka options (placed at end)",
+    )
+    parser.add_argument(
+        "--no-windows-disable-console",
+        action="store_true",
+        help="For GUI target on Windows, do not add --windows-console-mode=disable automatically",
+    )
     parser.add_argument("--dry-run", action="store_true", help="Print command only")
     parser.add_argument("--verbose", action="store_true", help="Verbose output")
     return parser.parse_args(argv)
@@ -157,8 +269,36 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> None:
     args = parse_args(sys.argv[1:] if argv is None else argv)
-    code = build(args)
-    sys.exit(code)
+    if args.icon is None:
+        project_root = Path(__file__).resolve().parent.parent
+        args.icon = default_icon_path(project_root)
+
+    if args.target == "both" and args.entry:
+        print(
+            "--entry cannot be used with --target both. Please build targets separately or remove --entry."
+        )
+        sys.exit(2)
+
+    if args.target == "both" and args.name:
+        print(
+            "--name cannot be used with --target both. Use default names or build targets separately."
+        )
+        sys.exit(2)
+
+    targets = ["cli", "gui"] if args.target == "both" else [args.target]
+
+    for target in targets:
+        code = build(args, target=target)
+        if code != 0:
+            sys.exit(code)
+
+    sys.exit(0)
+
+
+def build_gui(argv: list[str] | None = None) -> None:
+    """Convenience entry point: build GUI target only."""
+    injected = ["--target", "gui"] + (sys.argv[1:] if argv is None else argv)
+    main(injected)
 
 
 if __name__ == "__main__":
