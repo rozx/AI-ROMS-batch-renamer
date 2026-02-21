@@ -280,12 +280,9 @@ def rename(options: dict) -> int:
             regexModule.regionMatchRegex, romFile.originalFilename
         ) or regex.search(regexModule.regionMatchRegex, romFile.baseName)
 
-        if chineseMatch:
-            region = "简"
-        elif regionMatch:
+        if regionMatch:
             region = utilsModule.getRegion(regionMatch.group(0))
-        elif cn_title_from_lookup:
-            # A Chinese title from cn_lookup/AI implies simplified-Chinese content.
+        elif chineseMatch:
             region = "简"
         else:
             region = "Unknown"

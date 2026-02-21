@@ -69,15 +69,15 @@ def getRegion(region: str):
     regionDictList = [
         {
             "item": "US",
-            "keys": ["USA", "US", "us", "usa"],
+            "keys": ["USA", "US", "us", "usa", "U"],
         },
         {
             "item": "JP",
-            "keys": ["Japan", "JP", "jp"],
+            "keys": ["Japan", "JP", "jp", "J"],
         },
         {
             "item": "EU",
-            "keys": ["Europe", "EU", "eu"],
+            "keys": ["Europe", "EU", "eu", "E"],
         },
         {
             "item": "繁",
@@ -85,7 +85,7 @@ def getRegion(region: str):
         },
         {
             "item": "简",
-            "keys": ["简", "简体", "简體", "简中", "中文", "SC", "sc"],
+            "keys": ["简", "简体", "简體", "简中", "中文", "SC", "sc", "C"],
         },
         {
             "item": "简&繁",
@@ -93,7 +93,7 @@ def getRegion(region: str):
         },
         {
             "item": "WW",
-            "keys": ["World", "WW", "ww"],
+            "keys": ["World", "WW", "ww", "Unk", "unk"],
         },
         {
             "item": "UE",
