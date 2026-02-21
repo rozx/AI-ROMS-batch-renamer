@@ -16,6 +16,8 @@ A powerful command-line tool for batch renaming ROM files using AI technology.
 
 - 🤖 **AI-Powered Renaming**: Intelligent file renaming using advanced AI models  
   **AI智能重命名**: 使用先进AI模型进行智能文件重命名
+- 🈶 **Chinese Alias Lookup**: Look up English/Chinese game titles from a local alias database (CSV + JSON) without any API calls  
+  **中文别名查找**: 无需API调用，直接使用本地别名数据库（CSV + JSON）查找游戏的中英文标题，可与 AI 搭配使用
 - 🧠 **Batch AI Enrichment**: Query multiple filenames in one request (`--ai-batch-size`) to reduce latency & cost  
   **批量AI增强**: 使用批量查询降低延迟与成本
 - 🔤 **Pinyin Support**: Add pinyin initials for better sorting and searching  
@@ -30,6 +32,8 @@ A powerful command-line tool for batch renaming ROM files using AI technology.
   **文件过滤**: 包含或排除特定文件类型
 - 🌐 **Platform-Aware**: Optimize AI enrichment via platform hints (`--platform`)  
   **平台感知**: 通过平台提示优化 AI 结果
+- 🔍 **Tavily MCP Web Search**: Augment AI renaming with live web search via the Tavily remote MCP server (`--tavily-api-key`) — no Node.js required  
+  **Tavily MCP 联网搜索**: 通过 Tavily 远程 MCP 服务器（`mcp.tavily.com`）为 AI 重命名增加实时网络搜索支持，无需安装 Node.js
 - 💾 **Smart Caching**: Avoid duplicate AI calls (disable with `--ai-no-cache`)  
   **智能缓存**: 避免重复 AI 请求（可用 `--ai-no-cache` 禁用）
 - 🛡️ **Safe Idempotent Runs**: Skip already-renamed files unless forced (`--force`)  
@@ -114,6 +118,8 @@ renamer rename [options]
 | `--ai-batch-size` |          | INT  | AI 批量查询大小 (Batch size for multi-file AI requests)        |
 | `--ai-no-cache`   | `-nc`    | FLAG | 禁用 AI 缓存 (Disable caching; force fresh calls)              |
 | `--force`         | `-f`     | FLAG | 强制重命名已处理文件 (Force rename even if previously renamed) |
+| `--cn-lookup`     | `--cn`   | FLAG | 使用本地中文别名数据库查找游戏名称，需要 --platform (Use local Chinese alias DB for title lookup, requires --platform) |
+| `--tavily-api-key` | `-tav`  | TEXT | Tavily 远程 MCP Key，连接 mcp.tavily.com 进行联网搜索增强，无需 Node.js (Tavily API key for web-augmented AI renaming via the remote MCP server — no Node.js required) |
 
 ### 💡 Example Usage | 使用示例
 
@@ -137,6 +143,22 @@ renamer rename -r -ai --directory "~/ROMs/" -t -model "deepseek-chat" -ep "https
 # Force fresh AI results (no cache)
 # 强制不使用缓存，始终从AI获取
 renamer rename -r -ai --directory "~/ROMs/" -t -p "GBA" --ai-no-cache
+
+# Use local Chinese alias database for title lookup (no AI required)
+# 使用本地中文别名数据库查找标题（无需 AI）
+renamer rename --cn-lookup --platform "GBA" --directory "~/ROMs/GBA" -t -py --dry-run
+
+# Combine cn-lookup with AI: local DB first, AI fills remaining gaps
+# 结合本地查找与 AI：本地数据库优先，AI 补全剩余
+renamer rename --cn-lookup --ai --platform "GBA" --directory "~/ROMs/GBA" -t -py --ai-batch-size 15
+
+# Enable Tavily MCP web-search to boost AI accuracy (no Node.js needed)
+# 启用 Tavily MCP 联网搜索增强 AI 准确率（无需 Node.js）
+renamer rename --ai --tavily-api-key "tvly-xxxx" --platform "GBA" --directory "~/ROMs/GBA" -t -py
+
+# Full power: cn-lookup + AI + Tavily web search
+# 全功能：本地查找 + AI + Tavily 联网搜索
+renamer rename --cn-lookup --ai --tavily-api-key "tvly-xxxx" --platform "GBA" --directory "~/ROMs/GBA" -t -py --ai-batch-size 15
 
 ```
 
@@ -169,7 +191,20 @@ renamer rename -files "~/ROMs/GBA/黄金太阳.zip" -ai -p GBA
 # 8. Large batch size tuning (大批量调优)
 renamer rename -r -ai -dir "~/ROMs/GBA" --ai-batch-size 25 -p GBA
 
-# 9. Pinyin only normalization (仅拼音首字母规范化)
+# 9. Local alias lookup only (本地别名查找，不需要 AI)
+renamer rename --cn-lookup -dir "~/ROMs/GBA" -p GBA -t -py
+
+# 10. Best-of-both: local lookup + AI fallback with CSV hints
+# 最佳组合：本地查找 + AI fallback，CSV 结果作为 AI 上下文
+renamer rename --cn-lookup --ai -dir "~/ROMs/GBA" -p GBA --ai-batch-size 15 -t -py
+
+# 11. Tavily MCP web-augmented rename (Tavily MCP 联网增强重命名)
+renamer rename --ai --tavily-api-key "tvly-xxxx" -dir "~/ROMs/GBA" -p GBA -t -py
+
+# 12. Ultimate combo: local DB + AI + Tavily live search (终极组合)
+renamer rename --cn-lookup --ai --tavily-api-key "tvly-xxxx" -dir "~/ROMs/GBA" -p GBA --ai-batch-size 15 -t -py
+
+# 13. Pinyin only normalization (仅拼音首字母规范化)
 renamer rename -dir "~/ChineseRoms" -py -t
 ```
 
@@ -216,6 +251,8 @@ poetry run build --verbose
 | 1    | Dry run (`-d`)                  | 确认重命名结果安全   |
 | 2    | Enable trim & pinyin            | 清理噪声并优化排序   |
 | 3    | Add platform hint               | 更精确的 AI 标题匹配 |
+| 3.5  | Enable `--cn-lookup`            | 本地查找优先，节省 AI 配额 |
+| 3.6  | Add `--tavily-api-key`          | 联网搜索补全冷门 ROM 标题 |
 | 4    | Increase batch size (10–25)     | 减少 API 调用次数    |
 | 5    | Inspect cache file              | 复用结果，节约配额   |
 | 6    | Use `--force` only if necessary | 避免无意义重复处理   |
@@ -228,8 +265,16 @@ poetry run build --verbose
   **使用 `--output` 便于脚本管道处理（例如传递结果给其他工具）。**
 - Avoid `--ai-no-cache` for large runs unless debugging freshness.
   **大量处理时避免使用 `--ai-no-cache`，除非需要调试最新结果。**
-- Refinement retry is triggered only when `englishTitle` is missing; other missing fields are not retried automatically.
+- Refinement retry is triggered only when `englishTitle` is missing; other missing fields are not retried automatically.  
   **细化重试仅在 `englishTitle` 缺失时触发；其他字段缺失不会自动重试。**
+- Use `--cn-lookup` for ROM sets with Chinese filenames to resolve titles without any AI API calls.  
+  **对中文文件名 ROM 集合使用 `--cn-lookup` 可无需 API 调用直接解析标题。**
+- Combine `--cn-lookup` with `--ai` for best results: local DB handles known titles, AI fills the gaps.  
+  **结合 `--cn-lookup` 与 `--ai` 效果最佳：本地数据库处理已知标题，AI 补全缺失。**
+- When `--ai` is enabled with `--platform`, fuzzy CSV candidates are automatically passed to the AI as context hints even without `--cn-lookup`.  
+  **启用 `--ai` 并指定 `--platform` 时，即使不启用 `--cn-lookup`，也会自动将 CSV 模糊候选作为上下文提示传给 AI。**
+- Add `--tavily-api-key` to connect AI to live web search via `mcp.tavily.com`. No Node.js or npm needed — the remote MCP server handles everything. Especially useful for obscure or poorly-named ROMs.  
+  **添加 `--tavily-api-key` 可让 AI 通过 `mcp.tavily.com` 远程 MCP 服务器进行实时联网搜索，无需安装 Node.js / npm，对冷门或命名混乱的 ROM 特别有效。**
 - Revert stores original path keyed by new filename; keep `renamerHistory.cache` safe.
   **还原功能依赖 `renamerHistory.cache`，请妥善保存避免误删。**
 
@@ -400,6 +445,8 @@ APP_VERSION="$APP_VERSION" poetry run bump
   **本地缓存** - 提高性能并减少API调用
 - [x] ✅ **GUI Support** - GUI is now available and integrated with CLI behavior.
   **图形界面支持** - 已上线并与 CLI 行为保持一致。
+- [x] ✅ **Tavily Remote MCP Web Search** - AI renaming augmented with live web search via `mcp.tavily.com`; no Node.js required (`--tavily-api-key`)  
+  **Tavily 远程 MCP 联网搜索** - 通过 `mcp.tavily.com` 为 AI 重命名增加实时网络搜索，无需 Node.js（`--tavily-api-key`）
 
 ## 📝 License | 许可证
 

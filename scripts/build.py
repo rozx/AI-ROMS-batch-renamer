@@ -121,6 +121,13 @@ def build(args: argparse.Namespace, target: str = "cli") -> int:
     for pkg in include_pkg_data:
         nuitka_cmd.append(f"--include-package-data={pkg}")
 
+    # Include rom name alias CSV/JSON data files so they are accessible at runtime
+    alias_data_dir = project_root / "assets" / "rom-name-alias-cn"
+    if alias_data_dir.is_dir():
+        nuitka_cmd.append(
+            f"--include-data-dir={alias_data_dir}=assets/rom-name-alias-cn"
+        )
+
     # Icons per platform
     icon_path = args.icon
     if plat == "Windows" and icon_path:
@@ -133,7 +140,10 @@ def build(args: argparse.Namespace, target: str = "cli") -> int:
         plat == "Windows"
         and target == "gui"
         and not args.no_windows_disable_console
-        and not (args.extra and any(opt.startswith("--windows-console-mode") for opt in args.extra))
+        and not (
+            args.extra
+            and any(opt.startswith("--windows-console-mode") for opt in args.extra)
+        )
     ):
         nuitka_cmd.append("--windows-console-mode=disable")
 
@@ -183,21 +193,56 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         default=None,
         help="Entry script override (by default derives from --target)",
     )
-    parser.add_argument("--outdir", default=None, help="Output directory (default: ./dist)")
-    parser.add_argument("--name", default=None, help="Output filename (auto-computed per OS if omitted)")
-    parser.add_argument("--tempdir", default=None, help="Onefile temp dir spec (default per OS)")
+    parser.add_argument(
+        "--outdir", default=None, help="Output directory (default: ./dist)"
+    )
+    parser.add_argument(
+        "--name", default=None, help="Output filename (auto-computed per OS if omitted)"
+    )
+    parser.add_argument(
+        "--tempdir", default=None, help="Onefile temp dir spec (default per OS)"
+    )
     parser.add_argument(
         "--icon",
         default=None,
         help="Icon path for Windows(.ico) / MacOS(.icns)",
     )
     parser.add_argument("--version", default=None, help="Override app version")
-    parser.add_argument("--include-package-data", nargs="*", default=None, help="Packages to include data for")
-    parser.add_argument("--onefile", action="store_true", default=True, help="Build as onefile (default)")
-    parser.add_argument("--no-onefile", dest="onefile", action="store_false", help="Disable onefile mode")
-    parser.add_argument("--assume-yes", action="store_true", default=True, help="Assume yes for downloads (default)")
-    parser.add_argument("--no-assume-yes", dest="assume_yes", action="store_false", help="Disable assume yes")
-    parser.add_argument("--extra", nargs=argparse.REMAINDER, help="Extra raw Nuitka options (placed at end)")
+    parser.add_argument(
+        "--include-package-data",
+        nargs="*",
+        default=None,
+        help="Packages to include data for",
+    )
+    parser.add_argument(
+        "--onefile",
+        action="store_true",
+        default=True,
+        help="Build as onefile (default)",
+    )
+    parser.add_argument(
+        "--no-onefile",
+        dest="onefile",
+        action="store_false",
+        help="Disable onefile mode",
+    )
+    parser.add_argument(
+        "--assume-yes",
+        action="store_true",
+        default=True,
+        help="Assume yes for downloads (default)",
+    )
+    parser.add_argument(
+        "--no-assume-yes",
+        dest="assume_yes",
+        action="store_false",
+        help="Disable assume yes",
+    )
+    parser.add_argument(
+        "--extra",
+        nargs=argparse.REMAINDER,
+        help="Extra raw Nuitka options (placed at end)",
+    )
     parser.add_argument(
         "--no-windows-disable-console",
         action="store_true",
@@ -215,11 +260,15 @@ def main(argv: list[str] | None = None) -> None:
         args.icon = default_icon_path(project_root)
 
     if args.target == "both" and args.entry:
-        print("--entry cannot be used with --target both. Please build targets separately or remove --entry.")
+        print(
+            "--entry cannot be used with --target both. Please build targets separately or remove --entry."
+        )
         sys.exit(2)
 
     if args.target == "both" and args.name:
-        print("--name cannot be used with --target both. Use default names or build targets separately.")
+        print(
+            "--name cannot be used with --target both. Use default names or build targets separately."
+        )
         sys.exit(2)
 
     targets = ["cli", "gui"] if args.target == "both" else [args.target]

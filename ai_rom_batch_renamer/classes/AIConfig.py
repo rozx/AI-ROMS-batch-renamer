@@ -22,15 +22,22 @@ class AIConfig:
         self.model = "deepseek-chat"
         self.endpoint = "https://api.deepseek.com"
         self.v1ChatCompletionsEndpoint = f"{self.endpoint}/chat/completions"
+        self.tavilyApiKey = ""
         self.configPath = _default_config_dir() / "config.json"
 
     def to_dict(self):
-        return {"apiKey": self.apiKey, "model": self.model, "endpoint": self.endpoint}
+        return {
+            "apiKey": self.apiKey,
+            "model": self.model,
+            "endpoint": self.endpoint,
+            "tavilyApiKey": self.tavilyApiKey,
+        }
 
     def from_dict(self, data):
         self.apiKey = data.get("apiKey", "")
         self.model = data.get("model", "deepseek-chat")
         self.endpoint = data.get("endpoint", "https://api.deepseek.com")
+        self.tavilyApiKey = data.get("tavilyApiKey", "")
 
     def _read_json_file(self, path: Path):
         with path.open("r", encoding="utf-8") as f:

@@ -413,12 +413,14 @@ class MainWindow(QMainWindow):
         self.model_input.setText(ai_config.model)
         self.api_key_input.setText(ai_config.apiKey)
         self.endpoint_input.setText(ai_config.endpoint)
+        self.tavily_api_key_input.setText(ai_config.tavilyApiKey)
 
     def _save_ai_config(self) -> None:
         ai_config = AIConfig()
         ai_config.model = self.model_input.text().strip()
         ai_config.apiKey = self.api_key_input.text().strip()
         ai_config.endpoint = self.endpoint_input.text().strip()
+        ai_config.tavilyApiKey = self.tavily_api_key_input.text().strip()
         ai_config.save()
 
     def _setting_bool(self, key: str, default: bool = False) -> bool:
@@ -440,6 +442,7 @@ class MainWindow(QMainWindow):
         self.recursive_check.setChecked(self._setting_bool("gui/recursive"))
         self.unzip_check.setChecked(self._setting_bool("gui/unzip"))
         self.force_check.setChecked(self._setting_bool("gui/force"))
+        self.cn_lookup_check.setChecked(self._setting_bool("gui/cn_lookup"))
         self.ai_check.setChecked(self._setting_bool("gui/ai"))
         self.ai_no_cache_check.setChecked(self._setting_bool("gui/ai_no_cache"))
         self.delete_files_check.setChecked(self._setting_bool("gui/delete_files"))
@@ -466,6 +469,7 @@ class MainWindow(QMainWindow):
         self._settings.setValue("gui/recursive", self.recursive_check.isChecked())
         self._settings.setValue("gui/unzip", self.unzip_check.isChecked())
         self._settings.setValue("gui/force", self.force_check.isChecked())
+        self._settings.setValue("gui/cn_lookup", self.cn_lookup_check.isChecked())
         self._settings.setValue("gui/ai", self.ai_check.isChecked())
         self._settings.setValue("gui/ai_no_cache", self.ai_no_cache_check.isChecked())
         self._settings.setValue("gui/delete_files", self.delete_files_check.isChecked())
@@ -500,6 +504,7 @@ class MainWindow(QMainWindow):
         self.recursive_check = QCheckBox("递归子目录")
         self.unzip_check = QCheckBox("自动解压")
         self.force_check = QCheckBox("强制重命名")
+        self.cn_lookup_check = QCheckBox("中文别名查找")
 
         self.ai_check = QCheckBox("启用 AI 重命名")
         self.ai_no_cache_check = QCheckBox("不使用 AI 缓存")
@@ -512,6 +517,9 @@ class MainWindow(QMainWindow):
         self.recursive_check.setToolTip("递归处理子目录中的所有文件")
         self.unzip_check.setToolTip("自动解压 ZIP/7z/RAR 压缩包后再重命名")
         self.force_check.setToolTip("强制重命名已处理过的文件（跳过检测）")
+        self.cn_lookup_check.setToolTip(
+            "使用本地中文别名数据库查找游戏名称（需要指定平台）"
+        )
         self.ai_check.setToolTip("使用 AI 模型智能识别 ROM 名称")
         self.ai_no_cache_check.setToolTip("跳过 AI 结果缓存，每次重新请求")
         self.delete_files_check.setToolTip("清除缓存时同时删除相关缓存文件")
@@ -525,6 +533,8 @@ class MainWindow(QMainWindow):
         self.api_key_input = QLineEdit()
         self.api_key_input.setEchoMode(QLineEdit.Password)
         self.endpoint_input = QLineEdit()
+        self.tavily_api_key_input = QLineEdit()
+        self.tavily_api_key_input.setEchoMode(QLineEdit.Password)
         self.platform_input = QLineEdit()
         _platform_names = sorted(constModule.PLATFORM_ALIASES.keys())
         _platform_model = QStringListModel(_platform_names, self.platform_input)
@@ -605,6 +615,9 @@ class MainWindow(QMainWindow):
         self.model_input.setPlaceholderText("例如：gpt-4o-mini")
         self.api_key_input.setPlaceholderText("可选：在此覆盖 apiKey.txt")
         self.endpoint_input.setPlaceholderText("可选：自定义 API Endpoint")
+        self.tavily_api_key_input.setPlaceholderText(
+            "可选：Tavily 远程 MCP 联网搜索 Key (mcp.tavily.com，无需 Node.js)"
+        )
         self.platform_input.setPlaceholderText(
             "输入关键字搜索平台，例如：gb / game boy"
         )
@@ -671,6 +684,7 @@ class MainWindow(QMainWindow):
             self.recursive_check,
             self.unzip_check,
             self.force_check,
+            self.cn_lookup_check,
         ]
         for index, checkbox in enumerate(checks):
             flags_grid.addWidget(checkbox, index // 3, index % 3)
@@ -706,6 +720,7 @@ class MainWindow(QMainWindow):
         ai_form.addRow(self._dim("模型"), self.model_input)
         ai_form.addRow(self._dim("API Key"), self.api_key_input)
         ai_form.addRow(self._dim("Endpoint"), self.endpoint_input)
+        ai_form.addRow(self._dim("Tavily API Key"), self.tavily_api_key_input)
         ai_form.addRow(self._dim("批量大小"), self.ai_batch_size_input)
         ai_layout.addWidget(self.ai_detail_widget)
         ai_group.setLayout(ai_layout)
@@ -889,6 +904,8 @@ class MainWindow(QMainWindow):
             args.append("--unzip")
         if self.force_check.isChecked():
             args.append("--force")
+        if self.cn_lookup_check.isChecked():
+            args.append("--cn-lookup")
         if self.ai_check.isChecked():
             args.append("--ai")
         if self.ai_no_cache_check.isChecked():
@@ -900,6 +917,7 @@ class MainWindow(QMainWindow):
         self._append_option(args, "--model", self.model_input.text())
         self._append_option(args, "--api-key", self.api_key_input.text())
         self._append_option(args, "--endpoint", self.endpoint_input.text())
+        self._append_option(args, "--tavily-api-key", self.tavily_api_key_input.text())
         self._append_option(args, "--platform", self.platform_input.text())
         args.extend(["--ai-batch-size", str(self.ai_batch_size_input.value())])
 
@@ -1047,17 +1065,30 @@ class MainWindow(QMainWindow):
         cursor = self.log_output.textCursor()
         cursor.movePosition(QTextCursor.End)
 
-        if "\x1b[" in normalized:
-            self._append_ansi_colored_text(cursor, normalized)
-        else:
-            self._append_keyword_colored_text(cursor, normalized)
+        # Split on bare \r to implement carriage-return overwrite semantics.
+        # Each segment after the first replaces the content of the current line.
+        cr_segments = normalized.split("\r")
+        for i, segment in enumerate(cr_segments):
+            if i > 0:
+                # \r: move to start of current line and erase to end
+                cursor.movePosition(QTextCursor.StartOfLine)
+                cursor.movePosition(QTextCursor.EndOfLine, QTextCursor.KeepAnchor)
+                cursor.removeSelectedText()
+            if not segment:
+                continue
+            if "\x1b[" in segment:
+                self._append_ansi_colored_text(cursor, segment)
+            else:
+                self._append_keyword_colored_text(cursor, segment)
 
         self.log_output.setTextCursor(cursor)
         scrollbar = self.log_output.verticalScrollBar()
         scrollbar.setValue(scrollbar.maximum())
 
     def _normalize_log_text(self, text: str) -> str:
-        normalized = text.replace("\r\n", "\n").replace("\r", "\n")
+        # Normalise \r\n → \n, but keep bare \r so _append_log_text can
+        # implement carriage-return overwrite (progress-line update) semantics.
+        normalized = text.replace("\r\n", "\n")
         return _CONTROL_CHARS_RE.sub("", normalized)
 
     def _append_keyword_colored_text(self, cursor: QTextCursor, text: str) -> None:

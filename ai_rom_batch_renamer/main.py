@@ -158,6 +158,14 @@ def rename(
             help="保存AI模型的API端点 (Update the API endpoint for the AI model)",
         ),
     ] = "",
+    tavilyApiKey: Annotated[
+        str,
+        typer.Option(
+            "--tavily-api-key",
+            "-tav",
+            help="Tavily 远程 MCP Key，连接 mcp.tavily.com 进行联网搜索增强（无需 Node.js）(Tavily API key; connects to the remote MCP server at mcp.tavily.com — no Node.js required)",
+        ),
+    ] = "",
     platform: Annotated[
         str,
         typer.Option(
@@ -191,6 +199,15 @@ def rename(
             is_flag=True,
         ),
     ] = False,
+    cn_lookup: Annotated[
+        bool,
+        typer.Option(
+            "--cn-lookup",
+            "--cn",
+            help="使用本地中文别名数据库查找游戏名称，需要提供 --platform (Use local Chinese alias database to look up game titles, requires --platform)",
+            is_flag=True,
+        ),
+    ] = False,
 ):
     """
     批量重命名Roms文件 (Batch rename files by providing a directory or files)
@@ -220,10 +237,12 @@ def rename(
         "model": model,
         "apiKey": apiKey,
         "endpoint": endpoint,
+        "tavilyApiKey": tavilyApiKey,
         "platform": platform,
         "ai_batch_size": ai_batch_size,
         "ai_no_cache": ai_no_cache,
         "force": force,
+        "cn_lookup": cn_lookup,
     }
 
     try:
@@ -384,22 +403,22 @@ def clear_cache(
                 [
                     {
                         "type": "confirm",
-                        "message": f"Delete cache directory and all files?\n  Path: {cacheModule.CACHE_DIR}",
+                        "message": f"删除缓存目录及所有文件？(Delete cache directory and all files?)\n  路径 (Path): {cacheModule.CACHE_DIR}",
                         "default": False,
                     }
                 ]
             )
             if not result:
-                rprint("[yellow]Operation cancelled.[/yellow]")
+                rprint("[yellow]操作已取消 (Operation cancelled.)[/yellow]")
                 return
 
         if cacheModule.delete_cache_files():
             rprint(
-                f"[green]✓[/green] Cache directory deleted: [dim]{cacheModule.CACHE_DIR}[/dim]"
+                f"[green]✓[/green] 缓存目录已删除 (Cache directory deleted): [dim]{cacheModule.CACHE_DIR}[/dim]"
             )
         else:
             rprint(
-                f"[yellow]Cache directory does not exist: [dim]{cacheModule.CACHE_DIR}[/dim]"
+                f"[yellow]缓存目录不存在 (Cache directory does not exist): [dim]{cacheModule.CACHE_DIR}[/dim]"
             )
     else:
         # Clear cache data only - show info and ask for confirmation
@@ -407,14 +426,14 @@ def clear_cache(
         rename_history_count = len(cacheModule.renameHistoryCache.get_all_keys())
 
         if rom_info_count == 0 and rename_history_count == 0:
-            rprint("[yellow]Cache is already empty.[/yellow]")
+            rprint("[yellow]缓存已为空 (Cache is already empty.)[/yellow]")
             return
 
         rprint(
-            f"Cache contents:\n"
-            f"  - ROM info cache: [bold]{rom_info_count}[/bold] items\n"
-            f"  - Rename history cache: [bold]{rename_history_count}[/bold] items\n"
-            f"  - Cache directory: [dim]{cacheModule.CACHE_DIR}[/dim]"
+            f"缓存内容 (Cache contents):\n"
+            f"  - ROM 信息缓存 (ROM info cache): [bold]{rom_info_count}[/bold] 条 (items)\n"
+            f"  - 重命名历史缓存 (Rename history cache): [bold]{rename_history_count}[/bold] 条 (items)\n"
+            f"  - 缓存目录 (Cache directory): [dim]{cacheModule.CACHE_DIR}[/dim]"
         )
 
         if not yes:
@@ -422,18 +441,18 @@ def clear_cache(
                 [
                     {
                         "type": "confirm",
-                        "message": "Clear all cache data?",
+                        "message": "清除所有缓存数据？(Clear all cache data?)",
                         "default": False,
                     }
                 ]
             )
             if not result:
-                rprint("[yellow]Operation cancelled.[/yellow]")
+                rprint("[yellow]操作已取消 (Operation cancelled.)[/yellow]")
                 return
 
         # Clear cache data
         cacheModule.clear_all_cache()
-        rprint("[green]✓[/green] Cache cleared successfully.")
+        rprint("[green]✓[/green] 缓存已清除 (Cache cleared successfully).")
 
 
 if __name__ == "__main__":
