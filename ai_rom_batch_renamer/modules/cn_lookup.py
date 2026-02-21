@@ -1,16 +1,24 @@
 """cn_lookup.py – Local Chinese/English ROM title lookup.
 
-Uses two data sources from assets/rom-name-alias-cn/:
+Uses platform CSV files from assets/rom-name-alias-cn/:
   1. Platform CSV files (Name EN, Name CN columns) from rom-name-cn project.
-  2. name_alias(Chinese).json – common Chinese alias ↔ English IP key mapping.
 
-Lookup priority per file:
+The directory may also contain name_alias(Chinese).json with common
+Chinese alias ↔ English IP key mappings, but this file is not currently
+consulted by the public ``lookup()`` function.
+
+Lookup priority per file (current behavior of ``lookup()``):
   Step 1 – CSV exact match (baseName == Name EN)
-  Step 2 – CSV fuzzy match  (strip bracket-tags, rapidfuzz ratio ≥ 85)
-  Step 3 – name_alias fuzzy match (strip tags, rapidfuzz ratio ≥ 80)
+  Step 2 – CSV fuzzy match (strip bracket-tags, rapidfuzz ratio ≥ 85)
+  Step 3 – CSV exact match against Name CN (when baseName contains CJK chars)
+  Step 3b – CSV CJK+digit key match (Roman→Arabic, strips non-CJK noise)
+  Step 4 – CSV fuzzy match against Name CN (ratio ≥ 85)
+  Step 4b – CSV partial_ratio match against Name CN (partial ≥ 90)
 
-Results are always ``{"englishTitle": str, "chineseTitle": str}``,
-matching the format returned by the AI module.
+When a match is found, results are returned as
+``{"englishTitle": str, "chineseTitle": str}``, matching the format
+returned by the AI module.  If no CSV match is found, ``lookup()``
+returns ``None``.
 """
 
 from __future__ import annotations
@@ -21,7 +29,7 @@ import os
 import re
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypedDict
 
 from rapidfuzz import fuzz, process as fuzz_process
 from rich import print as rprint
@@ -29,10 +37,37 @@ from rich import print as rprint
 if TYPE_CHECKING:
     from ai_rom_batch_renamer.classes.RomFile import RomFile
 
+
+class CsvIndexes(TypedDict):
+    """Structured indexes built from a platform CSV file."""
+
+    __exact__: dict[str, str]  # name_en_lower -> name_cn
+    __exact_orig__: dict[str, str]  # name_en_lower -> original name_en
+    __cn_exact__: dict[str, dict[str, str]]  # normalized_cn -> {name_en, name_cn}
+    __cn_fuzzy__: dict[
+        str, list[dict[str, str]]
+    ]  # stripped_cn_lower -> [{name_en, name_cn}, ...]
+    __cn_cjk_key__: dict[
+        str, list[dict[str, str]]
+    ]  # _cn_key(name_cn) -> [{name_en, name_cn}, ...]
+    __cn_sorted_cjk_key__: dict[
+        str, list[dict[str, str]]
+    ]  # sorted(_cn_key) -> [{name_en, name_cn}, ...]
+
+
 # ---------------------------------------------------------------------------
 # Module-level caches (avoid re-loading the same files repeatedly)
 # ---------------------------------------------------------------------------
-_csv_cache: dict[str, tuple[dict[str, str], dict[str, list[dict]]]] = {}
+_csv_cache: dict[str, tuple[CsvIndexes, dict[str, list[dict]]]] = {}
+
+_EMPTY_INDEXES: CsvIndexes = CsvIndexes(
+    __exact__={},
+    __exact_orig__={},
+    __cn_exact__={},
+    __cn_fuzzy__={},
+    __cn_cjk_key__={},
+    __cn_sorted_cjk_key__={},
+)
 _alias_cache: dict | None = None
 _assets_dir_cache: Path | None = None
 
@@ -184,10 +219,11 @@ def _cn_key(name: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _load_csv(platform: str) -> tuple[dict[str, str], dict[str, list[dict]]]:
-    """Load the CSV for *platform* and return (exact_dict, fuzzy_index).
+def _load_csv(platform: str) -> tuple[CsvIndexes, dict[str, list[dict]]]:
+    """Load the CSV for *platform* and return (indexes, fuzzy_index).
 
-    exact_dict:  {name_en_lower: {"name_en": original, "name_cn": cn}}
+    indexes:     CsvIndexes with __exact__, __exact_orig__, __cn_exact__,
+                 __cn_fuzzy__, __cn_cjk_key__, __cn_sorted_cjk_key__ keys.
     fuzzy_index: {stripped_name_en_lower: [{"name_en": original, "name_cn": cn}, ...]}
     """
     if platform in _csv_cache:
@@ -195,11 +231,11 @@ def _load_csv(platform: str) -> tuple[dict[str, str], dict[str, list[dict]]]:
 
     assets_dir = _resolve_assets_dir()
     if assets_dir is None:
-        return {}, {}
+        return _EMPTY_INDEXES, {}
 
     csv_path = assets_dir / f"{platform}.csv"
     if not csv_path.is_file():
-        return {}, {}
+        return _EMPTY_INDEXES, {}
 
     exact: dict[str, str] = {}  # name_en_lower -> name_cn (may be empty str)
     exact_orig: dict[str, str] = {}  # name_en_lower -> original name_en
@@ -256,11 +292,21 @@ def _load_csv(platform: str) -> tuple[dict[str, str], dict[str, list[dict]]]:
         rprint(
             f"[yellow]cn_lookup: 读取 CSV 失败 (Failed to read CSV) {csv_path}: {exc}[/yellow]"
         )
-        return {}, {}
+        return _EMPTY_INDEXES, {}
 
-    result = ({"__exact__": exact, "__exact_orig__": exact_orig, "__cn_exact__": cn_exact, "__cn_fuzzy__": cn_fuzzy, "__cn_cjk_key__": cn_cjk_key, "__cn_sorted_cjk_key__": cn_sorted_cjk_key}, fuzzy)  # type: ignore[assignment]
-    _csv_cache[platform] = result  # type: ignore[assignment]
-    return result  # type: ignore[return-value]
+    result: tuple[CsvIndexes, dict[str, list[dict]]] = (
+        CsvIndexes(
+            __exact__=exact,
+            __exact_orig__=exact_orig,
+            __cn_exact__=cn_exact,
+            __cn_fuzzy__=cn_fuzzy,
+            __cn_cjk_key__=cn_cjk_key,
+            __cn_sorted_cjk_key__=cn_sorted_cjk_key,
+        ),
+        fuzzy,
+    )
+    _csv_cache[platform] = result
+    return result
 
 
 # Regex to detect CJK (Chinese/Japanese/Korean) characters
@@ -277,10 +323,10 @@ def _lookup_csv(base_name: str, platform: str) -> dict | None:
       4b. Fallback partial_ratio match against Name CN (partial≥90, handles non-CJK prefix/suffix)
     """
     raw = _load_csv(platform)
-    if not raw[0]:
+    if not raw[0].get("__exact__") and not raw[0].get("__cn_exact__"):
         return None
 
-    exact_meta: dict = raw[0]  # type: ignore[assignment]
+    exact_meta: CsvIndexes = raw[0]
     fuzzy_index: dict[str, list[dict]] = raw[1]
     exact: dict[str, str] = exact_meta.get("__exact__", {})
     exact_orig: dict[str, str] = exact_meta.get("__exact_orig__", {})

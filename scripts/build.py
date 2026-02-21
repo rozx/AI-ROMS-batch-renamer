@@ -140,6 +140,16 @@ def build(args: argparse.Namespace, target: str = "cli") -> int:
     if plat == "MacOS" and icon_path:
         nuitka_cmd.append(f"--macos-app-icon={icon_path}")
 
+    # For CLI builds: exclude PySide6 and the gui module entirely.
+    # main.py contains a deferred 'from ai_rom_batch_renamer.gui import launch_gui'
+    # inside the `gui` subcommand, but that branch is unreachable in the compiled CLI
+    # binary (it exits early via __compiled__ guard). Without this exclusion Nuitka
+    # detects the PySide6 import and emits:
+    #   WARNING: Use '--enable-plugin=pyside6' for: Standalone mode support and Qt plugins.
+    if target == "cli":
+        nuitka_cmd.append("--nofollow-import-to=PySide6")
+        nuitka_cmd.append("--nofollow-import-to=ai_rom_batch_renamer.gui")
+
     # Enable PySide6 plugin for GUI builds (required for standalone mode and Qt plugins)
     if target == "gui":
         nuitka_cmd.append("--enable-plugin=pyside6")

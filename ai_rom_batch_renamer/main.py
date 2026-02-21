@@ -421,12 +421,13 @@ def clear_cache(
                 [
                     {
                         "type": "confirm",
+                        "name": "confirm",
                         "message": f"删除缓存目录及所有文件？(Delete cache directory and all files?)\n  路径 (Path): {cacheModule.CACHE_DIR}",
                         "default": False,
                     }
                 ]
             )
-            if not result:
+            if not result["confirm"]:
                 rprint("[yellow]操作已取消 (Operation cancelled.)[/yellow]")
                 return
 
@@ -459,12 +460,13 @@ def clear_cache(
                 [
                     {
                         "type": "confirm",
+                        "name": "confirm",
                         "message": "清除所有缓存数据？(Clear all cache data?)",
                         "default": False,
                     }
                 ]
             )
-            if not result:
+            if not result["confirm"]:
                 rprint("[yellow]操作已取消 (Operation cancelled.)[/yellow]")
                 return
 
