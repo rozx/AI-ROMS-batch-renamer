@@ -25,7 +25,7 @@ jobs:
         uses: release-drafter/release-drafter@v6
         # (Optional) specify config name to use, relative to .github/. Default: release-drafter.yml
         with:
-          # Autolabeler runs in a separate dedicated workflow (autolabeler.yml)
+          # Autolabeler is handled outside this workflow. TODO: create and document a dedicated autolabeler workflow if needed.
           disable-autolabeler: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

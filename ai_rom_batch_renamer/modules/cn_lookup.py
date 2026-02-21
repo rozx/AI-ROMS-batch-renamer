@@ -43,15 +43,15 @@ class CsvIndexes(TypedDict):
 
     __exact__: dict[str, str]  # name_en_lower -> name_cn
     __exact_orig__: dict[str, str]  # name_en_lower -> original name_en
-    __cn_exact__: dict[str, dict]  # normalized_cn -> {name_en, name_cn}
+    __cn_exact__: dict[str, dict[str, str]]  # normalized_cn -> {name_en, name_cn}
     __cn_fuzzy__: dict[
-        str, list[dict]
+        str, list[dict[str, str]]
     ]  # stripped_cn_lower -> [{name_en, name_cn}, ...]
     __cn_cjk_key__: dict[
-        str, list[dict]
+        str, list[dict[str, str]]
     ]  # _cn_key(name_cn) -> [{name_en, name_cn}, ...]
     __cn_sorted_cjk_key__: dict[
-        str, list[dict]
+        str, list[dict[str, str]]
     ]  # sorted(_cn_key) -> [{name_en, name_cn}, ...]
 
 
