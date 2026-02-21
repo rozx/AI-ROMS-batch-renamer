@@ -357,6 +357,21 @@ def gui():
     启动图形界面 (Launch GUI)
     """
 
+    # When running as a compiled standalone binary, Qt platform plugins are not
+    # bundled with the CLI build — direct the user to the GUI binary instead.
+    _is_compiled = False
+    try:
+        _is_compiled = bool(__compiled__)  # type: ignore[name-defined]  # noqa: F821
+    except NameError:
+        pass
+
+    if _is_compiled:
+        rprint(
+            "[yellow]此命令在独立构建的 CLI 版本中不可用。请使用 GUI 版本启动图形界面。"
+            " (The gui command is not available in the standalone CLI build. Use the GUI binary instead.)[/yellow]"
+        )
+        _raise_exit(1)
+
     try:
         from ai_rom_batch_renamer.gui import launch_gui
     except Exception as e:

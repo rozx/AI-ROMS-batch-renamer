@@ -962,6 +962,21 @@ class MainWindow(QMainWindow):
             self.directory_input.clear()
 
     def _base_command(self) -> list[str]:
+        # When packaged as a Nuitka standalone binary, sys.executable points to
+        # this GUI binary itself. Re-invoke it with a hidden flag so that main()
+        # routes to the CLI instead of launching the GUI again.
+        is_compiled: bool = False
+        try:
+            is_compiled = bool(__compiled__)  # type: ignore[name-defined]  # noqa: F821
+        except NameError:
+            pass
+
+        if is_compiled:
+            # In a Nuitka onefile binary, sys.executable points to the extracted
+            # python.exe inside the temp dir. sys.argv[0] is the original .exe path.
+            original_exe = str(Path(sys.argv[0]).resolve())
+            return [original_exe, "--__cli-mode__"]
+
         return [sys.executable, "-m", "ai_rom_batch_renamer.main"]
 
     def _append_option(self, args: list[str], name: str, value: str) -> None:
@@ -1396,6 +1411,14 @@ def launch_gui() -> int:
 
 
 def main() -> None:
+    # Hidden flag injected by _base_command() when running as a compiled binary:
+    # re-route to the CLI app instead of launching the GUI.
+    if "--__cli-mode__" in sys.argv:
+        sys.argv.remove("--__cli-mode__")
+        from ai_rom_batch_renamer.main import app as cli_app
+
+        cli_app()
+        return
     raise SystemExit(launch_gui())
 
 

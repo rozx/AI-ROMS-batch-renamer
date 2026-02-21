@@ -128,12 +128,26 @@ def build(args: argparse.Namespace, target: str = "cli") -> int:
             f"--include-data-dir={alias_data_dir}=assets/rom-name-alias-cn"
         )
 
+    # On Windows, use MinGW64 — Nuitka downloads it automatically if not present,
+    # requires no Visual Studio installation, and avoids msvcp140.dll warnings.
+    if plat == "Windows":
+        nuitka_cmd.append("--mingw64")
+
     # Icons per platform
     icon_path = args.icon
     if plat == "Windows" and icon_path:
         nuitka_cmd.append(f"--windows-icon-from-ico={icon_path}")
     if plat == "MacOS" and icon_path:
         nuitka_cmd.append(f"--macos-app-icon={icon_path}")
+
+    # Enable PySide6 plugin for GUI builds (required for standalone mode and Qt plugins)
+    if target == "gui":
+        nuitka_cmd.append("--enable-plugin=pyside6")
+        # The GUI binary re-invokes itself as CLI via a hidden --__cli-mode__ flag.
+        # Because this import is inside an `if` branch, Nuitka won't detect it
+        # statically — force-include the entire package so CLI and all its
+        # dependencies (rename, revert, cache, etc.) are bundled.
+        nuitka_cmd.append("--include-package=ai_rom_batch_renamer")
 
     # GUI build on Windows: disable console by default unless user overrides via --extra
     if (
@@ -279,6 +293,12 @@ def main(argv: list[str] | None = None) -> None:
             sys.exit(code)
 
     sys.exit(0)
+
+
+def build_gui(argv: list[str] | None = None) -> None:
+    """Convenience entry point: build GUI target only."""
+    injected = ["--target", "gui"] + (sys.argv[1:] if argv is None else argv)
+    main(injected)
 
 
 if __name__ == "__main__":
