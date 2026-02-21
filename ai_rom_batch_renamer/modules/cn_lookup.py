@@ -39,6 +39,35 @@ _assets_dir_cache: Path | None = None
 # Regex to strip bracket tags: (…) […] {…}
 _TAGS_RE = re.compile(r"[\(\[\{][^\)\]\}]*[\)\]\}]")
 
+# Region preference: prefer (USA) > (World) > others
+_US_REGION_RE = re.compile(r"\(USA\)", re.IGNORECASE)
+_WORLD_REGION_RE = re.compile(r"\(World\)", re.IGNORECASE)
+
+
+def _us_region_score(entry: dict) -> int:
+    """Return a US-region preference score (higher = more preferred).
+
+    USA=2, World=1, others=0.
+    Used as a tiebreaker so that when multiple English titles share the same
+    Chinese title, the US region version is returned.
+    """
+    name_en = entry.get("name_en", "")
+    if _US_REGION_RE.search(name_en):
+        return 2
+    if _WORLD_REGION_RE.search(name_en):
+        return 1
+    return 0
+
+
+def _prefer_us(entries: list[dict]) -> dict:
+    """Pick the US/World region entry from a list of candidates.
+
+    Falls back gracefully to the first entry when no US/World entry exists.
+    """
+    if len(entries) == 1:
+        return entries[0]
+    return max(entries, key=_us_region_score)
+
 
 # ---------------------------------------------------------------------------
 # Path resolution
@@ -204,9 +233,14 @@ def _load_csv(platform: str) -> tuple[dict[str, str], dict[str, list[dict]]]:
                 stripped = _strip_tags(name_en).lower()
                 fuzzy.setdefault(stripped, []).append(entry)
 
-                # Build reverse CN indexes
+                # Build reverse CN indexes — prefer US/World region entries
                 if name_cn:
-                    cn_exact[_normalize_cn(name_cn)] = entry
+                    cn_key_norm_build = _normalize_cn(name_cn)
+                    existing = cn_exact.get(cn_key_norm_build)
+                    if existing is None or _us_region_score(entry) > _us_region_score(
+                        existing
+                    ):
+                        cn_exact[cn_key_norm_build] = entry
                     stripped_cn = _strip_tags(_normalize_cn(name_cn))
                     cn_fuzzy.setdefault(stripped_cn, []).append(entry)
                     cjk_k = _cn_key(name_cn)
@@ -274,8 +308,10 @@ def _lookup_csv(base_name: str, platform: str) -> dict | None:
         if match:
             best = match[0]
             entries = fuzzy_index[best]
-            # Prefer entry with a Chinese title if available
-            entry = next((e for e in entries if e["name_cn"]), entries[0])
+            # Prefer entry with a Chinese title, then US/World region
+            cn_entries_only = [e for e in entries if e["name_cn"]]
+            pool = cn_entries_only if cn_entries_only else entries
+            entry = _prefer_us(pool)
             return {"englishTitle": entry["name_en"], "chineseTitle": entry["name_cn"]}
 
     # --- Steps 3 & 4: reverse CN lookup (only when input contains CJK characters) ---
@@ -315,10 +351,13 @@ def _lookup_csv(base_name: str, platform: str) -> dict | None:
                         score_cn = fuzz.ratio(non_cjk_q, cn_nc) if cn_nc else 0
                         return max(score_en, score_cn)
 
-                    entry = max(entries, key=_disambig_score)
+                    # Use US region score as tiebreaker
+                    entry = max(
+                        entries, key=lambda e: (_disambig_score(e), _us_region_score(e))
+                    )
                 else:
-                    # Pure CJK input — fall back to longest name_cn
-                    entry = max(entries, key=lambda e: len(e["name_cn"]))
+                    # Pure CJK input — prefer US/World region entry
+                    entry = _prefer_us(entries)
             return {"englishTitle": entry["name_en"], "chineseTitle": entry["name_cn"]}
 
         # Step 3c: sorted CJK key — handles reordered CJK subtitle segments.
@@ -350,9 +389,14 @@ def _lookup_csv(base_name: str, platform: str) -> dict | None:
                             score_cn = fuzz.ratio(non_cjk_q2, cn_nc) if cn_nc else 0
                             return max(score_en, score_cn)
 
-                        entry = max(entries, key=_disambig_score2)
+                        # Use US region score as tiebreaker
+                        entry = max(
+                            entries,
+                            key=lambda e: (_disambig_score2(e), _us_region_score(e)),
+                        )
                     else:
-                        entry = max(entries, key=lambda e: len(e["name_cn"]))
+                        # Pure CJK input — prefer US/World region entry
+                        entry = _prefer_us(entries)
                 return {
                     "englishTitle": entry["name_en"],
                     "chineseTitle": entry["name_cn"],
@@ -383,7 +427,10 @@ def _lookup_csv(base_name: str, platform: str) -> dict | None:
             if cn_match:
                 best_cn = cn_match[0]
                 cn_entries = cn_fuzzy[best_cn]
-                entry = next((e for e in cn_entries if e["name_en"]), cn_entries[0])
+                # Prefer entries with an English title, then US/World region
+                en_entries_only = [e for e in cn_entries if e["name_en"]]
+                pool = en_entries_only if en_entries_only else cn_entries
+                entry = _prefer_us(pool)
                 return {
                     "englishTitle": entry["name_en"],
                     "chineseTitle": entry["name_cn"],
