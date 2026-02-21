@@ -288,10 +288,7 @@ class TestRenameRegionFromOriginalFilename:
     ) -> str:
         """Run rename dry-run and return the target baseName via RomFile."""
         from ai_rom_batch_renamer.classes.RomFile import RomFile
-        from ai_rom_batch_renamer.modules.rename import (
-            rename as _rename,
-            RomFile as _RF,
-        )
+        from ai_rom_batch_renamer.modules.rename import rename as _rename
 
         captured: list[str] = []
 
