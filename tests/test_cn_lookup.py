@@ -120,7 +120,7 @@ class TestLoadCsv:
 
     def test_missing_platform_returns_empty(self, tmp_assets_dir):
         exact, fuzzy = module._load_csv("Unknown - Platform")
-        assert exact == {}
+        assert exact.get("__exact__") == {}
         assert fuzzy == {}
 
     def test_csv_cached_on_second_call(self, tmp_assets_dir):

@@ -1,7 +1,7 @@
 """Hot reload script for GUI development.
 
 Watches ai_rom_batch_renamer/ for .py file changes and restarts the GUI automatically.
-Usage: poetry run hotreload
+Usage: poetry run dev
 """
 
 import subprocess
