@@ -158,9 +158,18 @@ _PLATFORM_ALIAS_DEFS: list[tuple[str, list[str]]] = [
     ("Atari - Atari ST", ["st", "atari st", "atarist"]),
 ]
 
+
 # Build the flat lookup dict; canonical name itself is also a valid key.
-PLATFORM_ALIASES: dict[str, str] = {}
-for _canonical, _aliases in _PLATFORM_ALIAS_DEFS:
-    PLATFORM_ALIASES[_canonical.lower()] = _canonical
-    for _alias in _aliases:
-        PLATFORM_ALIASES[_alias] = _canonical
+def _build_platform_aliases() -> dict:
+    """Construct PLATFORM_ALIASES inside a function so that Nuitka's C backend
+    compiles the loop reliably (module-level for-loops after large list literals
+    can be silently dropped by Nuitka ≤ 2.8)."""
+    result = {}
+    for canonical, aliases in _PLATFORM_ALIAS_DEFS:
+        result[canonical.lower()] = canonical
+        for alias in aliases:
+            result[alias] = canonical
+    return result
+
+
+PLATFORM_ALIASES = _build_platform_aliases()
