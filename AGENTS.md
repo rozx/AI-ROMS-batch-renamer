@@ -68,9 +68,9 @@ Version is defined in TWO places and must stay in sync:
 Use `scripts/version.py` via the Poetry scripts (`bump`, `bump-patch`, `bump-minor`, `bump-major`) — do NOT edit manually.
 
 ### Region Codes
-Canonical region codes are defined in [`const.py`](ai_rom_batch_renamer/modules/const.py:5):
+Canonical region codes are defined in [`platform_data.py`](ai_rom_batch_renamer/modules/platform_data.py) via `get_allowed_region_codes()`:
 ```python
-ALLOWED_REGION_CODES = {"US", "JP", "EU", "繁", "简", "简&繁", "WW", "UE"}
+{"US", "JP", "EU", "繁", "简", "简&繁", "WW", "UE"}
 ```
 Any region validation must use these exact values.
 

@@ -21,6 +21,9 @@ _JSON_NAME = "platform-aliases.json"
 # Module-level cache -- populated on first call to get_platform_aliases().
 _cache: dict[str, str] | None = None
 
+# Cache for allowed region codes.
+_region_cache: frozenset[str] | None = None
+
 
 def _resolve_json_path() -> Path:
     """Locate the platform-aliases.json asset file.
@@ -48,6 +51,30 @@ def _resolve_json_path() -> Path:
     raise FileNotFoundError(
         f"Cannot find {_JSON_NAME} in any of these locations:\n  {searched}"
     )
+
+
+def get_allowed_region_codes() -> frozenset[str]:
+    """Return the set of canonical region codes (US, JP, EU, WW, UE, 繁, 简, 简&繁).
+
+    Defined as a function (not a module-level constant) to avoid a Nuitka + MSVC
+    bug where module-level code beyond simple string literals is silently dropped.
+    """
+    global _region_cache
+    if _region_cache is not None:
+        return _region_cache
+    _region_cache = frozenset(
+        {
+            "US",
+            "JP",
+            "EU",
+            "WW",
+            "UE",
+            "\u7e41",  # 繁
+            "\u7b80",  # 简
+            "\u7b80&\u7e41",  # 简&繁
+        }
+    )
+    return _region_cache
 
 
 def get_platform_aliases() -> dict[str, str]:

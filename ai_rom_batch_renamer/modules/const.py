@@ -1,14 +1,7 @@
 VERSION = "3.1.1"
 
-# Canonical region codes produced by getRegion and used across the app.
-# Keep this list in sync with any region mapping logic.
-ALLOWED_REGION_CODES = {
-    "US",
-    "JP",
-    "EU",
-    "\u7e41",
-    "\u7b80",
-    "\u7b80&\u7e41",
-    "WW",
-    "UE",
-}
+# ---------------------------------------------------------------------------
+# ALLOWED_REGION_CODES has been moved to platform_data.get_allowed_region_codes()
+# to work around a Nuitka <= 4.x + MSVC bug where module-level code beyond
+# simple string literal assignments is silently dropped during compilation.
+# ---------------------------------------------------------------------------

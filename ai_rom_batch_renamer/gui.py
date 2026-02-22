@@ -1030,12 +1030,15 @@ class MainWindow(QMainWindow):
         self._append_option(args, "--password", self.password_input.text())
         self._append_repeatable(args, "--includes", self.includes_input.text())
         self._append_repeatable(args, "--excludes", self.excludes_input.text())
-        self._append_option(args, "--model", self.model_input.text())
-        self._append_option(args, "--api-key", self.api_key_input.text())
-        self._append_option(args, "--endpoint", self.endpoint_input.text())
-        self._append_option(args, "--tavily-api-key", self.tavily_api_key_input.text())
+        if self.ai_check.isChecked():
+            self._append_option(args, "--model", self.model_input.text())
+            self._append_option(args, "--api-key", self.api_key_input.text())
+            self._append_option(args, "--endpoint", self.endpoint_input.text())
+            self._append_option(
+                args, "--tavily-api-key", self.tavily_api_key_input.text()
+            )
+            args.extend(["--ai-batch-size", str(self.ai_batch_size_input.value())])
         self._append_option(args, "--platform", self.platform_input.text())
-        args.extend(["--ai-batch-size", str(self.ai_batch_size_input.value())])
 
         return args
 

@@ -5,7 +5,10 @@ import zipfile
 import regex
 
 from ai_rom_batch_renamer.modules import const as constModule
-from ai_rom_batch_renamer.modules.platform_data import get_platform_aliases
+from ai_rom_batch_renamer.modules.platform_data import (
+    get_allowed_region_codes,
+    get_platform_aliases,
+)
 
 
 def isSystemOrHiddenFile(file: str) -> bool:
@@ -243,7 +246,7 @@ def isFileRenamed(filePath: str) -> bool:
         # Validate that every region token is among the allowed canonical set.
         # Canonical region codes are those produced by rename logic (getRegion):
         # US, JP, EU, 繁, 简, 简&繁, WW, UE plus special block Hack.
-        allowed_regions = constModule.ALLOWED_REGION_CODES
+        allowed_regions = get_allowed_region_codes()
         for t in region_tokens:
             if t == "Hack":
                 continue
