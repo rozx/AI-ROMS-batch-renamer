@@ -21,7 +21,7 @@ from pathlib import Path
 
 TARGET_ENTRY = {
     "cli": "main.py",
-    "gui": "gui.py",
+    "gui": "gui_entry.py",
 }
 
 
@@ -65,11 +65,11 @@ def default_output_name(base: str = "ai-rom-batch-renamer", target: str = "cli")
     return f"{base}-{suffix}-{target_suffix}{ext}"
 
 
-def default_temp_dir_spec() -> str:
+def default_temp_dir_spec(target: str = "cli") -> str:
     plat = detect_platform()
     if plat == "Windows":
-        return r"{TEMP}\ai-rom-batch-renamer"
-    return r"{TEMP}/ai-rom-batch-renamer"
+        return rf"{{CACHE_DIR}}\ai-rom-batch-renamer-{target}"
+    return rf"{{CACHE_DIR}}/ai-rom-batch-renamer-{target}"
 
 
 def default_icon_path(project_root: Path) -> str:
@@ -95,7 +95,7 @@ def build(args: argparse.Namespace, target: str = "cli") -> int:
     entry = _compute_entry(project_root, args, target)
     outdir = args.outdir or str(project_root / "dist")
     name = args.name or default_output_name(target=target)
-    tempdir_spec = args.tempdir or default_temp_dir_spec()
+    tempdir_spec = args.tempdir or default_temp_dir_spec(target)
     app_version = args.version or read_version(pyproject)
     include_pkg_data = args.include_package_data or ["pinyin"]
     plat = detect_platform()
@@ -149,6 +149,7 @@ def build(args: argparse.Namespace, target: str = "cli") -> int:
     if target == "cli":
         nuitka_cmd.append("--nofollow-import-to=PySide6")
         nuitka_cmd.append("--nofollow-import-to=ai_rom_batch_renamer.gui")
+        nuitka_cmd.append("--nofollow-import-to=ai_rom_batch_renamer.gui_entry")
 
     # Enable PySide6 plugin for GUI builds (required for standalone mode and Qt plugins)
     if target == "gui":
