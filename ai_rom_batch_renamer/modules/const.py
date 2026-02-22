@@ -159,8 +159,8 @@ _PLATFORM_ALIAS_DEFS: list[tuple[str, list[str]]] = [
 ]
 
 # Build the flat lookup dict; canonical name itself is also a valid key.
-PLATFORM_ALIASES: dict[str, str] = {
-    alias: canonical
-    for canonical, aliases in _PLATFORM_ALIAS_DEFS
-    for alias in [canonical.lower(), *aliases]
-}
+PLATFORM_ALIASES: dict[str, str] = {}
+for _canonical, _aliases in _PLATFORM_ALIAS_DEFS:
+    PLATFORM_ALIASES[_canonical.lower()] = _canonical
+    for _alias in _aliases:
+        PLATFORM_ALIASES[_alias] = _canonical

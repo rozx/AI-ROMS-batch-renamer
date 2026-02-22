@@ -109,7 +109,12 @@ def build(args: argparse.Namespace, target: str = "cli") -> int:
     if args.onefile:
         nuitka_cmd.append("--onefile")
         # Nuitka requires '=' form for this option
-        nuitka_cmd.append(f"--onefile-tempdir-spec={tempdir_spec}")
+        # Include version in the temp dir path so that upgrades always unpack
+        # fresh files instead of reusing stale cache from a previous version.
+        versioned_tempdir = tempdir_spec
+        if app_version:
+            versioned_tempdir = f"{tempdir_spec}-{app_version}"
+        nuitka_cmd.append(f"--onefile-tempdir-spec={versioned_tempdir}")
 
     # Nuitka expects these options in '--option=value' form
     nuitka_cmd.append(f"--output-dir={outdir}")

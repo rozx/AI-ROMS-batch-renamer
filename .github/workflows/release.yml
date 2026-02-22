@@ -4,11 +4,17 @@ on:
   pull_request:
     types: [closed]
     branches: ["release"]
+  workflow_dispatch:
 
 jobs:
   create-draft-release:
     runs-on: ubuntu-latest
-    if: github.event.pull_request.merged == true && (contains(github.event.pull_request.labels.*.name, 'major') || contains(github.event.pull_request.labels.*.name, 'minor') || contains(github.event.pull_request.labels.*.name, 'patch'))
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || (github.event.pull_request.merged == true
+          && (contains(github.event.pull_request.labels.*.name, 'major')
+              || contains(github.event.pull_request.labels.*.name, 'minor')
+              || contains(github.event.pull_request.labels.*.name, 'patch')))
     permissions:
       # write permission is required to create a github release
       contents: write
