@@ -134,6 +134,16 @@ jobs:
         run: |
           poetry run build --target both --verbose
 
+      # Smoke-test the compiled binaries before archiving
+      - name: Smoke test – CLI binary (Linux)
+        run: |
+          chmod +x ./dist/ai-rom-batch-renamer-Linux-X64-cli
+          ./dist/ai-rom-batch-renamer-Linux-X64-cli about
+      - name: Smoke test – GUI binary in CLI mode (Linux)
+        run: |
+          chmod +x ./dist/ai-rom-batch-renamer-Linux-X64-gui
+          ./dist/ai-rom-batch-renamer-Linux-X64-gui --__cli-mode__ about
+
       # Upload the build
       - name: Archive Linux terminal build
         uses: TheDoctor0/zip-release@0.7.6
@@ -251,6 +261,14 @@ jobs:
         run: |
           poetry run build --target both --verbose
 
+      # Smoke-test the compiled binaries before archiving
+      - name: Smoke test – CLI binary (Windows)
+        run: |
+          .\dist\ai-rom-batch-renamer-Windows-X64-cli.exe about
+      - name: Smoke test – GUI binary in CLI mode (Windows)
+        run: |
+          .\dist\ai-rom-batch-renamer-Windows-X64-gui.exe --__cli-mode__ about
+
       # Archive the build and upload it to the release
       - name: Archive Windows terminal build
         uses: TheDoctor0/zip-release@0.7.6
@@ -363,6 +381,16 @@ jobs:
       - name: Build terminal + GUI apps (macOS)
         run: |
           poetry run build --target both --verbose
+
+      # Smoke-test the compiled binaries before archiving
+      - name: Smoke test – CLI binary (macOS)
+        run: |
+          chmod +x ./dist/ai-rom-batch-renamer-MacOS-X64-cli
+          ./dist/ai-rom-batch-renamer-MacOS-X64-cli about
+      - name: Smoke test – GUI binary in CLI mode (macOS)
+        run: |
+          chmod +x ./dist/ai-rom-batch-renamer-MacOS-X64-gui
+          ./dist/ai-rom-batch-renamer-MacOS-X64-gui --__cli-mode__ about
 
       # Archive the build and upload it to the release
       - name: Archive macOS terminal build

@@ -1,4 +1,4 @@
-VERSION = "3.0.2"
+VERSION = "3.0.3"
 
 # Canonical region codes produced by getRegion and used across the app.
 # Keep this list in sync with any region mapping logic.
