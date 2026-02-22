@@ -1,0 +1,270 @@
+[
+	{
+		"canonical": "Nintendo - Game Boy",
+		"aliases": ["gb", "game boy", "gameboy", "nintendo game boy"]
+	},
+	{
+		"canonical": "Nintendo - Game Boy Color",
+		"aliases": [
+			"gbc",
+			"game boy color",
+			"gameboy color",
+			"nintendo game boy color"
+		]
+	},
+	{
+		"canonical": "Nintendo - Game Boy Advance",
+		"aliases": [
+			"gba",
+			"game boy advance",
+			"gameboy advance",
+			"nintendo game boy advance"
+		]
+	},
+	{
+		"canonical": "Nintendo - Nintendo Entertainment System",
+		"aliases": [
+			"nes",
+			"fc",
+			"famicom",
+			"family computer",
+			"nintendo entertainment system"
+		]
+	},
+	{
+		"canonical": "Nintendo - Super Nintendo Entertainment System",
+		"aliases": [
+			"snes",
+			"sfc",
+			"super nes",
+			"super nintendo",
+			"super famicom",
+			"super nintendo entertainment system"
+		]
+	},
+	{
+		"canonical": "Nintendo - Nintendo 64",
+		"aliases": ["n64", "nintendo 64", "nintendo64"]
+	},
+	{
+		"canonical": "Nintendo - GameCube",
+		"aliases": ["gc", "ngc", "gamecube", "nintendo gamecube"]
+	},
+	{ "canonical": "Nintendo - Wii", "aliases": ["wii", "nintendo wii"] },
+	{
+		"canonical": "Nintendo - Wii U",
+		"aliases": ["wiiu", "wii u", "nintendo wii u"]
+	},
+	{
+		"canonical": "Nintendo - Switch",
+		"aliases": ["switch", "ns", "nintendo switch"]
+	},
+	{
+		"canonical": "Nintendo - Switch 2",
+		"aliases": ["switch2", "ns2", "nintendo switch 2"]
+	},
+	{
+		"canonical": "Nintendo - Nintendo DS",
+		"aliases": ["ds", "nds", "nintendo ds"]
+	},
+	{
+		"canonical": "Nintendo - Nintendo 3DS",
+		"aliases": ["3ds", "nintendo 3ds"]
+	},
+	{
+		"canonical": "Nintendo - New Nintendo 3DS",
+		"aliases": ["n3ds", "new 3ds", "new nintendo 3ds"]
+	},
+	{
+		"canonical": "Nintendo - Virtual Boy",
+		"aliases": ["vb", "virtual boy", "nintendo virtual boy"]
+	},
+	{
+		"canonical": "Nintendo - Pokemon Mini",
+		"aliases": ["pokemini", "pokemon mini", "pokemon-mini"]
+	},
+	{
+		"canonical": "Nintendo - Sufami Turbo",
+		"aliases": ["sufami", "sufami turbo"]
+	},
+	{
+		"canonical": "Nintendo - Family Computer Disk System",
+		"aliases": ["fds", "famicom disk system", "family computer disk system"]
+	},
+	{
+		"canonical": "Nintendo - Game & Watch",
+		"aliases": ["g&w", "game watch", "game & watch", "game and watch"]
+	},
+	{
+		"canonical": "Sega - Mega Drive - Genesis",
+		"aliases": [
+			"md",
+			"genesis",
+			"mega drive",
+			"sega genesis",
+			"sega mega drive",
+			"mega drive genesis"
+		]
+	},
+	{
+		"canonical": "Sega - Master System - Mark III",
+		"aliases": [
+			"sms",
+			"master system",
+			"mark iii",
+			"sega master system",
+			"master system mark iii"
+		]
+	},
+	{
+		"canonical": "Sega - Game Gear",
+		"aliases": ["gg", "game gear", "sega game gear"]
+	},
+	{ "canonical": "Sega - Saturn", "aliases": ["ss", "saturn", "sega saturn"] },
+	{
+		"canonical": "Sega - Dreamcast",
+		"aliases": ["dc", "dreamcast", "sega dreamcast"]
+	},
+	{
+		"canonical": "Sega - SG-1000",
+		"aliases": ["sg1000", "sg-1000", "sega sg-1000", "sega sg1000"]
+	},
+	{ "canonical": "Sega - 32X", "aliases": ["32x", "sega 32x"] },
+	{
+		"canonical": "Sega - Mega CD & Sega CD",
+		"aliases": ["mcd", "mega cd", "sega cd", "mega cd sega cd"]
+	},
+	{
+		"canonical": "Sony - PlayStation",
+		"aliases": [
+			"ps",
+			"ps1",
+			"psx",
+			"playstation",
+			"playstation 1",
+			"sony playstation"
+		]
+	},
+	{
+		"canonical": "Sony - PlayStation 2",
+		"aliases": ["ps2", "playstation 2", "playstation2", "sony playstation 2"]
+	},
+	{
+		"canonical": "Sony - PlayStation 3",
+		"aliases": ["ps3", "playstation 3", "playstation3", "sony playstation 3"]
+	},
+	{
+		"canonical": "Sony - PlayStation Vita",
+		"aliases": [
+			"psv",
+			"psvita",
+			"ps vita",
+			"playstation vita",
+			"sony ps vita",
+			"sony playstation vita"
+		]
+	},
+	{
+		"canonical": "Sony - PlayStation Portable",
+		"aliases": ["psp", "playstation portable", "sony psp"]
+	},
+	{
+		"canonical": "NEC - PC Engine - TurboGrafx-16",
+		"aliases": [
+			"pce",
+			"tg16",
+			"tg-16",
+			"pc engine",
+			"turbografx",
+			"turbografx-16",
+			"turbografx16"
+		]
+	},
+	{
+		"canonical": "NEC - PC Engine CD & TurboGrafx CD",
+		"aliases": ["pce cd", "tg cd", "pc engine cd", "turbografx cd"]
+	},
+	{
+		"canonical": "NEC - PC Engine SuperGrafx",
+		"aliases": ["sgx", "supergrafx", "pc engine supergrafx"]
+	},
+	{ "canonical": "NEC - PC-FX", "aliases": ["pcfx", "pc-fx", "nec pc-fx"] },
+	{
+		"canonical": "SNK - NeoGeo Pocket",
+		"aliases": ["ngp", "neo geo pocket", "neogeo pocket"]
+	},
+	{
+		"canonical": "SNK - NeoGeo Pocket Color",
+		"aliases": ["ngpc", "neo geo pocket color", "neogeo pocket color"]
+	},
+	{
+		"canonical": "Bandai - WonderSwan",
+		"aliases": ["ws", "wonderswan", "bandai wonderswan"]
+	},
+	{
+		"canonical": "Bandai - WonderSwan Color",
+		"aliases": ["wsc", "wonderswan color"]
+	},
+	{ "canonical": "Microsoft - MSX", "aliases": ["msx"] },
+	{ "canonical": "Microsoft - MSX2", "aliases": ["msx2"] },
+	{
+		"canonical": "Microsoft - Xbox",
+		"aliases": ["xbox", "xbox 1", "microsoft xbox", "og xbox"]
+	},
+	{
+		"canonical": "Microsoft - Xbox 360",
+		"aliases": ["x360", "xbox 360", "xbox360", "microsoft xbox 360"]
+	},
+	{
+		"canonical": "Commodore - Commodore 64",
+		"aliases": ["c64", "commodore 64", "commodore64", "cbm 64"]
+	},
+	{ "canonical": "Commodore - Amiga", "aliases": ["amiga", "commodore amiga"] },
+	{
+		"canonical": "Coleco - ColecoVision",
+		"aliases": ["coleco", "colecovision"]
+	},
+	{
+		"canonical": "Mattel - Intellivision",
+		"aliases": ["intv", "intellivision", "mattel intellivision"]
+	},
+	{ "canonical": "GCE - Vectrex", "aliases": ["vectrex", "gce vectrex"] },
+	{
+		"canonical": "Sharp - X68000",
+		"aliases": ["x68000", "x68k", "sharp x68000"]
+	},
+	{ "canonical": "Arcade - MAME", "aliases": ["mame", "arcade mame"] },
+	{
+		"canonical": "Arcade - CPS1",
+		"aliases": ["cps1", "capcom play system 1", "capcom cps1"]
+	},
+	{
+		"canonical": "Arcade - CPS2",
+		"aliases": ["cps2", "capcom play system 2", "capcom cps2"]
+	},
+	{
+		"canonical": "Arcade - CPS3",
+		"aliases": ["cps3", "capcom play system 3", "capcom cps3"]
+	},
+	{
+		"canonical": "Arcade - NEOGEO",
+		"aliases": ["neogeo", "neo geo", "neo-geo", "arcade neogeo"]
+	},
+	{
+		"canonical": "Panasonic - 3DO Interactive Multiplayer",
+		"aliases": ["3do", "panasonic 3do", "3do interactive multiplayer"]
+	},
+	{ "canonical": "Atari - Atari 2600", "aliases": ["2600", "atari 2600"] },
+	{ "canonical": "Atari - Atari 5200", "aliases": ["5200", "atari 5200"] },
+	{ "canonical": "Atari - Atari 7800", "aliases": ["7800", "atari 7800"] },
+	{ "canonical": "Atari - Atari Lynx", "aliases": ["lynx", "atari lynx"] },
+	{
+		"canonical": "Atari - Atari Jaguar",
+		"aliases": ["jaguar", "atari jaguar"]
+	},
+	{
+		"canonical": "Atari - Atari Jaguar CD",
+		"aliases": ["jaguar cd", "atari jaguar cd"]
+	},
+	{ "canonical": "Atari - Atari ST", "aliases": ["st", "atari st", "atarist"] }
+]

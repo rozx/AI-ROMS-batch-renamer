@@ -133,6 +133,13 @@ def build(args: argparse.Namespace, target: str = "cli") -> int:
             f"--include-data-dir={alias_data_dir}=assets/rom-name-alias-cn"
         )
 
+    # Include platform aliases JSON (replaces the large Python list in const.py)
+    platform_aliases_json = project_root / "assets" / "platform-aliases.json"
+    if platform_aliases_json.is_file():
+        nuitka_cmd.append(
+            f"--include-data-files={platform_aliases_json}=assets/platform-aliases.json"
+        )
+
     # On Windows, use MinGW64 — Nuitka downloads it automatically if not present,
     # requires no Visual Studio installation, and avoids msvcp140.dll warnings.
     if plat == "Windows":
