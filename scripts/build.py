@@ -157,7 +157,7 @@ def build(args: argparse.Namespace, target: str = "cli") -> int:
     # inside the `gui` subcommand, but that branch is unreachable in the compiled CLI
     # binary (it exits early via __compiled__ guard). Without this exclusion Nuitka
     # detects the PySide6 import and emits:
-    #   WARNING: Use '--enable-plugin=pyside6' for: Standalone mode support and Qt plugins.
+    #   WARNING: Use '--enable-plugins=pyside6' for: Standalone mode support and Qt plugins.
     if target == "cli":
         nuitka_cmd.append("--nofollow-import-to=PySide6")
         nuitka_cmd.append("--nofollow-import-to=ai_rom_batch_renamer.gui")
@@ -165,7 +165,7 @@ def build(args: argparse.Namespace, target: str = "cli") -> int:
 
     # Enable PySide6 plugin for GUI builds (required for standalone mode and Qt plugins)
     if target == "gui":
-        nuitka_cmd.append("--enable-plugin=pyside6")
+        nuitka_cmd.append("--enable-plugins=pyside6")
         # The GUI binary re-invokes itself as CLI via a hidden --__cli-mode__ flag.
         # Because this import is inside an `if` branch, Nuitka won't detect it
         # statically — force-include the entire package so CLI and all its

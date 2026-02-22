@@ -61,6 +61,7 @@ from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
 from ai_rom_batch_renamer.classes.AIConfig import AIConfig
 from ai_rom_batch_renamer.modules import const as constModule
 from ai_rom_batch_renamer.modules import utils as utilsModule
+from ai_rom_batch_renamer.modules.platform_data import get_platform_aliases
 
 # ── GitHub logo (Invertocat, primer/octicons) ──
 _GITHUB_SVG = (
@@ -596,7 +597,7 @@ class MainWindow(QMainWindow):
         self.tavily_api_key_input = QLineEdit()
         self.tavily_api_key_input.setEchoMode(QLineEdit.Password)
         self.platform_input = QLineEdit()
-        _platform_names = sorted(constModule.PLATFORM_ALIASES.keys())
+        _platform_names = sorted(get_platform_aliases().keys())
         _platform_model = QStringListModel(_platform_names, self.platform_input)
         self._platform_completer = QCompleter(_platform_model, self.platform_input)
         self._platform_completer.setCaseSensitivity(Qt.CaseInsensitive)
@@ -682,7 +683,7 @@ class MainWindow(QMainWindow):
         raw = self.platform_input.text().strip()
         if not raw:
             return
-        canonical = constModule.PLATFORM_ALIASES.get(raw.lower())
+        canonical = get_platform_aliases().get(raw.lower())
         if canonical and canonical != raw:
             self.platform_input.blockSignals(True)
             self.platform_input.setText(canonical)

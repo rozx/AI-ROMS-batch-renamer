@@ -75,7 +75,7 @@ ALLOWED_REGION_CODES = {"US", "JP", "EU", "繁", "简", "简&繁", "WW", "UE"}
 Any region validation must use these exact values.
 
 ### Platform Aliases
-[`const.py`](ai_rom_batch_renamer/modules/const.py) defines `_PLATFORM_ALIAS_DEFS` — a list of `(canonical_name, [alias, ...])` tuples that map user-supplied platform strings (e.g. `"gba"`, `"snes"`) to the canonical names matching the CSV filenames under `assets/rom-name-alias-cn/`. Lookup is always done with `.strip().lower()`. Add new aliases here, not in lookup logic.
+[`assets/platform-aliases.json`](assets/platform-aliases.json) defines the canonical-name ↔ alias mappings. [`platform_data.py`](ai_rom_batch_renamer/modules/platform_data.py) loads this JSON and exposes `get_platform_aliases()` — a dict mapping every known alias (lower-cased) to its canonical platform name matching the CSV filenames under `assets/rom-name-alias-cn/`. To add new aliases edit the JSON file, not lookup logic.
 
 ### AI Cache Key Format
 Cache keys use format `"{platform.lower()}::{romFile.originalFilename}"` — see [`ai.py`](ai_rom_batch_renamer/modules/ai.py#L16). Changing this format breaks existing caches.

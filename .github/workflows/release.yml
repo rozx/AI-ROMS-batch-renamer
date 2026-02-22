@@ -185,6 +185,10 @@ jobs:
   build-release-windows:
     runs-on: windows-latest
     needs: create-draft-release
+    env:
+      # Force UTF-8 mode so Nuitka (and the compiled binary at smoke-test
+      # time) never falls back to the Windows-default cp1252 encoding.
+      PYTHONUTF8: "1"
     permissions:
       # write permission is required to create a github release
       contents: write

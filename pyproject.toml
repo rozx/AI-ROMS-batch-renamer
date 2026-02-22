@@ -50,7 +50,7 @@ test = "pytest:main"
 dev = "scripts.hotreload:main"
 
 [tool.poetry.group.dev.dependencies]
-nuitka = "^2.7.3"
+nuitka = {version = "^4.0", extras = ["onefile"]}
 imageio = "^2.37.0"
 docopt = "0.6.2"
 markdown-it-py = "3.0.0"

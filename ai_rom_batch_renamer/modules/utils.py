@@ -5,6 +5,7 @@ import zipfile
 import regex
 
 from ai_rom_batch_renamer.modules import const as constModule
+from ai_rom_batch_renamer.modules.platform_data import get_platform_aliases
 
 
 def isSystemOrHiddenFile(file: str) -> bool:
@@ -331,18 +332,19 @@ def sanitizePlatform(platform: str) -> str:
         return stripped
 
     key = stripped.lower()
-    canonical = constModule.PLATFORM_ALIASES.get(key)
+    aliases = get_platform_aliases()
+    canonical = aliases.get(key)
     if canonical:
         return canonical
 
     # Build suggestions from all known aliases
-    all_keys = list(constModule.PLATFORM_ALIASES.keys())
+    all_keys = list(aliases.keys())
     close = difflib.get_close_matches(key, all_keys, n=5, cutoff=0.4)
     # Deduplicate while preserving order, show canonical names
     seen: set[str] = set()
     suggestions: list[str] = []
     for k in close:
-        c = constModule.PLATFORM_ALIASES[k]
+        c = aliases[k]
         if c not in seen:
             seen.add(c)
             suggestions.append(c)
@@ -354,7 +356,7 @@ def sanitizePlatform(platform: str) -> str:
             f"你是否想输入 (Did you mean):\n  {hint}"
         )
     # No close matches at all – list all canonical names
-    all_canonicals = sorted({v for v in constModule.PLATFORM_ALIASES.values()})
+    all_canonicals = sorted({v for v in aliases.values()})
     hint = "\n  ".join(all_canonicals)
     raise ValueError(
         f"未知平台 '{stripped}' (Unknown platform).\n"
