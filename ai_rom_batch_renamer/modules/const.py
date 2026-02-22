@@ -53,4 +53,17 @@ def _build_platform_aliases() -> dict:
     )
 
 
-PLATFORM_ALIASES = _build_platform_aliases()
+# ---------------------------------------------------------------------------
+# Lazy module attribute (PEP 562) — avoids ALL module-level code execution
+# beyond simple literal assignments, which Nuitka ≤ 2.8 + MSVC silently drops
+# when compiling with --include-package.
+# On first access of `const.PLATFORM_ALIASES`, Python calls __getattr__,
+# which builds the dict, caches it in globals(), and returns it.
+# Subsequent accesses hit the cached global directly (no __getattr__ call).
+# ---------------------------------------------------------------------------
+def __getattr__(name: str):
+    if name == "PLATFORM_ALIASES":
+        _aliases = _build_platform_aliases()
+        globals()["PLATFORM_ALIASES"] = _aliases
+        return _aliases
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
