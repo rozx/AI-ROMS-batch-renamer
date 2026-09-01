@@ -28,6 +28,7 @@ import json
 import os
 import re
 import sys
+from collections.abc import Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, TypedDict
 
@@ -77,6 +78,37 @@ _TAGS_RE = re.compile(r"[\(\[\{][^\)\]\}]*[\)\]\}]")
 # Region preference: prefer (USA) > (World) > others
 _US_REGION_RE = re.compile(r"\(USA\)", re.IGNORECASE)
 _WORLD_REGION_RE = re.compile(r"\(World\)", re.IGNORECASE)
+
+# ---------------------------------------------------------------------------
+# Header normalization
+# ---------------------------------------------------------------------------
+# CSV data comes from the third-party rom-name-cn project whose headers are
+# inconsistent across platforms (observed variants in assets/rom-name-alias-cn):
+#   "Name EN,Name CN"   – canonical (most platforms)
+#   "Name EN,Name ZH"   – Sega Saturn / Dreamcast
+#   "EN Name,CN Name"   – MSX2 / Famicom Disk System
+#   "MAME Name,EN Name,CN Name" – Arcade (CPS1/2/3, NEOGEO); "MAME Name" is an
+#                          internal MAME id, NOT a display title, and is ignored
+#   "Name En,Name CN"   – New Nintendo 3DS (lowercase "En" typo)
+# Some files additionally carry a UTF-8 BOM (handled by opening with
+# utf-8-sig).  All matching below is case-insensitive on the stripped header.
+_EN_FIELD_ALIASES = frozenset({"name en", "en name"})
+_CN_FIELD_ALIASES = frozenset({"name cn", "name zh", "cn name"})
+
+
+def _resolve_field(
+    fieldnames: Sequence[str] | None, aliases: frozenset[str]
+) -> str | None:
+    """Return the original header field matching *aliases* (case-insensitive).
+
+    Iterates the header in column order so that e.g. the arcade 3-column layout
+    "MAME Name,EN Name,CN Name" resolves EN to "EN Name" and CN to "CN Name",
+    leaving "MAME Name" untouched (internal id, not a title).
+    """
+    for field in fieldnames or []:
+        if (field or "").strip().lower() in aliases:
+            return field
+    return None
 
 
 def _us_region_score(entry: dict) -> int:
@@ -250,6 +282,10 @@ def _digits_compatible(query: str, key: str) -> bool:
 def _load_csv(platform: str) -> tuple[CsvIndexes, dict[str, list[dict]]]:
     """Load the CSV for *platform* and return (indexes, fuzzy_index).
 
+    The file is opened with utf-8-sig (BOM-tolerant) and its header is
+    normalized so the column variants shipped by the rom-name-cn project
+    ("Name ZH", "EN Name", "CN Name", "Name En", ...) all resolve correctly.
+
     indexes:     CsvIndexes with __exact__, __exact_orig__, __cn_exact__,
                  __cn_fuzzy__, __cn_cjk_key__, __cn_sorted_cjk_key__ keys.
     fuzzy_index: {stripped_name_en_lower: [{"name_en": original, "name_cn": cn}, ...]}
@@ -280,11 +316,24 @@ def _load_csv(platform: str) -> tuple[CsvIndexes, dict[str, list[dict]]]:
     )  # ""join(sorted(_cn_key(name_cn))) -> entries — order-independent bag-of-chars fallback
 
     try:
-        with open(csv_path, encoding="utf-8", newline="") as fh:
+        # utf-8-sig transparently strips a leading UTF-8 BOM present in several
+        # platform CSVs (Xbox, MAME, Amiga, ...); without it the first header
+        # becomes "\ufeffName EN" and every row silently fails column lookup.
+        with open(csv_path, encoding="utf-8-sig", newline="") as fh:
             reader = csv.DictReader(fh)
+            # Normalize header: map variant column names (Name ZH / EN Name /
+            # CN Name / Name En ...) onto canonical EN/CN fields.
+            en_field = _resolve_field(reader.fieldnames, _EN_FIELD_ALIASES)
+            cn_field = _resolve_field(reader.fieldnames, _CN_FIELD_ALIASES)
+            if en_field is None or cn_field is None:
+                rprint(
+                    f"[yellow]cn_lookup: 无法识别 CSV 表头 (Unrecognized CSV header) "
+                    f"{csv_path}: {reader.fieldnames}[/yellow]"
+                )
+                return _EMPTY_INDEXES, {}
             for row in reader:
-                name_en: str = (row.get("Name EN") or "").strip()
-                name_cn: str = (row.get("Name CN") or "").strip()
+                name_en: str = (row.get(en_field) or "").strip()
+                name_cn: str = (row.get(cn_field) or "").strip()
                 if not name_en:
                     continue
 
@@ -702,7 +751,7 @@ def lookup(filename: str, platform: str) -> dict | None:
 
 
 def lookupBatch(
-    romFiles: list["RomFile"],
+    romFiles: list[RomFile],
     platform: str,
 ) -> dict[str, dict]:
     """Batch lookup for a list of RomFile objects.

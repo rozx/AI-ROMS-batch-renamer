@@ -1,0 +1,9 @@
+{
+  "executionEnvironments": [
+    {
+      "root": ".",
+      "pythonPath": ".venv/bin/python",
+      "extraPaths": ["."]
+    }
+  ]
+}
