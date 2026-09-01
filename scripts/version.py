@@ -47,7 +47,11 @@ def _const_path() -> Path:
 
 
 def _supports_unicode() -> bool:
-    enc = (getattr(sys.stdout, "encoding", None) or locale.getpreferredencoding(False) or "").lower()
+    enc = (
+        getattr(sys.stdout, "encoding", None)
+        or locale.getpreferredencoding(False)
+        or ""
+    ).lower()
     return "utf" in enc
 
 
@@ -67,7 +71,10 @@ def _normalize_version(v: str) -> str:
         v = v[1:]
     # Basic semantic version validation (major.minor.patch)
     if not re.match(r"^\d+\.\d+\.\d+$", v):
-        print(f"{_symbol(False)} Provided version '{v}' is not in form X.Y.Z", file=sys.stderr)
+        print(
+            f"{_symbol(False)} Provided version '{v}' is not in form X.Y.Z",
+            file=sys.stderr,
+        )
         sys.exit(2)
     return v
 
@@ -129,8 +136,10 @@ def _write_pyproject(version: str) -> None:
                     file=sys.stderr,
                 )
         except Exception as e:
-            print(f"{_symbol(False, True)} edited pyproject.toml failed to parse ({e})",
-                  file=sys.stderr)
+            print(
+                f"{_symbol(False, True)} edited pyproject.toml failed to parse ({e})",
+                file=sys.stderr,
+            )
     path.write_text(new_text, encoding="utf-8")
 
 
@@ -181,6 +190,7 @@ def set_version(explicit_version: str) -> None:
 def current_version() -> str:
     try:
         import toml as _t  # type: ignore
+
         data = _t.loads(_pyproject_path().read_text(encoding="utf-8"))
         return data.get("tool", {}).get("poetry", {}).get("version", "<unknown>")
     except Exception:
@@ -189,9 +199,7 @@ def current_version() -> str:
 
 def _run_bump2version(args: Iterable[str]) -> int:
     try:
-        proc = subprocess.run(
-            ["bump2version", *args], cwd=_project_root(), check=False
-        )
+        proc = subprocess.run(["bump2version", *args], cwd=_project_root(), check=False)
     except FileNotFoundError:
         print(f"{_symbol(False)} bump2version not installed", file=sys.stderr)
         return 127
@@ -215,7 +223,10 @@ def bump_part(part: str, allow_dirty: bool = True) -> None:
     if rc == 0:
         print(f"{_symbol(True)} bump2version {part} succeeded")
     else:
-        print("Fallback: derive +1 version manually not implemented; use --set instead", file=sys.stderr)
+        print(
+            "Fallback: derive +1 version manually not implemented; use --set instead",
+            file=sys.stderr,
+        )
         sys.exit(rc)
 
 
@@ -247,12 +258,28 @@ def bump_major() -> None:
 
 
 def _parse_args(argv: list[str]) -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="Version utility (bump or set explicit version).")
+    p = argparse.ArgumentParser(
+        description="Version utility (bump or set explicit version)."
+    )
     g = p.add_mutually_exclusive_group(required=False)
-    g.add_argument("--set", metavar="X.Y.Z", help="Set an explicit semantic version across files (accepts leading v prefix).")
-    g.add_argument("--bump", choices=["patch", "minor", "major"], help="Use bump2version to bump one part.")
-    p.add_argument("--no-allow-dirty", action="store_true", help="Do not pass --allow-dirty to bump2version.")
-    p.add_argument("--print", action="store_true", help="Print current version and exit.")
+    g.add_argument(
+        "--set",
+        metavar="X.Y.Z",
+        help="Set an explicit semantic version across files (accepts leading v prefix).",
+    )
+    g.add_argument(
+        "--bump",
+        choices=["patch", "minor", "major"],
+        help="Use bump2version to bump one part.",
+    )
+    p.add_argument(
+        "--no-allow-dirty",
+        action="store_true",
+        help="Do not pass --allow-dirty to bump2version.",
+    )
+    p.add_argument(
+        "--print", action="store_true", help="Print current version and exit."
+    )
     return p.parse_args(argv)
 
 

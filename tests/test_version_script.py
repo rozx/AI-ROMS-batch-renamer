@@ -29,7 +29,7 @@ def fake_project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     (tmp_path / "pyproject.toml").write_text(
         "[build-system]\n"
         'requires = ["poetry-core"]\n'
-        "build-backend = \"poetry.core.masonry.api\"\n"
+        'build-backend = "poetry.core.masonry.api"\n'
         "\n"
         "[tool.poetry]\n"
         'name = "test"\n'
@@ -56,10 +56,7 @@ def fake_project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         encoding="utf-8",
     )
     (tmp_path / ".bumpversion.cfg").write_text(
-        "[bumpversion]\n"
-        "current_version = 1.0.0\n"
-        "commit = False\n"
-        "tag = False\n",
+        "[bumpversion]\ncurrent_version = 1.0.0\ncommit = False\ntag = False\n",
         encoding="utf-8",
     )
     monkeypatch.setattr(version_mod, "_project_root", lambda: tmp_path)
@@ -82,16 +79,17 @@ class TestSetVersion:
         after = (fake_project / "pyproject.toml").read_text(encoding="utf-8")
         assert 'version = "2.0.0"' in after
         # Inline dependency table must stay inline (no reformat / no explosion)
-        assert 'PySide6 = { version = ">=6.10.2,<7.0.0", python = ">=3.11,<3.15" }' in after
+        assert (
+            'PySide6 = { version = ">=6.10.2,<7.0.0", python = ">=3.11,<3.15" }'
+            in after
+        )
         # No trailing-comma reformatting noise introduced by toml.dumps
         assert 'requires = ["poetry-core"]' in after
         # Only the version line itself may differ
         before_lines = before.splitlines()
         after_lines = after.splitlines()
         diffs = [
-            (b, a)
-            for b, a in zip(before_lines, after_lines, strict=True)
-            if b != a
+            (b, a) for b, a in zip(before_lines, after_lines, strict=True) if b != a
         ]
         assert diffs == [('version = "1.0.0"', 'version = "2.0.0"')]
 
@@ -123,6 +121,6 @@ class TestRegexUpdateVersion:
         assert 'PySide6 = { version = ">=6,<7" }' in out
 
     def test_inserts_version_when_missing(self):
-        text = "[tool.poetry]\nname = \"x\"\n"
+        text = '[tool.poetry]\nname = "x"\n'
         out = version_mod._regex_update_version(text, "3.2.0")
         assert 'version = "3.2.0"' in out
