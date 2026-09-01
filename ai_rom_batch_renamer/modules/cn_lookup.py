@@ -32,7 +32,8 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, TypedDict
 
-from rapidfuzz import fuzz, process as fuzz_process
+from rapidfuzz import fuzz
+from rapidfuzz import process as fuzz_process
 from rich import print as rprint
 
 if TYPE_CHECKING:
@@ -305,15 +306,15 @@ def _load_csv(platform: str) -> tuple[CsvIndexes, dict[str, list[dict]]]:
     exact_orig: dict[str, str] = {}  # name_en_lower -> original name_en
     fuzzy: dict[str, list[dict]] = {}
     cn_exact: dict[str, dict] = {}  # name_cn_lower -> {name_en, name_cn}
-    cn_fuzzy: dict[str, list[dict]] = (
-        {}
-    )  # stripped_name_cn_lower -> [{name_en, name_cn}, ...]
-    cn_cjk_key: dict[str, list[dict]] = (
-        {}
-    )  # _cn_key(name_cn) -> [{name_en, name_cn}, ...]  (Roman-normalized CJK+digit key)
-    cn_sorted_cjk_key: dict[str, list[dict]] = (
-        {}
-    )  # ""join(sorted(_cn_key(name_cn))) -> entries — order-independent bag-of-chars fallback
+    cn_fuzzy: dict[
+        str, list[dict]
+    ] = {}  # stripped_name_cn_lower -> [{name_en, name_cn}, ...]
+    cn_cjk_key: dict[
+        str, list[dict]
+    ] = {}  # _cn_key(name_cn) -> [{name_en, name_cn}, ...]  (Roman-normalized CJK+digit key)
+    cn_sorted_cjk_key: dict[
+        str, list[dict]
+    ] = {}  # ""join(sorted(_cn_key(name_cn))) -> entries — order-independent bag-of-chars fallback
 
     try:
         # utf-8-sig transparently strips a leading UTF-8 BOM present in several

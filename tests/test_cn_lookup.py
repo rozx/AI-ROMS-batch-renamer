@@ -11,7 +11,6 @@ import pytest
 
 from ai_rom_batch_renamer.modules import cn_lookup as module
 
-
 # ---------------------------------------------------------------------------
 # Helpers: build minimal in-memory fixtures
 # ---------------------------------------------------------------------------
@@ -247,9 +246,9 @@ class TestLookupCsvExact:
         # The query must NOT match "洛克人 X6" and SHOULD match "洛克人 6 - 史上最大之战".
         result = module._lookup_csv("洛克人6 (Mega Man 6)(1998)", _PLATFORM)
         assert result is not None
-        assert (
-            "X6" not in result["chineseTitle"]
-        ), f"Matched X6 entry instead of numbered entry: {result}"
+        assert "X6" not in result["chineseTitle"], (
+            f"Matched X6 entry instead of numbered entry: {result}"
+        )
         assert "6" in result["chineseTitle"]  # should be 洛克人 6 - 史上最大之战
         assert "Rockman 6" in result["englishTitle"]
 
@@ -295,7 +294,11 @@ class TestHeaderVariants:
     _VARIANT_PLATFORM = "Test - Platform"
 
     def _write_csv(
-        self, tmp_path: Path, header: str, rows: list[tuple[str, str]], bom: bool = False
+        self,
+        tmp_path: Path,
+        header: str,
+        rows: list[tuple[str, str]],
+        bom: bool = False,
     ) -> None:
         alias_dir = tmp_path / "assets" / "rom-name-alias-cn"
         alias_dir.mkdir(parents=True, exist_ok=True)
@@ -322,7 +325,9 @@ class TestHeaderVariants:
             tmp_path, header, [("Guardian Heroes (Europe)", "守护英雄")], bom=bom
         )
         with patch.object(
-            module, "_resolve_assets_dir", return_value=tmp_path / "assets" / "rom-name-alias-cn"
+            module,
+            "_resolve_assets_dir",
+            return_value=tmp_path / "assets" / "rom-name-alias-cn",
         ):
             result = module.lookup("Guardian Heroes.rom", self._VARIANT_PLATFORM)
         assert result is not None
