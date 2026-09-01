@@ -93,8 +93,15 @@ def _write_const(version: str) -> None:
         text,
         count=1,
     )
-    if n == 0:  # file without the marker — fall back to full rewrite
-        new_text = f'VERSION = "{version}"\n'
+    if n == 0:
+        # Malformed const.py (no VERSION marker). Rewriting the whole file
+        # here would silently truncate it — the destructive behaviour this
+        # function exists to prevent — so warn and leave the file untouched.
+        print(
+            "⚠ const.py has no VERSION assignment; leaving file unchanged",
+            file=sys.stderr,
+        )
+        return
     path.write_text(new_text, encoding="utf-8")
 
 
@@ -136,10 +143,15 @@ def _write_pyproject(version: str) -> None:
                     file=sys.stderr,
                 )
         except Exception as e:
+            # The regex edit produced invalid TOML — do NOT write it, so the
+            # last valid pyproject.toml stays on disk instead of persisting
+            # a broken file.
             print(
-                f"{_symbol(False, True)} edited pyproject.toml failed to parse ({e})",
+                f"{_symbol(False)} edited pyproject.toml failed to parse ({e}); "
+                "aborting without writing",
                 file=sys.stderr,
             )
+            raise SystemExit(1) from e
     path.write_text(new_text, encoding="utf-8")
 
 
@@ -208,7 +220,9 @@ def _run_bump2version(args: Iterable[str]) -> int:
             f"{_symbol(False)} bump2version failed with exit code {proc.returncode}",
             file=sys.stderr,
         )
-    return proc.returncode or 1
+    # 0 means success and must be returned as-is (an `or 1` here would turn
+    # every successful bump into a reported failure).
+    return proc.returncode
 
 
 def bump_part(part: str, allow_dirty: bool = True) -> None:

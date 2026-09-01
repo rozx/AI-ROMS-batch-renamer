@@ -124,3 +124,57 @@ class TestRegexUpdateVersion:
         text = '[tool.poetry]\nname = "x"\n'
         out = version_mod._regex_update_version(text, "3.2.0")
         assert 'version = "3.2.0"' in out
+
+
+# ---------------------------------------------------------------------------
+# PR review follow-ups (Kilo Code Review on #37)
+# ---------------------------------------------------------------------------
+
+
+class TestRunBump2VersionReturnCode:
+    """A successful run must return 0 — ``return proc.returncode or 1`` turned
+    every successful bump into a reported failure (``0 or 1`` == 1)."""
+
+    def test_success_returns_zero(self, monkeypatch: pytest.MonkeyPatch):
+        class FakeProc:
+            returncode = 0
+
+        monkeypatch.setattr(
+            version_mod.subprocess, "run", lambda *a, **kw: FakeProc()
+        )
+        assert version_mod._run_bump2version(["patch"]) == 0
+
+    def test_failure_returns_actual_code(self, monkeypatch: pytest.MonkeyPatch):
+        class FakeProc:
+            returncode = 3
+
+        monkeypatch.setattr(
+            version_mod.subprocess, "run", lambda *a, **kw: FakeProc()
+        )
+        assert version_mod._run_bump2version(["patch"]) == 3
+
+
+class TestWriteGuards:
+    def test_const_without_marker_left_untouched(self, fake_project: Path):
+        const_file = fake_project / "ai_rom_batch_renamer" / "modules" / "const.py"
+        const_file.write_text("# no VERSION marker here\n", encoding="utf-8")
+        version_mod._write_const("2.0.0")
+        assert (
+            const_file.read_text(encoding="utf-8") == "# no VERSION marker here\n"
+        )
+
+    def test_pyproject_not_written_when_parse_check_fails(
+        self, fake_project: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        pyproject = fake_project / "pyproject.toml"
+        before = pyproject.read_text(encoding="utf-8")
+
+        class BrokenToml:
+            @staticmethod
+            def loads(_s):
+                raise ValueError("simulated TOML corruption")
+
+        monkeypatch.setattr(version_mod, "toml", BrokenToml)
+        with pytest.raises(SystemExit):
+            version_mod._write_pyproject("2.0.0")
+        assert pyproject.read_text(encoding="utf-8") == before
