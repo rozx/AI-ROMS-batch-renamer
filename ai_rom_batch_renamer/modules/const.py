@@ -1,4 +1,4 @@
-VERSION = "3.1.1"
+VERSION = "3.2.0"
 
 # ---------------------------------------------------------------------------
 # ALLOWED_REGION_CODES has been moved to platform_data.get_allowed_region_codes()
