@@ -17,13 +17,13 @@ is unavailable or misbehaving.
 from __future__ import annotations
 
 import argparse
-import re
 import locale
+import os
+import re
 import subprocess
 import sys
+from collections.abc import Iterable
 from pathlib import Path
-import os
-from typing import Iterable
 
 try:
     import toml  # type: ignore
@@ -47,7 +47,11 @@ def _const_path() -> Path:
 
 
 def _supports_unicode() -> bool:
-    enc = (getattr(sys.stdout, "encoding", None) or locale.getpreferredencoding(False) or "").lower()
+    enc = (
+        getattr(sys.stdout, "encoding", None)
+        or locale.getpreferredencoding(False)
+        or ""
+    ).lower()
     return "utf" in enc
 
 
@@ -67,61 +71,155 @@ def _normalize_version(v: str) -> str:
         v = v[1:]
     # Basic semantic version validation (major.minor.patch)
     if not re.match(r"^\d+\.\d+\.\d+$", v):
-        print(f"{_symbol(False)} Provided version '{v}' is not in form X.Y.Z", file=sys.stderr)
+        print(
+            f"{_symbol(False)} Provided version '{v}' is not in form X.Y.Z",
+            file=sys.stderr,
+        )
         sys.exit(2)
     return v
 
 
-def _write_const(version: str) -> None:
-    _const_path().write_text(f'VERSION = "{version}"\n', encoding="utf-8")
+def _compute_const_text(version: str) -> str:
+    """Return the new const.py contents with the VERSION line replaced.
+
+    Raises SystemExit when the file has no VERSION marker — rewriting the
+    whole file in that case would silently truncate it, the destructive
+    behaviour this function exists to prevent.
+    """
+    text = _const_path().read_text(encoding="utf-8")
+    new_text, n = re.subn(
+        r'(?m)^VERSION\s*=\s*["\'][^"\']*["\']',
+        f'VERSION = "{version}"',
+        text,
+        count=1,
+    )
+    if n == 0:
+        print(
+            f"{_symbol(False)} const.py has no VERSION assignment; aborting",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
+    return new_text
 
 
-def _write_pyproject(version: str) -> None:
-    path = _pyproject_path()
+def _bumpversion_cfg_path() -> Path:
+    return _project_root() / ".bumpversion.cfg"
+
+
+def _compute_bumpversion_cfg_text(version: str) -> str | None:
+    """Return the new .bumpversion.cfg contents, or None when absent/unchanged."""
+    path = _bumpversion_cfg_path()
+    if not path.exists():
+        return None
     text = path.read_text(encoding="utf-8")
-    if toml:  # preferred accurate update
-        data = toml.loads(text)
-        # Defensive: some earlier corruption placed version string incorrectly.
-        # Ensure data[tool.poetry]['version'] becomes clean.
-        # Access nested keys safely.
+    new_text, n = re.subn(
+        r"(?m)^current_version\s*=\s*\S+",
+        f"current_version = {version}",
+        text,
+        count=1,
+    )
+    if n == 0:
+        # Config exists but is malformed. Not fatal (the file is optional for
+        # --set), but staying silent here would hide the exact state that
+        # breaks a later --bump.
+        print(
+            f"{_symbol(False, True)} .bumpversion.cfg has no current_version "
+            "assignment; skipping sync",
+            file=sys.stderr,
+        )
+        return None
+    return new_text
+
+
+def _compute_pyproject_text(version: str) -> str:
+    """Return the new pyproject.toml contents with the [tool.poetry] version replaced.
+
+    Precise in-place regex edit only — never a toml.dumps round-trip, which
+    reformats the whole document. Aborts (SystemExit) when the edited text
+    fails to parse or reports a different version; nothing is written here.
+    """
+    text = _pyproject_path().read_text(encoding="utf-8")
+    new_text = _regex_update_version(text, version)
+    if toml:  # safety net: verify the edited text still parses
         try:
-            tool = data.get("tool", {})
-            poetry = tool.get("poetry", {})
-            poetry["version"] = version
-            tool["poetry"] = poetry
-            data["tool"] = tool
-            new_text = toml.dumps(data)
-        except Exception as e:  # pragma: no cover
-            print(f"⚠ TOML rewrite failed ({e}); falling back to regex", file=sys.stderr)
-            new_text = _regex_update_version(text, version)
-    else:
-        new_text = _regex_update_version(text, version)
-    path.write_text(new_text, encoding="utf-8")
+            parsed = toml.loads(new_text)
+        except Exception as e:
+            print(
+                f"{_symbol(False)} edited pyproject.toml failed to parse ({e}); "
+                "aborting without writing",
+                file=sys.stderr,
+            )
+            raise SystemExit(1) from e
+        got = parsed.get("tool", {}).get("poetry", {}).get("version")
+        if got != version:
+            print(
+                f"{_symbol(False)} TOML parse-check mismatch: got {got!r}, "
+                f"expected {version!r}; aborting without writing",
+                file=sys.stderr,
+            )
+            raise SystemExit(1)
+    return new_text
 
 
 def _regex_update_version(text: str, version: str) -> str:
-    # Replace first occurrence under [tool.poetry] of version assignment.
-    pattern = re.compile(r"(\n\s*version\s*=\s*)['\"]([^'\"]*)['\"]")
-    # If corruption like: version = "version = "2.1.0"" fix by capturing.
-    def repl(match: re.Match) -> str:
-        return f"{match.group(1)}\"{version}\""
-    new_text, count = pattern.subn(repl, text, count=1)
+    """Replace the top-level version assignment inside [tool.poetry] only.
+
+    Scoping to the section header prevents touching other ``version`` keys
+    (e.g. inline dependency entries like ``PySide6 = { version = "..." }``).
+    """
+    section = re.search(r"(?m)^\[tool\.poetry\]\s*$", text)
+    if section:
+        head, tail = text[: section.end()], text[section.end() :]
+        new_tail, count = re.subn(
+            r'(?m)^version\s*=\s*["\'][^"\']*["\']',
+            f'version = "{version}"',
+            tail,
+            count=1,
+        )
+        if count:
+            return head + new_tail
+        # No version line in the section — insert one right below the header
+        return f'{head}\nversion = "{version}"' + tail
+    # Fallback: first bare ``version =`` line anywhere in the file
+    pattern = re.compile(r'(?m)^version\s*=\s*["\'][^"\']*["\']')
+    new_text, count = pattern.subn(f'version = "{version}"', text, count=1)
     if count == 0:
-        print("⚠ No existing version line found; inserting one into [tool.poetry]", file=sys.stderr)
-        new_text = re.sub(r"(\[tool.poetry\])", f"\\1\nversion = \"{version}\"", text, count=1)
+        print(
+            "⚠ No existing version line found; inserting one into [tool.poetry]",
+            file=sys.stderr,
+        )
+        new_text = re.sub(
+            r"(\[tool\.poetry\])",
+            f'\\1\nversion = "{version}"',
+            text,
+            count=1,
+        )
     return new_text
 
 
 def set_version(explicit_version: str) -> None:
+    """Set the version across pyproject.toml, const.py and .bumpversion.cfg.
+
+    Two-phase: every file's new contents are computed and validated BEFORE
+    anything is written, so a failure in any compute step leaves all files
+    untouched instead of half-synced.
+    """
     version = _normalize_version(explicit_version)
-    _write_pyproject(version)
-    _write_const(version)
+    new_pyproject = _compute_pyproject_text(version)
+    new_const = _compute_const_text(version)
+    new_cfg = _compute_bumpversion_cfg_text(version)
+
+    _pyproject_path().write_text(new_pyproject, encoding="utf-8")
+    _const_path().write_text(new_const, encoding="utf-8")
+    if new_cfg is not None:
+        _bumpversion_cfg_path().write_text(new_cfg, encoding="utf-8")
     print(f"{_symbol(True)} Set version to {version}")
 
 
 def current_version() -> str:
     try:
         import toml as _t  # type: ignore
+
         data = _t.loads(_pyproject_path().read_text(encoding="utf-8"))
         return data.get("tool", {}).get("poetry", {}).get("version", "<unknown>")
     except Exception:
@@ -130,14 +228,18 @@ def current_version() -> str:
 
 def _run_bump2version(args: Iterable[str]) -> int:
     try:
-        subprocess.run(["bump2version", *args], cwd=_project_root(), check=True)
-        return 0
+        proc = subprocess.run(["bump2version", *args], cwd=_project_root(), check=False)
     except FileNotFoundError:
         print(f"{_symbol(False)} bump2version not installed", file=sys.stderr)
         return 127
-    except subprocess.CalledProcessError as e:
-        print(f"{_symbol(False)} bump2version failed: {e}", file=sys.stderr)
-        return e.returncode or 1
+    if proc.returncode != 0:
+        print(
+            f"{_symbol(False)} bump2version failed with exit code {proc.returncode}",
+            file=sys.stderr,
+        )
+    # 0 means success and must be returned as-is (an `or 1` here would turn
+    # every successful bump into a reported failure).
+    return proc.returncode
 
 
 def bump_part(part: str, allow_dirty: bool = True) -> None:
@@ -152,7 +254,10 @@ def bump_part(part: str, allow_dirty: bool = True) -> None:
     if rc == 0:
         print(f"{_symbol(True)} bump2version {part} succeeded")
     else:
-        print("Fallback: derive +1 version manually not implemented; use --set instead", file=sys.stderr)
+        print(
+            "Fallback: derive +1 version manually not implemented; use --set instead",
+            file=sys.stderr,
+        )
         sys.exit(rc)
 
 
@@ -184,12 +289,28 @@ def bump_major() -> None:
 
 
 def _parse_args(argv: list[str]) -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="Version utility (bump or set explicit version).")
+    p = argparse.ArgumentParser(
+        description="Version utility (bump or set explicit version)."
+    )
     g = p.add_mutually_exclusive_group(required=False)
-    g.add_argument("--set", metavar="X.Y.Z", help="Set an explicit semantic version across files (accepts leading v prefix).")
-    g.add_argument("--bump", choices=["patch", "minor", "major"], help="Use bump2version to bump one part.")
-    p.add_argument("--no-allow-dirty", action="store_true", help="Do not pass --allow-dirty to bump2version.")
-    p.add_argument("--print", action="store_true", help="Print current version and exit.")
+    g.add_argument(
+        "--set",
+        metavar="X.Y.Z",
+        help="Set an explicit semantic version across files (accepts leading v prefix).",
+    )
+    g.add_argument(
+        "--bump",
+        choices=["patch", "minor", "major"],
+        help="Use bump2version to bump one part.",
+    )
+    p.add_argument(
+        "--no-allow-dirty",
+        action="store_true",
+        help="Do not pass --allow-dirty to bump2version.",
+    )
+    p.add_argument(
+        "--print", action="store_true", help="Print current version and exit."
+    )
     return p.parse_args(argv)
 
 

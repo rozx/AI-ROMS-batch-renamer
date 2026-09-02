@@ -5,7 +5,7 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry]
 maintainers = ["Rozx <lisida900710@gmail.com>"]
 name = "AI-rom-batch-renamer"
-version = "3.1.1"
+version = "3.2.0"
 authors = ["Rozx <lisida900710@gmail.com>"]
 description = "A command line tool for batch renaming ROM files using AI."
 license = "LICENSE"

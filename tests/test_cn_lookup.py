@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import csv
 import json
 import os
 from pathlib import Path
@@ -11,7 +10,6 @@ from unittest.mock import patch
 import pytest
 
 from ai_rom_batch_renamer.modules import cn_lookup as module
-
 
 # ---------------------------------------------------------------------------
 # Helpers: build minimal in-memory fixtures
@@ -248,9 +246,9 @@ class TestLookupCsvExact:
         # The query must NOT match "洛克人 X6" and SHOULD match "洛克人 6 - 史上最大之战".
         result = module._lookup_csv("洛克人6 (Mega Man 6)(1998)", _PLATFORM)
         assert result is not None
-        assert (
-            "X6" not in result["chineseTitle"]
-        ), f"Matched X6 entry instead of numbered entry: {result}"
+        assert "X6" not in result["chineseTitle"], (
+            f"Matched X6 entry instead of numbered entry: {result}"
+        )
         assert "6" in result["chineseTitle"]  # should be 洛克人 6 - 史上最大之战
         assert "Rockman 6" in result["englishTitle"]
 
@@ -277,6 +275,96 @@ class TestLookupCsvFuzzy:
         result = module._lookup_csv("超级马里奥乐园 (2001)", _PLATFORM)
         assert result is not None
         assert "Super Mario Land" in result["englishTitle"]
+
+
+# ---------------------------------------------------------------------------
+# Header variant normalization (regression: issue #36)
+# ---------------------------------------------------------------------------
+
+
+class TestHeaderVariants:
+    """CSV headers shipped by the rom-name-cn project are inconsistent.
+
+    Before this fix, any header other than exactly "Name EN,Name CN" silently
+    dropped the Chinese column (Sega Saturn / Dreamcast returned empty CN →
+    "renaming did nothing", issue #36) or dropped the whole file (UTF-8 BOM,
+    "EN Name,CN Name", arcade 3-column layouts → lookup always missed).
+    """
+
+    _VARIANT_PLATFORM = "Test - Platform"
+
+    def _write_csv(
+        self,
+        tmp_path: Path,
+        header: str,
+        rows: list[tuple[str, str]],
+        bom: bool = False,
+    ) -> None:
+        alias_dir = tmp_path / "assets" / "rom-name-alias-cn"
+        alias_dir.mkdir(parents=True, exist_ok=True)
+        lines = [header] + [f"{en},{cn}" for en, cn in rows]
+        text = "\n".join(lines) + "\n"
+        (alias_dir / f"{self._VARIANT_PLATFORM}.csv").write_text(
+            text, encoding="utf-8-sig" if bom else "utf-8"
+        )
+
+    @pytest.mark.parametrize(
+        ("header", "bom"),
+        [
+            ("Name EN,Name ZH", False),  # Sega Saturn / Dreamcast (issue #36)
+            ("Name EN,Name CN", True),  # UTF-8 BOM (Xbox / MAME family)
+            ("EN Name,CN Name", False),  # MSX2 / Famicom Disk System
+            ("Name En,Name CN", True),  # BOM + "En" typo (New Nintendo 3DS)
+        ],
+        ids=["name-zh", "bom", "en-name-cn-name", "bom-name-en-case"],
+    )
+    def test_cn_column_resolved_for_all_variants(
+        self, tmp_path: Path, header: str, bom: bool
+    ) -> None:
+        self._write_csv(
+            tmp_path, header, [("Guardian Heroes (Europe)", "守护英雄")], bom=bom
+        )
+        with patch.object(
+            module,
+            "_resolve_assets_dir",
+            return_value=tmp_path / "assets" / "rom-name-alias-cn",
+        ):
+            result = module.lookup("Guardian Heroes.rom", self._VARIANT_PLATFORM)
+        assert result is not None
+        assert result["chineseTitle"] == "守护英雄"
+        assert result["englishTitle"] == "Guardian Heroes"
+
+    def test_arcade_three_column_layout_ignores_mame_id(self, tmp_path: Path) -> None:
+        # Arcade CSVs (CPS1/2/3, NEOGEO) use "MAME Name,EN Name,CN Name".
+        # EN must come from the EN Name column; the MAME internal id must NOT
+        # be indexed as a display title.
+        alias_dir = tmp_path / "assets" / "rom-name-alias-cn"
+        alias_dir.mkdir(parents=True)
+        (alias_dir / f"{self._VARIANT_PLATFORM}.csv").write_text(
+            "\ufeffMAME Name,EN Name,CN Name\nmslug,Metal Slug,合金弹头\n",
+            encoding="utf-8",
+        )
+        with patch.object(module, "_resolve_assets_dir", return_value=alias_dir):
+            hit = module.lookup("Metal Slug.zip", self._VARIANT_PLATFORM)
+            mame_id = module.lookup("mslug.zip", self._VARIANT_PLATFORM)
+        assert hit is not None
+        assert hit["chineseTitle"] == "合金弹头"
+        assert hit["englishTitle"] == "Metal Slug"
+        # MAME internal id is not a display title — must not resolve
+        assert mame_id is None
+
+    def test_unrecognized_header_returns_empty(self, tmp_path: Path) -> None:
+        alias_dir = tmp_path / "assets" / "rom-name-alias-cn"
+        alias_dir.mkdir(parents=True)
+        (alias_dir / f"{self._VARIANT_PLATFORM}.csv").write_text(
+            "Foo,Bar\nGuardian Heroes,守护英雄\n", encoding="utf-8"
+        )
+        with patch.object(module, "_resolve_assets_dir", return_value=alias_dir):
+            exact, fuzzy = module._load_csv(self._VARIANT_PLATFORM)
+            result = module.lookup("Guardian Heroes.rom", self._VARIANT_PLATFORM)
+        assert exact.get("__exact__") == {}
+        assert fuzzy == {}
+        assert result is None
 
 
 # ---------------------------------------------------------------------------
@@ -372,12 +460,7 @@ class TestLookup:
 
 class TestLookupBatch:
     def test_batch_returns_hits(self, tmp_assets_dir):
-        from ai_rom_batch_renamer.classes.RomFile import RomFile
-
-        # Use a real temp file path so RomFile doesn't crash
-        dummy_path = str(tmp_assets_dir / "Super Mario Land (Japan).gb")
-
-        # Create a stub-like object instead to avoid filesystem dependency
+        # Use a stub-like object instead of a real RomFile to avoid filesystem dependency
         class FakeRomFile:
             def __init__(self, filename: str):
                 self.originalFilename = filename
