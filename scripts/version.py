@@ -96,12 +96,13 @@ def _write_const(version: str) -> None:
     if n == 0:
         # Malformed const.py (no VERSION marker). Rewriting the whole file
         # here would silently truncate it — the destructive behaviour this
-        # function exists to prevent — so warn and leave the file untouched.
+        # function exists to prevent. Abort like _write_pyproject does so the
+        # two files are never left half-synced by a partial set_version run.
         print(
-            "⚠ const.py has no VERSION assignment; leaving file unchanged",
+            "✗ const.py has no VERSION assignment; aborting without writing",
             file=sys.stderr,
         )
-        return
+        raise SystemExit(1)
     path.write_text(new_text, encoding="utf-8")
 
 
@@ -139,9 +140,11 @@ def _write_pyproject(version: str) -> None:
             got = parsed.get("tool", {}).get("poetry", {}).get("version")
             if got != version:
                 print(
-                    f"{_symbol(False, True)} TOML parse-check mismatch: got {got!r}",
+                    f"{_symbol(False)} TOML parse-check mismatch: got {got!r}, "
+                    f"expected {version!r}; aborting without writing",
                     file=sys.stderr,
                 )
+                raise SystemExit(1)
         except Exception as e:
             # The regex edit produced invalid TOML — do NOT write it, so the
             # last valid pyproject.toml stays on disk instead of persisting

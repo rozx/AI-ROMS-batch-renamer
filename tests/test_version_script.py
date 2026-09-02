@@ -139,29 +139,26 @@ class TestRunBump2VersionReturnCode:
         class FakeProc:
             returncode = 0
 
-        monkeypatch.setattr(
-            version_mod.subprocess, "run", lambda *a, **kw: FakeProc()
-        )
+        monkeypatch.setattr(version_mod.subprocess, "run", lambda *a, **kw: FakeProc())
         assert version_mod._run_bump2version(["patch"]) == 0
 
     def test_failure_returns_actual_code(self, monkeypatch: pytest.MonkeyPatch):
         class FakeProc:
             returncode = 3
 
-        monkeypatch.setattr(
-            version_mod.subprocess, "run", lambda *a, **kw: FakeProc()
-        )
+        monkeypatch.setattr(version_mod.subprocess, "run", lambda *a, **kw: FakeProc())
         assert version_mod._run_bump2version(["patch"]) == 3
 
 
 class TestWriteGuards:
-    def test_const_without_marker_left_untouched(self, fake_project: Path):
+    def test_const_without_marker_aborts_and_leaves_file(
+        self, fake_project: Path
+    ):
         const_file = fake_project / "ai_rom_batch_renamer" / "modules" / "const.py"
         const_file.write_text("# no VERSION marker here\n", encoding="utf-8")
-        version_mod._write_const("2.0.0")
-        assert (
-            const_file.read_text(encoding="utf-8") == "# no VERSION marker here\n"
-        )
+        with pytest.raises(SystemExit):
+            version_mod._write_const("2.0.0")
+        assert const_file.read_text(encoding="utf-8") == "# no VERSION marker here\n"
 
     def test_pyproject_not_written_when_parse_check_fails(
         self, fake_project: Path, monkeypatch: pytest.MonkeyPatch
@@ -175,6 +172,24 @@ class TestWriteGuards:
                 raise ValueError("simulated TOML corruption")
 
         monkeypatch.setattr(version_mod, "toml", BrokenToml)
+        with pytest.raises(SystemExit):
+            version_mod._write_pyproject("2.0.0")
+        assert pyproject.read_text(encoding="utf-8") == before
+
+    def test_pyproject_not_written_when_version_mismatches(
+        self, fake_project: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        pyproject = fake_project / "pyproject.toml"
+        before = pyproject.read_text(encoding="utf-8")
+
+        class WrongToml:
+            @staticmethod
+            def loads(_s):
+                # Parses fine, but reports a different version than requested —
+            # the regex edit did not land where expected.
+                return {"tool": {"poetry": {"version": "0.0.1"}}}
+
+        monkeypatch.setattr(version_mod, "toml", WrongToml)
         with pytest.raises(SystemExit):
             version_mod._write_pyproject("2.0.0")
         assert pyproject.read_text(encoding="utf-8") == before
