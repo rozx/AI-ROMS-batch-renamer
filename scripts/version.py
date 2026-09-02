@@ -79,14 +79,14 @@ def _normalize_version(v: str) -> str:
     return v
 
 
-def _write_const(version: str) -> None:
-    """Replace only the VERSION assignment line, preserving the rest of the file.
+def _compute_const_text(version: str) -> str:
+    """Return the new const.py contents with the VERSION line replaced.
 
-    A previous implementation rewrote the whole file as a single line, which
-    silently dropped the Nuitka workaround comments kept in const.py.
+    Raises SystemExit when the file has no VERSION marker — rewriting the
+    whole file in that case would silently truncate it, the destructive
+    behaviour this function exists to prevent.
     """
-    path = _const_path()
-    text = path.read_text(encoding="utf-8")
+    text = _const_path().read_text(encoding="utf-8")
     new_text, n = re.subn(
         r'(?m)^VERSION\s*=\s*["\'][^"\']*["\']',
         f'VERSION = "{version}"',
@@ -94,27 +94,19 @@ def _write_const(version: str) -> None:
         count=1,
     )
     if n == 0:
-        # Malformed const.py (no VERSION marker). Rewriting the whole file
-        # here would silently truncate it — the destructive behaviour this
-        # function exists to prevent. Abort like _write_pyproject does so the
-        # two files are never left half-synced by a partial set_version run.
         print(
-            "✗ const.py has no VERSION assignment; aborting without writing",
+            f"{_symbol(False)} const.py has no VERSION assignment; aborting",
             file=sys.stderr,
         )
         raise SystemExit(1)
-    path.write_text(new_text, encoding="utf-8")
+    return new_text
 
 
-def _write_bumpversion_cfg(version: str) -> None:
-    """Keep .bumpversion.cfg current_version in sync.
-
-    Without this, a later ``--bump`` fails because bump2version searches for
-    the stale version string recorded in the config.
-    """
+def _compute_bumpversion_cfg_text(version: str) -> str | None:
+    """Return the new .bumpversion.cfg contents, or None when absent/unchanged."""
     path = _project_root() / ".bumpversion.cfg"
     if not path.exists():
-        return
+        return None
     text = path.read_text(encoding="utf-8")
     new_text, n = re.subn(
         r"(?m)^current_version\s*=\s*\S+",
@@ -122,40 +114,37 @@ def _write_bumpversion_cfg(version: str) -> None:
         text,
         count=1,
     )
-    if n:
-        path.write_text(new_text, encoding="utf-8")
+    return new_text if n else None
 
 
-def _write_pyproject(version: str) -> None:
-    path = _pyproject_path()
-    text = path.read_text(encoding="utf-8")
-    # Precise in-place regex update only. A previous implementation round-tripped
-    # the file through toml.loads/dumps, which reformatted the whole document
-    # (array trailing commas, inline dependency tables exploded into separate
-    # [tool.poetry.dependencies.*] tables) and produced huge spurious diffs.
+def _compute_pyproject_text(version: str) -> str:
+    """Return the new pyproject.toml contents with the [tool.poetry] version replaced.
+
+    Precise in-place regex edit only — never a toml.dumps round-trip, which
+    reformats the whole document. Aborts (SystemExit) when the edited text
+    fails to parse or reports a different version; nothing is written here.
+    """
+    text = _pyproject_path().read_text(encoding="utf-8")
     new_text = _regex_update_version(text, version)
-    if toml:  # safety net: verify the edited file still parses
+    if toml:  # safety net: verify the edited text still parses
         try:
             parsed = toml.loads(new_text)
-            got = parsed.get("tool", {}).get("poetry", {}).get("version")
-            if got != version:
-                print(
-                    f"{_symbol(False)} TOML parse-check mismatch: got {got!r}, "
-                    f"expected {version!r}; aborting without writing",
-                    file=sys.stderr,
-                )
-                raise SystemExit(1)
         except Exception as e:
-            # The regex edit produced invalid TOML — do NOT write it, so the
-            # last valid pyproject.toml stays on disk instead of persisting
-            # a broken file.
             print(
                 f"{_symbol(False)} edited pyproject.toml failed to parse ({e}); "
                 "aborting without writing",
                 file=sys.stderr,
             )
             raise SystemExit(1) from e
-    path.write_text(new_text, encoding="utf-8")
+        got = parsed.get("tool", {}).get("poetry", {}).get("version")
+        if got != version:
+            print(
+                f"{_symbol(False)} TOML parse-check mismatch: got {got!r}, "
+                f"expected {version!r}; aborting without writing",
+                file=sys.stderr,
+            )
+            raise SystemExit(1)
+    return new_text
 
 
 def _regex_update_version(text: str, version: str) -> str:
@@ -195,10 +184,21 @@ def _regex_update_version(text: str, version: str) -> str:
 
 
 def set_version(explicit_version: str) -> None:
+    """Set the version across pyproject.toml, const.py and .bumpversion.cfg.
+
+    Two-phase: every file's new contents are computed and validated BEFORE
+    anything is written, so a failure in any compute step leaves all files
+    untouched instead of half-synced.
+    """
     version = _normalize_version(explicit_version)
-    _write_pyproject(version)
-    _write_const(version)
-    _write_bumpversion_cfg(version)
+    new_pyproject = _compute_pyproject_text(version)
+    new_const = _compute_const_text(version)
+    new_cfg = _compute_bumpversion_cfg_text(version)
+
+    _pyproject_path().write_text(new_pyproject, encoding="utf-8")
+    _const_path().write_text(new_const, encoding="utf-8")
+    if new_cfg is not None:
+        (_project_root() / ".bumpversion.cfg").write_text(new_cfg, encoding="utf-8")
     print(f"{_symbol(True)} Set version to {version}")
 
 

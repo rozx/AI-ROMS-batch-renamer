@@ -151,20 +151,27 @@ class TestRunBump2VersionReturnCode:
 
 
 class TestWriteGuards:
-    def test_const_without_marker_aborts_and_leaves_file(
-        self, fake_project: Path
-    ):
+    """Failure in any compute step must leave ALL files untouched (two-phase
+    set_version), never a half-synced pyproject/const pair."""
+
+    def test_const_without_marker_aborts_writing_nothing(self, fake_project: Path):
         const_file = fake_project / "ai_rom_batch_renamer" / "modules" / "const.py"
+        pyproject = fake_project / "pyproject.toml"
         const_file.write_text("# no VERSION marker here\n", encoding="utf-8")
+        py_before = pyproject.read_text(encoding="utf-8")
         with pytest.raises(SystemExit):
-            version_mod._write_const("2.0.0")
+            version_mod.set_version("2.0.0")
+        # const.py untouched — and crucially pyproject.toml untouched too
         assert const_file.read_text(encoding="utf-8") == "# no VERSION marker here\n"
+        assert pyproject.read_text(encoding="utf-8") == py_before
 
     def test_pyproject_not_written_when_parse_check_fails(
         self, fake_project: Path, monkeypatch: pytest.MonkeyPatch
     ):
         pyproject = fake_project / "pyproject.toml"
-        before = pyproject.read_text(encoding="utf-8")
+        const_file = fake_project / "ai_rom_batch_renamer" / "modules" / "const.py"
+        py_before = pyproject.read_text(encoding="utf-8")
+        const_before = const_file.read_text(encoding="utf-8")
 
         class BrokenToml:
             @staticmethod
@@ -173,23 +180,27 @@ class TestWriteGuards:
 
         monkeypatch.setattr(version_mod, "toml", BrokenToml)
         with pytest.raises(SystemExit):
-            version_mod._write_pyproject("2.0.0")
-        assert pyproject.read_text(encoding="utf-8") == before
+            version_mod.set_version("2.0.0")
+        assert pyproject.read_text(encoding="utf-8") == py_before
+        assert const_file.read_text(encoding="utf-8") == const_before
 
     def test_pyproject_not_written_when_version_mismatches(
         self, fake_project: Path, monkeypatch: pytest.MonkeyPatch
     ):
         pyproject = fake_project / "pyproject.toml"
-        before = pyproject.read_text(encoding="utf-8")
+        const_file = fake_project / "ai_rom_batch_renamer" / "modules" / "const.py"
+        py_before = pyproject.read_text(encoding="utf-8")
+        const_before = const_file.read_text(encoding="utf-8")
 
         class WrongToml:
             @staticmethod
             def loads(_s):
                 # Parses fine, but reports a different version than requested —
-            # the regex edit did not land where expected.
+                # the regex edit did not land where expected.
                 return {"tool": {"poetry": {"version": "0.0.1"}}}
 
         monkeypatch.setattr(version_mod, "toml", WrongToml)
         with pytest.raises(SystemExit):
-            version_mod._write_pyproject("2.0.0")
-        assert pyproject.read_text(encoding="utf-8") == before
+            version_mod.set_version("2.0.0")
+        assert pyproject.read_text(encoding="utf-8") == py_before
+        assert const_file.read_text(encoding="utf-8") == const_before
