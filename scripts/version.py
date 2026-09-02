@@ -102,9 +102,13 @@ def _compute_const_text(version: str) -> str:
     return new_text
 
 
+def _bumpversion_cfg_path() -> Path:
+    return _project_root() / ".bumpversion.cfg"
+
+
 def _compute_bumpversion_cfg_text(version: str) -> str | None:
     """Return the new .bumpversion.cfg contents, or None when absent/unchanged."""
-    path = _project_root() / ".bumpversion.cfg"
+    path = _bumpversion_cfg_path()
     if not path.exists():
         return None
     text = path.read_text(encoding="utf-8")
@@ -114,7 +118,17 @@ def _compute_bumpversion_cfg_text(version: str) -> str | None:
         text,
         count=1,
     )
-    return new_text if n else None
+    if n == 0:
+        # Config exists but is malformed. Not fatal (the file is optional for
+        # --set), but staying silent here would hide the exact state that
+        # breaks a later --bump.
+        print(
+            f"{_symbol(False, True)} .bumpversion.cfg has no current_version "
+            "assignment; skipping sync",
+            file=sys.stderr,
+        )
+        return None
+    return new_text
 
 
 def _compute_pyproject_text(version: str) -> str:
@@ -198,7 +212,7 @@ def set_version(explicit_version: str) -> None:
     _pyproject_path().write_text(new_pyproject, encoding="utf-8")
     _const_path().write_text(new_const, encoding="utf-8")
     if new_cfg is not None:
-        (_project_root() / ".bumpversion.cfg").write_text(new_cfg, encoding="utf-8")
+        _bumpversion_cfg_path().write_text(new_cfg, encoding="utf-8")
     print(f"{_symbol(True)} Set version to {version}")
 
 

@@ -1,9 +1,9 @@
 """tests/test_version_script.py – Regression tests for scripts/version.py.
 
 Covers the destructive side effects fixed in v3.2.0:
-  - ``_write_const`` must replace only the VERSION line, preserving the
+  - ``_compute_const_text`` must replace only the VERSION line, preserving the
     Nuitka workaround comments kept in const.py.
-  - ``_write_pyproject`` must not reformat the TOML document (the old
+  - ``_compute_pyproject_text`` must not reformat the TOML document (the old
     toml.dumps round-trip exploded inline dependency tables and added
     trailing commas everywhere).
   - ``set_version`` must keep .bumpversion.cfg's current_version in sync so
@@ -204,3 +204,13 @@ class TestWriteGuards:
             version_mod.set_version("2.0.0")
         assert pyproject.read_text(encoding="utf-8") == py_before
         assert const_file.read_text(encoding="utf-8") == const_before
+
+    def test_bumpversion_cfg_without_marker_warns_and_skips(
+        self, fake_project: Path, capsys: pytest.CaptureFixture[str]
+    ):
+        cfg = fake_project / ".bumpversion.cfg"
+        cfg.write_text("[bumpversion]\n", encoding="utf-8")
+        # Optional file with no marker: warn, skip sync, do not abort
+        version_mod.set_version("2.0.0")
+        assert "current_version" in capsys.readouterr().err
+        assert cfg.read_text(encoding="utf-8") == "[bumpversion]\n"
